@@ -646,16 +646,16 @@ body.is-touring .wall {
 }
 
 .tile-kind {
-  position: absolute;
-  top: 7px;
-  left: 7px;
-  z-index: 1;
-  padding: 2px 6px 2px 14px;
+  position: relative;
+  display: inline-block;
+  margin-right: 7px;
+  padding: 1px 5px 1px 13px;
+  vertical-align: 1px;
   font-size: 9px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
   color: var(--fg);
-  background: rgba(4, 5, 6, 0.62);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 2px;
 }
 

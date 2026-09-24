@@ -108,10 +108,12 @@ const Tile = memo(function Tile({
         <img className="tile-layer is-front" alt="" decoding="async" ref={(el) => void (layers.current[0] = el)} />
         <img className="tile-layer" alt="" decoding="async" ref={(el) => void (layers.current[1] = el)} />
       </div>
-      {/* Every tile is a snapshot, so the ones that open onto a live stream say so. */}
-      {camera.has_video && <span className="tile-kind">Video</span>}
       <div className="tile-label">
-        <span className="tile-where">{camera.location}</span>
+        {/* Every tile is a snapshot, so the ones that open onto a live stream say so. It sits in the label strip rather than on the picture, where agencies print their own captions. */}
+        <span className="tile-where">
+          {camera.has_video && <span className="tile-kind">Video</span>}
+          {camera.location}
+        </span>
         {caption && <span className="tile-city">{caption}</span>}
       </div>
       <div className="tile-pulse">
