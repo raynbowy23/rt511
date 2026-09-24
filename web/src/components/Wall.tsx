@@ -155,15 +155,16 @@ export function Wall({
 
   /** One observer for the whole grid. The margin is half a screen above and below, which is about two rows of tiles: enough that a tile is warm by the time it scrolls in, and not so much that the fast tier quietly becomes the whole city again. */
   useEffect(() => {
+    const seen = onScreen.current;
     const instance = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           const id = Number((entry.target as HTMLElement).dataset.id);
           if (!Number.isFinite(id)) continue;
-          if (entry.isIntersecting) onScreen.current.add(id);
-          else onScreen.current.delete(id);
+          if (entry.isIntersecting) seen.add(id);
+          else seen.delete(id);
         }
-        report.current([...onScreen.current]);
+        report.current([...seen]);
       },
       { rootMargin: '50% 0px', threshold: 0 },
     );
@@ -171,7 +172,7 @@ export function Wall({
     return () => {
       instance.disconnect();
       setObserver(null);
-      onScreen.current.clear();
+      seen.clear();
     };
   }, []);
 

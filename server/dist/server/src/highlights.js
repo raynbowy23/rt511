@@ -12,7 +12,7 @@ const DIRECTIONS = { NB: 'northbound', SB: 'southbound', EB: 'eastbound', WB: 'w
 const SMALL_WORDS = new Set(['at', 'and', 'of', 'the', 'to', 'on', 'in', 'near', 'by', 'from']);
 function word(raw) {
     // Brackets and trailing commas are kept around the word rather than letting them hide it, so "(SR-874 NB)" still reads "(SR-874 northbound)".
-    const [, open, token, close] = /^([(\[]*)(.*?)([)\],]*)$/.exec(raw) ?? ['', '', raw, ''];
+    const [, open, token, close] = /^([([]*)(.*?)([)\],]*)$/.exec(raw) ?? ['', '', raw, ''];
     return `${open}${core(token)}${close}`;
 }
 function core(token) {

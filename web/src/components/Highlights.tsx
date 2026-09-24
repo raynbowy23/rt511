@@ -37,7 +37,7 @@ export function Highlights({ region, onSelect }: { region?: string | undefined; 
     if (!rows.previous.length) return;
     const timer = window.setTimeout(() => setRows((old) => ({ ...old, previous: [] })), 900);
     return () => window.clearTimeout(timer);
-  }, [rows.revision]);
+  }, [rows.revision, rows.previous.length]);
   if (!rows.current.length) return null;
   const row = (items: Highlight[], outgoing: boolean): ReactElement => <div className={`hl-row ${outgoing ? 'hl-outgoing' : 'hl-incoming'}`} key={`${rows.revision}-${outgoing}`} aria-hidden={outgoing || undefined} inert={outgoing}>
     {items.map((item, i) => <button className="hl-card" type="button" key={i} onClick={() => onSelect(item.camera)} tabIndex={outgoing ? -1 : 0}>

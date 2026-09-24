@@ -69,8 +69,9 @@ up: ## build, then run the server and the detector together
 build: ## build the server and the wall
 	pnpm build
 
-check: ## type-check everything, then lint the Python and check its formatting
+check: ## type-check and lint the TypeScript, then lint the Python and check its formatting
 	pnpm check
+	pnpm lint
 	$(RUFF) check src tests
 	$(RUFF) format --check src tests
 

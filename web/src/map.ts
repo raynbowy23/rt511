@@ -695,7 +695,7 @@ export class MapView {
   private drawNodes(ctx: CanvasRenderingContext2D, layer: RegionLayer, view: View): void {
     const halos = new Path2D();
     const fills = new Map<string, { path: Path2D; stroke: string }>();
-    let decorate: { entry: MapSite; sx: number; sy: number; radius: number }[] = [];
+    const decorate: { entry: MapSite; sx: number; sy: number; radius: number }[] = [];
 
     const add = (colour: string, stroke: string, sx: number, sy: number, radius: number): void => {
       let group = fills.get(colour);
@@ -763,7 +763,6 @@ export class MapView {
     }
 
     for (const { entry, sx, sy, radius } of decorate) this.decorateSite(ctx, entry, sx, sy, radius);
-    decorate = [];
   }
 
   /** Hover and selection are drawn per node, because there are at most two of them. */

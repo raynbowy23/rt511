@@ -11,7 +11,8 @@
     "dev": "concurrently -n api,web -c cyan,magenta -k --handle-input \"pnpm dev:api\" \"pnpm dev:web\"",
     "dev:api": "pnpm --filter @rt511/server run build && node server/dist/server/src/index.js",
     "dev:web": "pnpm --filter rt511-web run dev",
-    "check": "pnpm --recursive run check"
+    "check": "pnpm --recursive run check",
+    "lint": "eslint --max-warnings 0 ."
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -20,6 +21,11 @@
     ]
   },
   "devDependencies": {
-    "concurrently": "^10.0.5"
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.5",
+    "eslint": "^10.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.12.0",
+    "typescript-eslint": "^8.70.1"
   }
 }
