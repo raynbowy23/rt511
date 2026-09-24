@@ -24,6 +24,15 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/rt511"]
 
+[tool.ruff]
+target-version = "py312"
+# Lines are not wrapped at a column in this repository, so the limit is set past the longest line and only matters to import sorting.
+line-length = 500
+
+[tool.ruff.lint]
+# Chosen explicitly so a ruff upgrade does not change what the gate checks. Pyflakes and the syntax errors, import order, bugbear, and modern-syntax upgrades for 3.12.
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+
 [[tool.uv.index]]
 name = "pytorch"
 url = "https://download.pytorch.org/whl/cu130"

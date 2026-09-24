@@ -20,6 +20,9 @@ DETECT_PORT ?= 8513
 RADIUS ?= 15
 LIMIT ?= 80
 
+# Pinned and run through uvx, so the linter needs no entry in uv.lock and every machine runs the same version.
+RUFF = uvx ruff@0.16.8
+
 DETECT = uv run rt511 detect --weights $(WEIGHTS) --port $(DETECT_PORT) $(if $(DEVICE),--device $(DEVICE))
 
 help: ## list the targets
@@ -66,8 +69,9 @@ up: ## build, then run the server and the detector together
 build: ## build the server and the wall
 	pnpm build
 
-check: ## type-check everything
+check: ## type-check everything and lint the Python
 	pnpm check
+	$(RUFF) check src tests
 
 test: test-server test-python ## every test suite
 

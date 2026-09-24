@@ -4,6 +4,7 @@ Snapping is scored rather than nearest-wins. A camera's route number, when it ha
 
 from collections import defaultdict
 from dataclasses import dataclass, field
+from itertools import pairwise
 
 import networkx as nx
 from shapely.geometry import LineString, Point
@@ -253,7 +254,7 @@ def splice_sites(road: nx.DiGraph, sites: list[Site]) -> nx.DiGraph:
             g.remove_edge(a, b)
         if rev is not None:
             g.remove_edge(b, a)
-        for (t1, n1), (t2, n2) in zip(chain, chain[1:]):
+        for (t1, n1), (t2, n2) in pairwise(chain):
             if n1 == n2:
                 continue
             piece = {**attrs, "length_m": max(t2 - t1, 0.01), "tt_s": max(t2 - t1, 0.01) / speed}

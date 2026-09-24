@@ -33,7 +33,7 @@ def find_metros(root: Path, min_cameras: int = 40) -> list[Metro]:
     cells: list[tuple[int, str, float, float]] = []
     for key, arr in index.items():
         grid: dict[tuple[int, int], list[tuple[float, float]]] = {}
-        for lat, lon in zip(arr["lat"], arr["lon"]):
+        for lat, lon in zip(arr["lat"], arr["lon"], strict=True):
             grid.setdefault((round(lat / CELL_DEG), round(lon / CELL_DEG)), []).append((lat, lon))
         for pts in grid.values():
             if len(pts) >= MIN_CELL:

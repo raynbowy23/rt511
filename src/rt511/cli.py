@@ -4,7 +4,6 @@ This is a batch tool, not a service. It discovers where cameras are, fetches a r
 
 import argparse
 import asyncio
-import json
 import time
 import urllib.error
 from pathlib import Path

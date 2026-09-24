@@ -4,6 +4,7 @@ import json
 import math
 from collections import Counter
 from dataclasses import dataclass, field
+from itertools import pairwise
 from pathlib import Path
 
 import networkx as nx
@@ -155,7 +156,7 @@ def network_adjacency(g: nx.DiGraph, sites: list[Site], frame: LocalFrame) -> li
                 continue
             tt = 0.0
             highways: list[str] = []
-            for u, v in zip(path, path[1:]):
+            for u, v in pairwise(path):
                 d = g.edges[u, v]
                 tt += d["tt_s"]
                 if d.get("highway") and (not highways or highways[-1] != d["highway"]):
