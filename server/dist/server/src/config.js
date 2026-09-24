@@ -76,6 +76,7 @@ export function loadSources(root) {
             terms_url: typeof rec.terms_url === 'string' ? rec.terms_url : '',
             notice: typeof rec.notice === 'string' ? rec.notice : '',
             max_requests_per_s: typeof rec.max_requests_per_s === 'number' && rec.max_requests_per_s > 0 ? rec.max_requests_per_s : null,
+            focus_period_s: typeof rec.focus_period_s === 'number' && rec.focus_period_s > 0 ? rec.focus_period_s : null,
             feed: typeof rec.feed === 'object' && rec.feed !== null ? rec.feed : {},
         };
     }

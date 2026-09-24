@@ -87,6 +87,7 @@
    "video_auth": false,
    "has_video": false,
    "poll_period_s": 60.0,
+   "focus_period_s": 15.0,
    "token_url": null,
    "attribution": "Camera imagery courtesy of the Kentucky Transportation Cabinet",
    "license": "Creative Commons Zero (CC0), public domain, as published by KYTC",
@@ -103,7 +104,7 @@
      "https://www.trimarc.org/images/milestone/"
     ]
    },
-   "notes": "KYTC's statewide cameras, served through its TRIMARC system under images/milestone/. The layer also lists a few Indiana TrafficWise cameras and old TRIMARC snapshot paths; KYTC's CC0 statement cannot cover another agency's images and the old paths are dead, so only the milestone prefix is kept.",
+   "notes": "KYTC's statewide cameras, served through its TRIMARC system under images/milestone/. The layer also lists a few Indiana TrafficWise cameras and old TRIMARC snapshot paths; KYTC's CC0 statement cannot cover another agency's images and the old paths are dead, so only the milestone prefix is kept. KYTC publishes no refresh interval; sampled on 2026-09-24 the pictures changed every 13 to 22 seconds, so the one camera open in the panel is fetched every 15 seconds, conditionally.",
    "counts": {
     "layer": "https://services2.arcgis.com/CcI36Pduqd0OR4W9/arcgis/rest/services/Traffic_Section_Middle_Third/FeatureServer/0",
     "fields": {
@@ -129,6 +130,7 @@
    "video_auth": false,
    "has_video": false,
    "poll_period_s": 60.0,
+   "focus_period_s": 5.0,
    "token_url": null,
    "attribution": "Camera imagery courtesy of the Ohio Department of Transportation (OHGO)",
    "license": "Public domain, per ODOT: \"the data from ODOT is considered public domain and therefore freely available to anyone\"",
@@ -137,7 +139,7 @@
    "feed": {
     "url": "https://publicapi.ohgo.com/api/v1/cameras"
    },
-   "notes": "OHGO Public API. ODOT's terms cap a key at a published request rate (25 a second when checked, subject to change); this source is held to 10 a second, and the key is only used for the camera list, three pages of 500. Each camera view is its own image and becomes its own camera. Images are on itscameras.dot.state.oh.us and need no key; ODOT says they refresh every five seconds.",
+   "notes": "OHGO Public API. ODOT's terms cap a key at a published request rate (25 a second when checked, subject to change); this source is held to 10 a second, and the key is only used for the camera list, three pages of 500. Each camera view is its own image and becomes its own camera. Images are on itscameras.dot.state.oh.us and need no key; ODOT says they refresh every five seconds, so the one camera open in the panel is fetched at that rate.",
    "auth": {
     "env": "OHIODOT_API",
     "header": "Authorization",

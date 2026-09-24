@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
-import { getFrames, snapUrl, type Camera, type RegionMeta, type Frame, type Incident } from '../api';
+import { getFrames, getLive, liveUrl, snapUrl, type Camera, type RegionMeta, type Frame, type Incident } from '../api';
 import { since } from './IncidentCard';
 import { usePlayer } from '../hooks/usePlayer';
 import { Ptz } from '../ptz';
 import type { AttentionAxes } from '@rt511/shared';
 import { LiveMotion } from './LiveMotion';
 import { NightShift } from './NightShift';
+import { Crossfade } from './Crossfade';
 
 /** The promoted camera: the one video element in the application, the ring buffer behind it as an instant replay, and digital pan, tilt and zoom over both.
  *
@@ -45,7 +46,6 @@ export function CameraPanel({
   const stage = useRef<HTMLDivElement>(null);
   const media = useRef<HTMLDivElement>(null);
   const zoom = useRef<HTMLDivElement>(null);
-  const still = useRef<HTMLImageElement>(null);
   const [video, setVideo] = useState<HTMLVideoElement | null>(null);
   const ptz = useRef<Ptz | null>(null);
 
@@ -59,6 +59,32 @@ export function CameraPanel({
   const inFlight = useRef(false);
 
   const { mode, live: streaming } = usePlayer(video, camera);
+
+  /** The open camera at its agency's own refresh rate, where that is faster than the wall's poll: how often a new picture can be expected, and when the newest was taken. */
+  const [focusPeriod, setFocusPeriod] = useState<number | null>(null);
+  const [focusTs, setFocusTs] = useState<number | null>(null);
+  const wantsFocus = camera !== null && visible && live && !streaming;
+
+  useEffect(() => {
+    setFocusPeriod(null);
+    setFocusTs(null);
+    if (!camera || !wantsFocus) return;
+    let cancelled = false;
+    let timer = 0;
+    const run = async (): Promise<void> => {
+      const response = await getLive(camera.id);
+      if (cancelled) return;
+      setFocusPeriod(response?.period_s ?? null);
+      if (response?.ts) setFocusTs(response.ts);
+      // A source with no focus period has nothing faster to offer, and the ring's own refresh carries on, so there is no reason to keep asking.
+      if (response && response.period_s !== null) timer = window.setTimeout(() => void run(), response.period_s * 1000);
+    };
+    void run();
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [camera, wantsFocus]);
 
   useEffect(() => {
     const viewport = stage.current;
@@ -145,14 +171,16 @@ export function CameraPanel({
   const stillSrc = useMemo(() => {
     // Nothing to ask for until the camera has a frame. A server started without a named city polls nothing until one is opened, so a camera can be legitimately empty for its first minute, and requesting a snapshot then is a guaranteed 404.
     if (!camera || frames.length === 0) return '';
+    if (live && focusPeriod !== null && focusTs !== null && focusTs >= (frame?.ts ?? 0)) return liveUrl(camera.id, focusTs);
     if (live || !frame) return snapUrl(camera.id, -1, frame?.ts ?? Date.now() / 1000);
     return snapUrl(camera.id, frame.k, frame.ts);
-  }, [camera, live, frame, frames.length]);
+  }, [camera, live, frame, frames.length, focusPeriod, focusTs]);
 
-  const badge = live ? (streaming ? 'Live' : mode) : 'Replay';
-  const stamp = frame
-    ? `${new Date(frame.ts * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })} · ${
-        live ? 'newest frame' : `${Math.max(0, Math.round(Date.now() / 1000 - frame.ts))}s ago`
+  const badge = live ? (streaming ? 'Live' : focusPeriod !== null ? `Every ${String(focusPeriod)} s` : mode) : 'Replay';
+  const shownTs = live && focusPeriod !== null && focusTs !== null ? Math.max(focusTs, frame?.ts ?? 0) : frame?.ts;
+  const stamp = shownTs !== undefined
+    ? `${new Date(shownTs * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })} · ${
+        live ? 'newest frame' : `${Math.max(0, Math.round(Date.now() / 1000 - shownTs))}s ago`
       }`
     : '';
 
@@ -164,16 +192,12 @@ export function CameraPanel({
     <section className={className} ref={root} hidden={!visible} data-mode={badge.toLowerCase().replace(/\s+/g, '-')}>
       <div className="hero-stage" ref={stage}>
         <div className="hero-media" ref={media}>
-          <img
+          <Crossfade
             className={`hero-still${showStill ? ' is-visible' : ''}`}
-            ref={still}
-            src={stillSrc || undefined}
-            alt=""
-            decoding="async"
-            draggable={false}
-            onLoad={(event) => {
-              const image = event.currentTarget;
-              if (!video || video.videoWidth === 0) adoptSource(image.naturalWidth, image.naturalHeight);
+            src={stillSrc}
+            fadeMs={live && !playing ? 700 : 120}
+            onSize={(width, height) => {
+              if (!video || video.videoWidth === 0) adoptSource(width, height);
             }}
           />
           <video

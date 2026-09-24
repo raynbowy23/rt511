@@ -572,3 +572,10 @@ export interface CountResponse {
   by_class?: Record<string, number>;
   frame_ts?: number;
 }
+
+/** The camera open in the panel: how often its source refreshes the picture when that is faster than the wall's poll, and when the newest picture was taken. `period_s` is null for a source with no focus period. */
+export interface LiveResponse {
+  id: number;
+  period_s: number | null;
+  ts: number | null;
+}

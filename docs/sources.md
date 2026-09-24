@@ -16,9 +16,9 @@ Surveyed 2026-09-22 across all fifty states and DC. The full table, with the ter
 | --- | --- | --- | --- | --- | --- | --- |
 | `caltrans` | `caltrans` | `cwwp2.dot.ca.gov/data/d{n}/cctv/cctvStatusD{nn}.json`, twelve district files | 3,412 in service | 2,184, open HLS on `wzmedia.dot.ca.gov`, CORS `*` | 5 min | Caltrans Conditions of Use: public domain unless otherwise indicated |
 | `iowadot` | `arcgis` | Iowa DOT `Traffic_Cameras_View` FeatureServer layer 0 | 1,251 | 692, open HLS on `video*.iowadot.gov:8888`, CORS `*` | unmeasured, polled at 60 s | CC BY 4.0 |
-| `kytc` | `arcgis` | KYTC `trafficCamerasCur_Prd` FeatureServer layer 0 | 247 after filtering | none | unmeasured, polled at 60 s | CC0, stated by KYTC |
-| `ohgo` | `ohgo` | OHGO Public API `/api/v1/cameras`, 500 a page, your own key | 1,121, one per camera view | none | 5 s per ODOT, polled at 60 s | Public domain per ODOT; a published per-key rate cap, 25 a second when checked |
-| `tripcheck` | `tripcheck` | TripCheck API `Cctv/Inventory`, your own key | 1,117 | none | unmeasured, polled at 60 s | Use and circulate with credit, mirroring on your own server, and ODOT's disclaimer repeated |
+| `kytc` | `arcgis` | KYTC `trafficCamerasCur_Prd` FeatureServer layer 0 | 247 after filtering | none | unpublished; changed every 13 to 22 s when sampled on 2026-09-24. Polled at 60 s, the open camera at 15 s | CC0, stated by KYTC |
+| `ohgo` | `ohgo` | OHGO Public API `/api/v1/cameras`, 500 a page, your own key | 1,121, one per camera view | none | 5 s per ODOT, and confirmed by sampling on 2026-09-24. Polled at 60 s, the open camera at 5 s | Public domain per ODOT; a published per-key rate cap, 25 a second when checked |
+| `tripcheck` | `tripcheck` | TripCheck API `Cctv/Inventory`, your own key | 1,117 | none | unpublished; changed once in two minutes when sampled on 2026-09-24. Polled at 60 s | Use and circulate with credit, mirroring on your own server, and ODOT's disclaimer repeated |
 | `necompass` | `compass` | New England Compass C2C XML, `cctvStatusData` for positions, `cctvSnapshotData` for pictures, per state | 493 across ME, NH, VT | none | about two minutes (73 of 84 Vermont pictures changed in 2.5 min), fetched every 5 min | Use, reproduce and redistribute, acknowledging Tri-State |
 
 What the code has to know about them:

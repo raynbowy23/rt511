@@ -19,6 +19,7 @@ import type {
   DiaryResponse,
   PulseResponse,
   CountResponse,
+  LiveResponse,
 } from '@rt511/shared';
 import { arr, field, latLonLine, latLonRings, lonLatRings, num, obj, ShapeError, str } from './validate';
 
@@ -253,6 +254,11 @@ export async function getStream(id: number): Promise<StreamLookup> {
 }
 
 /** Snapshot URL for a ring-buffer index. `bust` should be the frame's `last_ts`, which is the only thing that tells us the bytes changed. */
+/** The newest picture of the camera open in the panel, from the focus fetch or the ring, whichever is newer. The timestamp only makes each new picture a distinct URL. */
+export function liveUrl(id: number, ts: number): string {
+  return `/api/snap/${id}?k=live&t=${Math.floor(ts * 10)}`;
+}
+
 export function snapUrl(id: number, k: number, bust?: number): string {
   const t = bust === undefined ? '' : `&t=${Math.floor(bust)}`;
   return `/api/snap/${id}?k=${k}${t}`;
@@ -306,7 +312,7 @@ export const getHighlights = (region?: string): Promise<HighlightsResponse | nul
   return root as unknown as HighlightsResponse;
 });
 
-export type { CountResponse } from '@rt511/shared';
+export type { CountResponse, LiveResponse } from '@rt511/shared';
 export type { DiaryEntry, DiaryKind, DiaryResponse, PulsePoint, PulseResponse, SkyRegion, SkyResponse } from '@rt511/shared';
 
 export const getSky = (): Promise<SkyResponse | null> => getJson('/api/sky', (body) => {
@@ -357,4 +363,13 @@ export const getCount = (id: number): Promise<CountResponse | null> => getJson(`
     obj(root.by_class, 'count.by_class');
   }
   return root as unknown as CountResponse;
+});
+
+/** Keeps the open camera on its agency's own refresh rate and says when its newest picture was taken. Null when the server cannot be reached. */
+export const getLive = (id: number): Promise<LiveResponse | null> => getJson(`/api/live/${String(id)}`, (body) => {
+  const root = obj(body, 'live');
+  num(root.id, 'live.id');
+  if (root.period_s !== null) num(root.period_s, 'live.period_s');
+  if (root.ts !== null) num(root.ts, 'live.ts');
+  return root as unknown as LiveResponse;
 });

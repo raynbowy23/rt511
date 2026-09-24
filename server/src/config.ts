@@ -28,6 +28,8 @@ export interface Source {
   notice: string;
   /** The most requests a second this project sends the source, at or below whatever the agency publishes. Null means only the concurrency budget applies. */
   max_requests_per_s: number | null;
+  /** How often the one camera open in the panel is fetched, where the agency's pictures refresh faster than the wall's poll period. Null keeps the open camera on the ordinary period, which is right wherever the picture itself changes no faster than that. */
+  focus_period_s: number | null;
   /** For a bulk source, the state networks its snapshot documents are fetched by, keyed by state. */
   feed: Record<string, unknown>;
 }
@@ -140,6 +142,7 @@ export function loadSources(root: string): SourceTable {
       terms_url: typeof rec.terms_url === 'string' ? rec.terms_url : '',
       notice: typeof rec.notice === 'string' ? rec.notice : '',
       max_requests_per_s: typeof rec.max_requests_per_s === 'number' && rec.max_requests_per_s > 0 ? rec.max_requests_per_s : null,
+      focus_period_s: typeof rec.focus_period_s === 'number' && rec.focus_period_s > 0 ? rec.focus_period_s : null,
       feed: typeof rec.feed === 'object' && rec.feed !== null ? (rec.feed as Record<string, unknown>) : {},
     };
   }

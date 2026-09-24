@@ -4,7 +4,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { GraphPromotion, CamerasResponse, ScoreCamera, ScoresResponse, Graph, Incident, IncidentsResponse, NationalResponse, RegionsResponse, RoadsResponse, Highlight, SkyRegion, SkyResponse, DiaryResponse, PulseResponse, CountResponse } from '../../shared/src/index.js';
+import type { GraphPromotion, CamerasResponse, ScoreCamera, ScoresResponse, Graph, Incident, IncidentsResponse, NationalResponse, RegionsResponse, RoadsResponse, Highlight, SkyRegion, SkyResponse, DiaryResponse, PulseResponse, CountResponse, LiveResponse } from '../../shared/src/index.js';
 import { AttentionEngine, buildScalePriors, driver, summarizeRegions, TUNING } from './attention.js';
 import { CORRIDOR, buildQueueIndex, promotionTrigger, selectPromotions, type HeldTrigger } from './corridor.js';
 import { CadFeed, loadCadSources, type CameraPositions } from './cad.js';
@@ -27,6 +27,7 @@ import {
 } from './config.js';
 import { HttpError, Router, send } from './http.js';
 import { DETECTOR, Detector, createDetect } from './detector.js';
+import { Focus } from './focus.js';
 import { Diary, DIARY } from './diary.js';
 import { readSky } from './sky.js';
 import { Pulse } from './pulse.js';
@@ -134,6 +135,7 @@ export function createApp(options: AppOptions): App {
     clients.set(region.source, new Client(source, userAgent, concurrency));
   }
   const poller = new Poller(clients, byId, ring);
+  const focus = new Focus((camera) => clients.get(camera.source));
 
   // What is worth looking at, scored from the cameras' own history, the traffic they carry and what the state patrol is attending. The poller feeds it every poll that says something about a scene; nothing the poller does depends on it, and `activity` is untouched.
   const attention = new AttentionEngine(buildScalePriors({ regions: regions.map((r) => r.key), graphs, root, uidBlock: UID_BLOCK }), join(root, 'out'));
@@ -611,9 +613,29 @@ export function createApp(options: AppOptions): App {
     };
   });
 
-  /** Frame k of the ring buffer. Negative k counts from the newest, so the default is the latest frame. */
+  /** The camera open in the panel. Asking keeps it on its source's focus period for another half minute, and the answer says how often a new picture can be expected and when the newest was taken, so the panel reloads only when there is something new. A source with no focus period answers null and the panel carries on with the ring. */
+  router.get('/api/live/:id', ({ params }): LiveResponse => {
+    const uid = Number(params.id);
+    const slot = slotFor(params.id as string);
+    const period = focus.claim(uid, slot.camera);
+    const held = focus.frame(uid);
+    const newest = slot.frames[slot.frames.length - 1] ?? null;
+    // Whichever picture is newer, since the ordinary poll carries on beside the focus fetch and either may have the latest.
+    const ts = Math.max(held?.ts ?? 0, newest?.ts ?? 0);
+    return { id: uid, period_s: period, ts: ts > 0 ? ts : null };
+  });
+
+  /** Frame k of the ring buffer. Negative k counts from the newest, so the default is the latest frame. `k=live` is the newest picture from either the focus fetch or the ring. */
   router.get('/api/snap/:id', ({ params, query, res }) => {
     const slot = slotFor(params.id as string);
+    if (query.get('k') === 'live') {
+      const held = focus.frame(slot.uid);
+      const newest = slot.frames[slot.frames.length - 1];
+      const frame = held && (!newest || held.ts >= newest.ts) ? held : newest;
+      if (!frame) throw new HttpError(404, 'no frame yet');
+      send(res, 200, frame.data, frame.content_type, { 'cache-control': 'no-store', 'x-frame-ts': String(frame.ts) });
+      return;
+    }
     if (slot.frames.length === 0) throw new HttpError(404, 'no frame yet');
     const raw = query.get('k');
     const asked = raw === null ? -1 : Number(raw);
@@ -698,6 +720,7 @@ export function createApp(options: AppOptions): App {
       clearInterval(loadTimer);
       clearInterval(diaryTimer);
       poller.stop();
+      focus.stop();
     },
   };
 }
