@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 420" width="900" height="420" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+<defs>
+  <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#96a4b5"/>
+  </marker>
+  <marker id="headWarm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#b4541a"/>
+  </marker>
+</defs>
+<rect width="900" height="420" fill="#ffffff"/>
+<text x="28" y="34" font-size="15" font-weight="700" fill="#1d2530">Process 7. Incident arbitration. Four typed questions, asked once per record</text>
+<rect x="28" y="70" width="210" height="96" rx="7" fill="#f4f7fa" stroke="#96a4b5"/>
+<text x="133" y="95" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">One dispatch record</text>
+<text x="133" y="112" text-anchor="middle" font-size="12" fill="#5d6b7d">its cameras and their pictures</text>
+<text x="133" y="129" text-anchor="middle" font-size="12" fill="#5d6b7d">the corridor around them</text>
+<path d="M 238 118 L 316 118" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
+<text x="277" y="111" text-anchor="middle" font-size="11.5" fill="#5d6b7d">state, as text</text>
+<rect x="316" y="70" width="190" height="96" rx="7" fill="#f4f7fa" stroke="#1f6feb"/>
+<text x="411" y="95" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Jev, one call</text>
+<text x="411" y="112" text-anchor="middle" font-size="12" fill="#5d6b7d">at most 20 a minute</text>
+<text x="411" y="129" text-anchor="middle" font-size="12" fill="#5d6b7d">2 in flight</text>
+<path d="M 506 118 L 584 118" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
+<text x="545" y="111" text-anchor="middle" font-size="11.5" fill="#5d6b7d">four answers</text>
+<rect x="584" y="60" width="288" height="46" rx="7" fill="#f4f7fa" stroke="#96a4b5"/>
+<text x="728" y="88" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">supported (noul)</text>
+<rect x="584" y="114" width="288" height="46" rx="7" fill="#f4f7fa" stroke="#96a4b5"/>
+<text x="728" y="142" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">cleared (noul)</text>
+<rect x="584" y="168" width="288" height="46" rx="7" fill="#f4f7fa" stroke="#96a4b5"/>
+<text x="728" y="196" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">screen (score, 0 to 3)</text>
+<rect x="584" y="222" width="288" height="46" rx="7" fill="#f4f7fa" stroke="#96a4b5"/>
+<text x="728" y="250" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">camera (choice)</text>
+<path d="M 728 268 L 728 306" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
+<rect x="528" y="306" width="344" height="62" rx="7" fill="#f4f7fa" stroke="#b4541a"/>
+<text x="700" y="331" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Multiplier on the floor</text>
+<text x="700" y="348" text-anchor="middle" font-size="12" fill="#5d6b7d">an answer below its gate does nothing</text>
+<text x="28" y="210" text-anchor="start" font-size="12" fill="#5d6b7d">Gates: a noul must reach 0.8,</text>
+<text x="28" y="226" text-anchor="start" font-size="12" fill="#5d6b7d">a score or choice must reach 0.5 confidence.</text>
+<text x="28" y="242" text-anchor="start" font-size="12" fill="#5d6b7d"></text>
+<text x="28" y="258" text-anchor="start" font-size="12" fill="#5d6b7d">Only "cleared" may take a floor away, and it</text>
+<text x="28" y="274" text-anchor="start" font-size="12" fill="#5d6b7d">leaves 0.1 of it rather than nothing.</text>
+<text x="28" y="290" text-anchor="start" font-size="12" fill="#5d6b7d"></text>
+<text x="28" y="306" text-anchor="start" font-size="12" fill="#5d6b7d">A record is re-read every 60 s, but only</text>
+<text x="28" y="322" text-anchor="start" font-size="12" fill="#5d6b7d">once one of its cameras has a new frame,</text>
+<text x="28" y="338" text-anchor="start" font-size="12" fill="#5d6b7d">and at once if the dispatcher edits it.</text>
+</svg>

@@ -1,0 +1,206 @@
+[
+ {
+  "key": "burlington-vt",
+  "name": "Burlington, VT",
+  "source": "necompass",
+  "bbox": [
+   44.3405,
+   -73.403,
+   44.6118,
+   -73.0228
+  ],
+  "center": [
+   44.47616,
+   -73.212906
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
+  "key": "cincinnati-oh",
+  "name": "Cincinnati, OH",
+  "source": "ohgo",
+  "bbox": [
+   38.9656,
+   -84.6875,
+   39.2369,
+   -84.3379
+  ],
+  "center": [
+   39.101281,
+   -84.512741
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
+  "key": "cleveland-oh",
+  "name": "Cleveland, OH",
+  "source": "ohgo",
+  "bbox": [
+   41.364,
+   -81.8748,
+   41.6353,
+   -81.5126
+  ],
+  "center": [
+   41.499657,
+   -81.693677
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
+  "key": "columbus-oh",
+  "name": "Columbus, OH",
+  "source": "ohgo",
+  "bbox": [
+   39.8266,
+   -83.1777,
+   40.0979,
+   -82.8237
+  ],
+  "center": [
+   39.96226,
+   -83.000707
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
+  "key": "des-moines-ia",
+  "name": "Des Moines, IA",
+  "source": "iowadot",
+  "bbox": [
+   41.4512,
+   -93.8063,
+   41.7225,
+   -93.4436
+  ],
+  "center": [
+   41.586865,
+   -93.624949
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
+  "key": "lexington-ky",
+  "name": "Lexington, KY",
+  "source": "kytc",
+  "bbox": [
+   37.9108,
+   -84.6693,
+   38.1821,
+   -84.3248
+  ],
+  "center": [
+   38.046407,
+   -84.497039
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
+  "key": "los-angeles-ca",
+  "name": "Los Angeles, CA",
+  "source": "caltrans",
+  "bbox": [
+   33.918,
+   -118.4065,
+   34.1893,
+   -118.079
+  ],
+  "center": [
+   34.053691,
+   -118.242766
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
+  "key": "louisville-ky",
+  "name": "Louisville, KY",
+  "source": "kytc",
+  "bbox": [
+   38.1186,
+   -85.9322,
+   38.3899,
+   -85.5867
+  ],
+  "center": [
+   38.254238,
+   -85.759407
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
+  "key": "oakland-ca",
+  "name": "Oakland, CA",
+  "source": "caltrans",
+  "bbox": [
+   37.6688,
+   -122.443,
+   37.9401,
+   -122.0997
+  ],
+  "center": [
+   37.804456,
+   -122.271356
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
+  "key": "portland-me",
+  "name": "Portland, ME",
+  "source": "necompass",
+  "bbox": [
+   43.5217,
+   -70.4462,
+   43.793,
+   -70.0712
+  ],
+  "center": [
+   43.657361,
+   -70.258662
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
+  "key": "portland-or",
+  "name": "Portland, OR",
+  "source": "tripcheck",
+  "bbox": [
+   45.3846,
+   -122.8678,
+   45.6559,
+   -122.4806
+  ],
+  "center": [
+   45.520247,
+   -122.674194
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
+  "key": "san-diego-ca",
+  "name": "San Diego, CA",
+  "source": "caltrans",
+  "bbox": [
+   32.5801,
+   -117.3251,
+   32.8514,
+   -117.0026
+  ],
+  "center": [
+   32.715706,
+   -117.163828
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ }
+]

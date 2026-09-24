@@ -1,0 +1,86 @@
+{
+ "burlington, vt": {
+  "lat": 44.4761601,
+  "lon": -73.212906,
+  "name": "Burlington, VT",
+  "query": "Burlington, VT",
+  "state": "VT"
+ },
+ "cincinnati, oh": {
+  "lat": 39.1012809,
+  "lon": -84.5127405,
+  "name": "Cincinnati, OH",
+  "query": "Cincinnati, OH",
+  "state": "OH"
+ },
+ "cleveland, oh": {
+  "lat": 41.4996574,
+  "lon": -81.6936772,
+  "name": "Cleveland, OH",
+  "query": "Cleveland, OH",
+  "state": "OH"
+ },
+ "columbus, oh": {
+  "lat": 39.9622601,
+  "lon": -83.0007065,
+  "name": "Columbus, OH",
+  "query": "Columbus, OH",
+  "state": "OH"
+ },
+ "des moines, ia": {
+  "lat": 41.5868654,
+  "lon": -93.6249494,
+  "name": "Des Moines, IA",
+  "query": "Des Moines, IA",
+  "state": "IA"
+ },
+ "lexington, ky": {
+  "lat": 38.0464066,
+  "lon": -84.4970393,
+  "name": "Lexington, KY",
+  "query": "Lexington, KY",
+  "state": "KY"
+ },
+ "los angeles, ca": {
+  "lat": 34.0536909,
+  "lon": -118.242766,
+  "name": "Los Angeles, CA",
+  "query": "Los Angeles, CA",
+  "state": "CA"
+ },
+ "louisville, ky": {
+  "lat": 38.2542376,
+  "lon": -85.759407,
+  "name": "Louisville, KY",
+  "query": "Louisville, KY",
+  "state": "KY"
+ },
+ "oakland, ca": {
+  "lat": 37.8044557,
+  "lon": -122.271356,
+  "name": "Oakland, CA",
+  "query": "Oakland, CA",
+  "state": "CA"
+ },
+ "portland, me": {
+  "lat": 43.6573605,
+  "lon": -70.2586618,
+  "name": "Portland, ME",
+  "query": "Portland, ME",
+  "state": "ME"
+ },
+ "portland, or": {
+  "lat": 45.5202471,
+  "lon": -122.674194,
+  "name": "Portland, OR",
+  "query": "Portland, OR",
+  "state": "OR"
+ },
+ "san diego, ca": {
+  "lat": 32.7157062,
+  "lon": -117.1638284,
+  "name": "San Diego, CA",
+  "query": "San Diego, CA",
+  "state": "CA"
+ }
+}

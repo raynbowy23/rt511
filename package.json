@@ -1,0 +1,24 @@
+{
+  "name": "rt511",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "pnpm build && node server/dist/server/src/index.js",
+    "serve": "node server/dist/server/src/index.js",
+    "build": "pnpm --filter @rt511/server --filter rt511-web run build",
+    "dev": "concurrently -n api,web -c cyan,magenta -k --handle-input \"pnpm dev:api\" \"pnpm dev:web\"",
+    "dev:api": "pnpm --filter @rt511/server run build && node server/dist/server/src/index.js",
+    "dev:web": "pnpm --filter rt511-web run dev",
+    "check": "pnpm --recursive run check"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

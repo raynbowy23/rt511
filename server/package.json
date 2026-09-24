@@ -1,0 +1,23 @@
+{
+  "name": "@rt511/server",
+  "private": true,
+  "version": "0.0.0",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node --enable-source-maps dist/server/src/index.js",
+    "dev": "tsc && node --enable-source-maps dist/server/src/index.js",
+    "check": "tsc --noEmit",
+    "test": "tsc && node --test \"dist/server/src/*.test.js\""
+  },
+  "dependencies": {
+    "@rt511/shared": "workspace:*",
+    "@typesafe-ai/sdk": "^0.6.0",
+    "sharp": "^0.33.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "typescript": "^5.6.3"
+  }
+}

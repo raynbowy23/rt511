@@ -1,0 +1,206 @@
+{
+ "_comment": "Canonical table of the camera sources this project reads. Every source here is an agency's own published feed whose written terms allow a third-party viewer to show its cameras. Both the Python pipeline and the TypeScript server load this file. See docs/sources.md.",
+ "user_agent": "rt511/0.2 (open-source traffic camera viewer; https://github.com/raynbowy23/rt511)",
+ "sources": {
+  "caltrans": {
+   "kind": "caltrans",
+   "name": "Caltrans CWWP2",
+   "base_url": "https://quickmap.dot.ca.gov",
+   "states": [
+    "CA"
+   ],
+   "snapshot_content_type": "image/jpeg",
+   "video_auth": false,
+   "has_video": true,
+   "poll_period_s": 300.0,
+   "token_url": null,
+   "attribution": "Camera imagery courtesy of the California Department of Transportation (Caltrans)",
+   "license": "Public domain unless otherwise indicated, per the Caltrans Conditions of Use",
+   "terms_url": "https://dot.ca.gov/conditions-of-use",
+   "feed": {
+    "url": "https://cwwp2.dot.ca.gov/data/d{district}/cctv/cctvStatusD{district:02d}.json",
+    "districts": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10,
+     11,
+     12
+    ]
+   },
+   "notes": "Commercial Wholesale Web Portal. Snapshots refresh every five minutes and streams are open HLS on wzmedia.dot.ca.gov. Caltrans neither retains nor archives camera images."
+  },
+  "iowadot": {
+   "kind": "arcgis",
+   "name": "Iowa 511",
+   "base_url": "https://www.511ia.org",
+   "states": [
+    "IA"
+   ],
+   "snapshot_content_type": "image/jpeg",
+   "video_auth": false,
+   "has_video": true,
+   "poll_period_s": 60.0,
+   "token_url": null,
+   "attribution": "Camera data courtesy of the Iowa Department of Transportation",
+   "license": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+   "terms_url": "https://www.arcgis.com/home/item.html?id=c4063f200a7b4da5826e2ac86c677cf5",
+   "feed": {
+    "layer": "https://services.arcgis.com/8lRhdTsQyJpO52F1/arcgis/rest/services/Traffic_Cameras_View/FeatureServer/0",
+    "fields": {
+     "image": "ImageURL",
+     "video": "VideoURL",
+     "roadway": "Route",
+     "location": "Desc_",
+     "mile_marker": "linear_reference",
+     "system": "Type"
+    },
+    "where": "ORG = 'IADOT'"
+   },
+   "notes": "Iowa DOT's open-data Traffic Cameras layer. Every camera in it is Iowa DOT's own (ORG = IADOT).",
+   "counts": {
+    "layer": "https://services.arcgis.com/8lRhdTsQyJpO52F1/arcgis/rest/services/Traffic_Log_Book_AADT_View/FeatureServer/0",
+    "fields": {
+     "aadt": "AADT",
+     "roadway": "ROUTE_NAME",
+     "trucks": "TOTALTRUCKBUS"
+    },
+    "attribution": "Traffic counts courtesy of the Iowa Department of Transportation (Traffic Log Book AADT, CC BY 4.0)",
+    "terms_url": "https://www.arcgis.com/home/item.html?id=0263e8e5f6ee47ba8efdef8ca6c79afe",
+    "exclude_roadway": " TO "
+   }
+  },
+  "kytc": {
+   "kind": "arcgis",
+   "name": "Kentucky Transportation Cabinet",
+   "base_url": "https://goky.ky.gov",
+   "states": [
+    "KY"
+   ],
+   "snapshot_content_type": "image/jpeg",
+   "video_auth": false,
+   "has_video": false,
+   "poll_period_s": 60.0,
+   "token_url": null,
+   "attribution": "Camera imagery courtesy of the Kentucky Transportation Cabinet",
+   "license": "Creative Commons Zero (CC0), public domain, as published by KYTC",
+   "terms_url": "https://www.arcgis.com/home/item.html?id=54ca2c585b1b4b4dab1e5024f9b9e532",
+   "feed": {
+    "layer": "https://services2.arcgis.com/CcI36Pduqd0OR4W9/arcgis/rest/services/trafficCamerasCur_Prd/FeatureServer/0",
+    "fields": {
+     "image": "snapshot",
+     "location": "description",
+     "roadway": "highway",
+     "mile_marker": "milemarker"
+    },
+    "image_prefixes": [
+     "https://www.trimarc.org/images/milestone/"
+    ]
+   },
+   "notes": "KYTC's statewide cameras, served through its TRIMARC system under images/milestone/. The layer also lists a few Indiana TrafficWise cameras and old TRIMARC snapshot paths; KYTC's CC0 statement cannot cover another agency's images and the old paths are dead, so only the milestone prefix is kept.",
+   "counts": {
+    "layer": "https://services2.arcgis.com/CcI36Pduqd0OR4W9/arcgis/rest/services/Traffic_Section_Middle_Third/FeatureServer/0",
+    "fields": {
+     "aadt": "LASTCNT",
+     "year": "LASTCNTYR",
+     "county": "CNTY_NAME",
+     "route_prefix": "RT_PREFIX",
+     "route_number": "RT_NUMBER"
+    },
+    "attribution": "Traffic counts courtesy of the Kentucky Transportation Cabinet (Traffic Section Middle Third, CC0)",
+    "terms_url": "https://www.arcgis.com/home/item.html?id=177305f1132c44eb94ce5e38fb866586",
+    "where": "RT_SECTION = 0"
+   }
+  },
+  "ohgo": {
+   "kind": "ohgo",
+   "name": "OHGO",
+   "base_url": "https://www.ohgo.com",
+   "states": [
+    "OH"
+   ],
+   "snapshot_content_type": "image/jpeg",
+   "video_auth": false,
+   "has_video": false,
+   "poll_period_s": 60.0,
+   "token_url": null,
+   "attribution": "Camera imagery courtesy of the Ohio Department of Transportation (OHGO)",
+   "license": "Public domain, per ODOT: \"the data from ODOT is considered public domain and therefore freely available to anyone\"",
+   "terms_url": "https://publicapi.ohgo.com/docs/terms-of-use",
+   "max_requests_per_s": 10,
+   "feed": {
+    "url": "https://publicapi.ohgo.com/api/v1/cameras"
+   },
+   "notes": "OHGO Public API. ODOT's terms cap a key at a published request rate (25 a second when checked, subject to change); this source is held to 10 a second, and the key is only used for the camera list, three pages of 500. Each camera view is its own image and becomes its own camera. Images are on itscameras.dot.state.oh.us and need no key; ODOT says they refresh every five seconds.",
+   "auth": {
+    "env": "OHIODOT_API",
+    "header": "Authorization",
+    "format": "APIKEY {key}",
+    "register": "https://publicapi.ohgo.com/docs/registration"
+   }
+  },
+  "tripcheck": {
+   "kind": "tripcheck",
+   "name": "ODOT TripCheck",
+   "base_url": "https://www.tripcheck.com",
+   "states": [
+    "OR"
+   ],
+   "snapshot_content_type": "image/jpeg",
+   "video_auth": false,
+   "has_video": false,
+   "poll_period_s": 60.0,
+   "token_url": null,
+   "attribution": "Camera courtesy of ODOT (Oregon Department of Transportation) and the public agencies providing the data",
+   "license": "Permitted for public and private use, provided the agency is credited, images are mirrored on the republisher's own server, and ODOT's disclaimer is repeated",
+   "terms_url": "https://www.tripcheck.com/Pages/API",
+   "notice": "ODOT and public agencies providing the data on this portal attempt to provide the best service reasonably available, but situations will occur that disrupt service. The updating and dissemination of this information depends on a number of available resources, including Internet availability, communications networks, and interconnected computer systems which may be beyond the immediate control of ODOT. Availability at any given time is not guaranteed. Those relying on information presented on this site do so at their own risk, and the State of Oregon, ODOT, and the public agencies providing the data, and any of their officers, employees or agents shall be held harmless and released from liability for the accuracy or completeness of this information and from any actions taken based on the information. All information is provided \"as is\" without warranty of any kind, either express or implied, including, but not limited to, the implied warranties of merchantability, fitness for a particular purpose, or non-infringement. ODOT assumes no responsibility for errors or omissions in the information or software or other documents which are referenced by or linked to this portal. Under no circumstances, including, but not limited to, negligence, shall ODOT or any public agency contributing data to this portal be liable for any direct, indirect, incidental, special or consequential damages that result from the use of, or the inability to use, this portal or its content.",
+   "max_requests_per_s": 5,
+   "feed": {
+    "url": "https://api.odot.state.or.us/tripcheck/Cctv/Inventory"
+   },
+   "notes": "TripCheck API CCTV Inventory, refreshed by ODOT every 24 hours. The terms require republishers to mirror images on their own server, which the server's /api/snap already does, to credit the agency, and to repeat ODOT's disclaimer, stored here as `notice` and shown with every Oregon camera.",
+   "auth": {
+    "env": "OREGONDOT_API",
+    "header": "Ocp-Apim-Subscription-Key",
+    "format": "{key}",
+    "register": "https://apiportal.odot.state.or.us/"
+   }
+  },
+  "necompass": {
+   "kind": "compass",
+   "name": "New England Compass",
+   "base_url": "https://newengland511.org",
+   "states": [
+    "ME",
+    "NH",
+    "VT"
+   ],
+   "snapshot_content_type": "image/jpeg",
+   "video_auth": false,
+   "has_video": false,
+   "poll_period_s": 300.0,
+   "token_url": null,
+   "attribution": "Camera data provided by Tri-State (the Maine, New Hampshire and Vermont Departments of Transportation) through the New England Compass Developer Portal",
+   "license": "Non-exclusive, limited and revocable right to use, reproduce and redistribute, per the Tri-State developer terms",
+   "terms_url": "http://nec-por.ne-compass.com/DeveloperPortal/Home/Terms",
+   "max_requests_per_s": 1,
+   "feed": {
+    "url": "https://nec-por.ne-compass.com/NEC.XmlDataPortal/api/c2c",
+    "networks": {
+     "ME": "Maine",
+     "NH": "NewHampshire",
+     "VT": "Vermont"
+    }
+   },
+   "notes": "C2C XML, no key; acceptance of the terms is by use. Snapshots come as one document per state with every camera's JPEG in base64, 5 to 10 MB, so the server fetches each state's document at most once per poll period and only while a city in that state is open, then hands each camera its own frame. Measured 2026-09-23: 73 of 84 Vermont pictures changed within two and a half minutes."
+  }
+ },
+ "disclaimer": "rt511 is an independent, non-commercial, open-source project. It is not affiliated with, endorsed by, or operated by any transportation agency. Camera images and traffic data belong to the agencies credited and are shown as published, without modification and without any warranty of accuracy, completeness or availability. Images are held in memory only and are never stored or redistributed. Do not use while driving."
+}

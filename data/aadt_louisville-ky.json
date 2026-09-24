@@ -1,0 +1,233 @@
+{
+ "region": "louisville-ky",
+ "source": "kytc",
+ "attribution": "Traffic counts courtesy of the Kentucky Transportation Cabinet (Traffic Section Middle Third, CC0)",
+ "terms_url": "https://www.arcgis.com/home/item.html?id=177305f1132c44eb94ce5e38fb866586",
+ "segments": 709,
+ "cameras": {
+  "216887": {
+   "aadt": 61377,
+   "year": 2020,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 11.2,
+   "aligned": true
+  },
+  "586028": {
+   "aadt": 84001,
+   "year": 2012,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 57.9,
+   "aligned": true
+  },
+  "638569": {
+   "aadt": 51998,
+   "year": 2021,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 26.7,
+   "aligned": true
+  },
+  "1274418": {
+   "aadt": 144000,
+   "year": 2008,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 75.4,
+   "aligned": true
+  },
+  "1301389": {
+   "aadt": 7986,
+   "year": 2020,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 141.0,
+   "aligned": false
+  },
+  "1368215": {
+   "aadt": 51998,
+   "year": 2021,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 11.6,
+   "aligned": true
+  },
+  "1531424": {
+   "aadt": 125991,
+   "year": 2022,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 40.3,
+   "aligned": true
+  },
+  "1768689": {
+   "aadt": 29874,
+   "year": 2017,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 41.0,
+   "aligned": true
+  },
+  "1810585": {
+   "aadt": 81936,
+   "year": 2016,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 3.9,
+   "aligned": true
+  },
+  "2239716": {
+   "aadt": 125991,
+   "year": 2022,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 40.5,
+   "aligned": true
+  },
+  "2429990": {
+   "aadt": 63025,
+   "year": 2022,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 11.4,
+   "aligned": true
+  },
+  "2613061": {
+   "aadt": 144000,
+   "year": 2008,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 143.9,
+   "aligned": true
+  },
+  "2987233": {
+   "aadt": 121000,
+   "year": 2008,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 60.8,
+   "aligned": true
+  },
+  "3650920": {
+   "aadt": 118227,
+   "year": 2022,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 10.9,
+   "aligned": true
+  },
+  "4142381": {
+   "aadt": 79991,
+   "year": 2013,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 3.5,
+   "aligned": true
+  },
+  "4408719": {
+   "aadt": 129829,
+   "year": 2022,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 14.1,
+   "aligned": true
+  },
+  "4680719": {
+   "aadt": 82994,
+   "year": 2022,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 30.8,
+   "aligned": true
+  },
+  "5488334": {
+   "aadt": 144000,
+   "year": 2008,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 79.6,
+   "aligned": true
+  },
+  "5980228": {
+   "aadt": 61377,
+   "year": 2020,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 10.0,
+   "aligned": true
+  },
+  "6214205": {
+   "aadt": 38712,
+   "year": 2012,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 135.6,
+   "aligned": true
+  },
+  "6258006": {
+   "aadt": 81936,
+   "year": 2016,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 4.7,
+   "aligned": true
+  },
+  "6498911": {
+   "aadt": 69906,
+   "year": 2022,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 83.9,
+   "aligned": true
+  },
+  "6530297": {
+   "aadt": 65749,
+   "year": 2022,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 19.5,
+   "aligned": true
+  },
+  "7201340": {
+   "aadt": 121000,
+   "year": 2008,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 26.1,
+   "aligned": true
+  },
+  "7257557": {
+   "aadt": 25909,
+   "year": 2022,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 22.5,
+   "aligned": true
+  },
+  "7394818": {
+   "aadt": 118227,
+   "year": 2022,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 13.3,
+   "aligned": true
+  },
+  "7485177": {
+   "aadt": 121000,
+   "year": 2008,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 131.6,
+   "aligned": true
+  },
+  "8964473": {
+   "aadt": 121000,
+   "year": 2008,
+   "county": "Jefferson",
+   "truck_pct": null,
+   "distance_m": 15.5,
+   "aligned": true
+  }
+ }
+}

@@ -1,0 +1,20 @@
+{
+ "_comment": "Incident feeds, keyed by the camera source whose cities they serve. A feed belongs here only if its agency's terms permit this use, and only for a state whose cameras the project shows.",
+ "sources": {
+  "ohgo": {
+   "feeds": [
+    {
+     "kind": "incidents",
+     "name": "OHGO incidents",
+     "url": "https://publicapi.ohgo.com/api/v1/incidents",
+     "format": "ohgo-json",
+     "attribution": "Incident data courtesy of the Ohio Department of Transportation (OHGO)",
+     "poll_period_s": 120,
+     "undated": "first_seen",
+     "auth": {"env": "OHIODOT_API", "header": "Authorization", "format": "APIKEY {key}"},
+     "notes": "Same terms and key as the OHGO cameras: public domain per ODOT, with a per-key rate cap this stays far under at one request every two minutes. OHGO publishes no report time, so a record is dated by when this server first saw it, which restarts the floor's decay if the server restarts. RoadStatus Closed implies closure; every OHGO incident is road-relevant."
+    }
+   ]
+  }
+ }
+}

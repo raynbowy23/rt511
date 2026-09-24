@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 440" width="900" height="440" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+<defs>
+  <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#96a4b5"/>
+  </marker>
+  <marker id="headWarm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+    <path d="M 0 0 L 10 5 L 0 10 z" fill="#b4541a"/>
+  </marker>
+</defs>
+<rect width="900" height="440" fill="#ffffff"/>
+<text x="28" y="34" font-size="15" font-weight="700" fill="#1d2530">Process 6. Combination. Two visual axes amplified by road scale, held up by a floor</text>
+<rect x="28" y="70" width="214" height="78" rx="7" fill="#f4f7fa" stroke="#96a4b5"/>
+<text x="135" y="95" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Anomaly A</text>
+<text x="135" y="112" text-anchor="middle" font-size="12" fill="#5d6b7d">difference over baseline</text>
+<text x="135" y="129" text-anchor="middle" font-size="12" fill="#5d6b7d">0.5 at the baseline</text>
+<rect x="28" y="164" width="214" height="78" rx="7" fill="#f4f7fa" stroke="#96a4b5"/>
+<text x="135" y="189" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Spectacle S</text>
+<text x="135" y="206" text-anchor="middle" font-size="12" fill="#5d6b7d">movement term only</text>
+<text x="135" y="223" text-anchor="middle" font-size="12" fill="#5d6b7d">alpha = 0 until counts exist</text>
+<path d="M 242 109 L 316 140" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
+<text x="279" y="117.5" text-anchor="middle" font-size="11.5" fill="#5d6b7d">w = 0.5</text>
+<path d="M 242 203 L 316 172" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
+<text x="279" y="180.5" text-anchor="middle" font-size="11.5" fill="#5d6b7d">w = 0.5</text>
+<rect x="316" y="122" width="176" height="68" rx="7" fill="#f4f7fa" stroke="#96a4b5"/>
+<text x="404" y="161" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Weighted sum</text>
+<path d="M 492 156 L 556 156" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
+<text x="524" y="149" text-anchor="middle" font-size="11.5" fill="#5d6b7d">x</text>
+<rect x="556" y="122" width="180" height="68" rx="7" fill="#f4f7fa" stroke="#1f6feb"/>
+<text x="646" y="147" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Scale amplifier</text>
+<text x="646" y="164" text-anchor="middle" font-size="12" fill="#5d6b7d">0.5 to 1.5</text>
+<rect x="28" y="244" width="214" height="62" rx="7" fill="#f4f7fa" stroke="#b4541a"/>
+<text x="135" y="269" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Incident floor</text>
+<text x="135" y="286" text-anchor="middle" font-size="12" fill="#5d6b7d">from process 5</text>
+<rect x="28" y="318" width="214" height="62" rx="7" fill="#f4f7fa" stroke="#b4541a"/>
+<text x="135" y="343" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Gate floor</text>
+<text x="135" y="360" text-anchor="middle" font-size="12" fill="#5d6b7d">from process 8</text>
+<rect x="316" y="318" width="240" height="62" rx="7" fill="#f4f7fa" stroke="#b4541a"/>
+<text x="436" y="343" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Queue floor</text>
+<text x="436" y="360" text-anchor="middle" font-size="12" fill="#5d6b7d">anchor floor x 0.6 x falloff x reach</text>
+<path d="M 556 349 L 650 349 L 650 290 L 700 290" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
+<path d="M 736 156 L 790 156 L 790 250 L 700 250" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
+<path d="M 242 275 L 560 275 L 560 262 L 700 262" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
+<path d="M 242 349 L 600 349 L 600 278 L 700 278" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
+<rect x="700" y="228" width="172" height="72" rx="7" fill="#f4f7fa" stroke="#1f6feb"/>
+<text x="786" y="253" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">max, then clamp</text>
+<text x="786" y="270" text-anchor="middle" font-size="12" fill="#5d6b7d">result in 0..1</text>
+<text x="450" y="416" text-anchor="middle" font-size="13.5" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#1d2530">Attn = clamp( max( P * (wa*A + ws*S), Floor, QueueFloor, GateFloor ), 0, 1 )</text>
+</svg>
