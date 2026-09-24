@@ -386,6 +386,22 @@ export function createApp(options) {
         diary.note(currentHighlights(null), currentSky(now), now);
         pulse.record([...poller.cameras.values()].map((slot) => ({ region: slot.camera.region, lastTs: slot.latest?.ts ?? null, diff: slot.latest?.diff ?? null })), now);
     }, DIARY.EVERY_S * 1000);
+    // Night shift: the detector counts the one camera a viewer has open, for display only. The count goes through the same client as the gate's, so each frame is counted once and logged, and it never enters the attention score.
+    router.get('/api/count/:id', ({ params }) => {
+        const slot = poller.cameras.get(Number(params.id));
+        if (!slot)
+            throw new HttpError(404, 'camera not polled');
+        if (!detector.enabled) {
+            detector.look();
+            return { status: 'off' };
+        }
+        const evidence = detector.evidence(slot.uid, slot.latest);
+        if (evidence === 'pending')
+            return { status: 'pending' };
+        if (!evidence)
+            return { status: 'none' };
+        return { status: 'counted', vehicles: evidence.count.vehicles, by_class: evidence.count.by_class, frame_ts: evidence.frameTs };
+    });
     router.get('/api/pulse', () => ({ day: localDay(Date.now() / 1000), regions: pulse.today() }));
     diaryTimer.unref();
     router.get('/api/diary', ({ query }) => {

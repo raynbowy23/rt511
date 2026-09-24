@@ -18,6 +18,7 @@ import type {
   SkyResponse,
   DiaryResponse,
   PulseResponse,
+  CountResponse,
 } from '@rt511/shared';
 import { arr, field, latLonLine, latLonRings, lonLatRings, num, obj, ShapeError, str } from './validate';
 
@@ -305,6 +306,7 @@ export const getHighlights = (region?: string): Promise<HighlightsResponse | nul
   return root as unknown as HighlightsResponse;
 });
 
+export type { CountResponse } from '@rt511/shared';
 export type { DiaryEntry, DiaryKind, DiaryResponse, PulsePoint, PulseResponse, SkyRegion, SkyResponse } from '@rt511/shared';
 
 export const getSky = (): Promise<SkyResponse | null> => getJson('/api/sky', (body) => {
@@ -343,4 +345,16 @@ export const getPulse = (): Promise<PulseResponse | null> => getJson('/api/pulse
     }
   }
   return root as unknown as PulseResponse;
+});
+
+/** The detector's count for one camera's newest frame, for the night shift. Null when the server cannot be reached, which is shown the same as no detector. */
+export const getCount = (id: number): Promise<CountResponse | null> => getJson(`/api/count/${String(id)}`, (body) => {
+  const root = obj(body, 'count');
+  str(root.status, 'count.status');
+  if (root.status === 'counted') {
+    num(root.vehicles, 'count.vehicles');
+    num(root.frame_ts, 'count.frame_ts');
+    obj(root.by_class, 'count.by_class');
+  }
+  return root as unknown as CountResponse;
 });

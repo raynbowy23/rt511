@@ -93,6 +93,8 @@ Naming cities polls them continuously whether or not anyone is watching, which i
 
 **City pulse** is a small line under each city in the national list: how much its cameras moved, minute by minute, from midnight to midnight. Each minute is the median frame difference across the city's cameras with a recent picture, scaled to that city's own busiest minute, so a quiet city's rush hour shows as clearly as a big one's. It is numbers only, kept in `out/pulse-<date>.jsonl` so a restart keeps the day, and a city nobody has open is read from its sparse radar cameras.
 
+**Night shift** puts the vehicle detector's count on the open camera once the sun is down there, in the camera's own local time: "3:12 AM · 2 cars". It needs `make detect` running and shows nothing without it. The count is the same one the gate logs to `out/detector-<date>.jsonl`, taken once per frame, and it is display only: it never enters the attention score.
+
 The optional vehicle detector runs as its own process next to the server. It counts vehicles in a frame the zero-motion gate has flagged and hands the count to the arbiter as evidence. It needs the YOLO26 weights in `data/models/` (see [License](#license)):
 
 ```

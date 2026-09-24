@@ -564,3 +564,11 @@ export interface PulseResponse {
   day: string;
   regions: Record<string, PulsePoint[]>;
 }
+
+/** What the optional vehicle detector counted in one camera's newest frame, for display. `off` when no detector is running, `pending` while a count is on its way, `none` when this frame could not be counted. */
+export interface CountResponse {
+  status: 'off' | 'pending' | 'none' | 'counted';
+  vehicles?: number;
+  by_class?: Record<string, number>;
+  frame_ts?: number;
+}

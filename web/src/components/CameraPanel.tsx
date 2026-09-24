@@ -5,6 +5,7 @@ import { usePlayer } from '../hooks/usePlayer';
 import { Ptz } from '../ptz';
 import type { AttentionAxes } from '@rt511/shared';
 import { LiveMotion } from './LiveMotion';
+import { NightShift } from './NightShift';
 
 /** The promoted camera: the one video element in the application, the ring buffer behind it as an instant replay, and digital pan, tilt and zoom over both.
  *
@@ -189,6 +190,7 @@ export function CameraPanel({
           <span className="hero-mode">{badge}</span>
         </div>
         <div className="hero-zoom" ref={zoom} />
+        <NightShift camera={camera} />
         {overlay}
       </div>
       <div className="hero-panel">
