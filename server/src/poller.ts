@@ -58,8 +58,8 @@ const WHITE_SPREAD = 0.12 * 255;
 
 export async function analyze(data: Buffer, prevThumb: Float32Array | null): Promise<{ thumb: Float32Array; brightness: number; contrast: number; white: number; diff: number | null }> {
   const { data: raw } = await sharp(data)
-    // Bilinear, matching PIL's BILINEAR in the Python this replaces. sharp's runtime accepts 'linear' (it is in sharp.kernel) but its bundled typings omit it, hence the cast.
-    .resize(THUMB_W, THUMB_H, { fit: 'fill', kernel: 'linear' as keyof sharp.KernelEnum })
+    // Bilinear, matching PIL's BILINEAR in the Python this replaces.
+    .resize(THUMB_W, THUMB_H, { fit: 'fill', kernel: 'linear' })
     .removeAlpha()
     .toColourspace('srgb')
     .raw()
