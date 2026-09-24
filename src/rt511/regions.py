@@ -109,9 +109,13 @@ def region_for_city(query: str, root: Path, radius_km: float = 15.0, limit: int 
     if source is None:
         raise SystemExit(f"{place.name} is in {place.state}, which has no camera source this project reads. Run `rt511 sources` to see what is covered.")
     return Region(
-        key=slugify(place.name), name=place.name, source=source.key,
+        key=slugify(place.name),
+        name=place.name,
+        source=source.key,
         bbox=bbox_around(place.lat, place.lon, radius_km),
-        center=(round(place.lat, 6), round(place.lon, 6)), radius_km=radius_km, limit=limit,
+        center=(round(place.lat, 6), round(place.lon, 6)),
+        radius_km=radius_km,
+        limit=limit,
     )
 
 
@@ -120,4 +124,4 @@ def get_region(key: str, root: Path) -> Region:
     try:
         return regions[key]
     except KeyError:
-        raise SystemExit(f"unknown region {key!r}. Known: {', '.join(sorted(regions))}. Add one with `rt511 city \"<city>, <state>\"`.") from None
+        raise SystemExit(f'unknown region {key!r}. Known: {", ".join(sorted(regions))}. Add one with `rt511 city "<city>, <state>"`.') from None

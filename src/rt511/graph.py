@@ -52,33 +52,50 @@ class CameraGraph:
         site_of = {c.id: s for s in self.sites for c in s.cameras}
         return {
             "meta": {
-                "region": self.region.key, "region_name": self.region.name, "source": source.key, "source_name": source.name,
-                "attribution": source.attribution, "bbox": list(self.region.bbox),
-                "sites": len(self.sites), "cameras": len(self.cameras), "edges": len(self.edges),
-                "unsnapped": self.unsnapped, "report": self.report,
+                "region": self.region.key,
+                "region_name": self.region.name,
+                "source": source.key,
+                "source_name": source.name,
+                "attribution": source.attribution,
+                "bbox": list(self.region.bbox),
+                "sites": len(self.sites),
+                "cameras": len(self.cameras),
+                "edges": len(self.edges),
+                "unsnapped": self.unsnapped,
+                "report": self.report,
             },
             "sites": [
                 {
-                    "id": s.id, "lat": s.lat, "lon": s.lon, "is_freeway": s.is_freeway, "roadway": s.roadway,
-                    "mile_marker": s.mile_marker, "bearing": s.bearing, "cameras": [c.id for c in s.cameras],
+                    "id": s.id,
+                    "lat": s.lat,
+                    "lon": s.lon,
+                    "is_freeway": s.is_freeway,
+                    "roadway": s.roadway,
+                    "mile_marker": s.mile_marker,
+                    "bearing": s.bearing,
+                    "cameras": [c.id for c in s.cameras],
                     "snaps": [{"lat": p.lat, "lon": p.lon, "highway": p.highway, "name": p.name, "ref": p.ref, "two_way": p.two_way, "lanes": p.lanes, "lanes_forward": p.lanes_forward, "lanes_backward": p.lanes_backward, "maxspeed_kmh": p.maxspeed_kmh, "maxspeed_source": p.maxspeed_source, "bearing": p.bearing, "distance_m": round(p.distance_m, 1)} for p in s.snaps],
                 }
                 for s in self.sites
             ],
             "cameras": [
                 {
-                    "id": c.id, "region": c.region, "source": c.source, "roadway": c.roadway, "direction": c.direction,
-                    "location": c.location, "lat": c.lat, "lon": c.lon, "mile_marker": c.mile_marker,
+                    "id": c.id,
+                    "region": c.region,
+                    "source": c.source,
+                    "roadway": c.roadway,
+                    "direction": c.direction,
+                    "location": c.location,
+                    "lat": c.lat,
+                    "lon": c.lon,
+                    "mile_marker": c.mile_marker,
                     "site": site_of[c.id].id if c.id in site_of else None,
                     "is_freeway": site_of[c.id].is_freeway if c.id in site_of else False,
                     "has_video": bool(c.video_url),
                 }
                 for c in self.cameras
             ],
-            "edges": [
-                {"src": e.src, "dst": e.dst, "kind": e.kind, "length_m": round(e.length_m, 1), "tt_s": round(e.tt_s, 1), "highways": e.highways, "geometry": [[round(la, 6), round(lo, 6)] for la, lo in e.geometry]}
-                for e in self.edges
-            ],
+            "edges": [{"src": e.src, "dst": e.dst, "kind": e.kind, "length_m": round(e.length_m, 1), "tt_s": round(e.tt_s, 1), "highways": e.highways, "geometry": [[round(la, 6), round(lo, 6)] for la, lo in e.geometry]} for e in self.edges],
         }
 
 

@@ -18,10 +18,12 @@ REGION = Region("test-ia", "Test, IA", "iowadot", (41.5, -93.7, 41.7, -93.5), ce
 
 class Counts(unittest.TestCase):
     def test_ramps_named_after_the_interstate_are_dropped(self):
-        page = {"features": [
-            {"attributes": {"AADT": 90600, "ROUTE_NAME": "I 35", "TOTALTRUCKBUS": 9060}, "geometry": {"paths": [[[-93.6, 41.6], [-93.6, 41.61]]]}},
-            {"attributes": {"AADT": 1760, "ROUTE_NAME": "86TH ST, N TO I 35 S", "TOTALTRUCKBUS": 10}, "geometry": {"paths": [[[-93.6, 41.6], [-93.599, 41.601]]]}},
-        ]}
+        page = {
+            "features": [
+                {"attributes": {"AADT": 90600, "ROUTE_NAME": "I 35", "TOTALTRUCKBUS": 9060}, "geometry": {"paths": [[[-93.6, 41.6], [-93.6, 41.61]]]}},
+                {"attributes": {"AADT": 1760, "ROUTE_NAME": "86TH ST, N TO I 35 S", "TOTALTRUCKBUS": 10}, "geometry": {"paths": [[[-93.6, 41.6], [-93.599, 41.601]]]}},
+            ]
+        }
         transport = httpx.MockTransport(lambda request: httpx.Response(200, json=page))
         real = httpx.Client
         with mock.patch("rt511.counts.httpx.Client", lambda **kw: real(transport=transport, **kw)):

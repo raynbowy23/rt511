@@ -55,12 +55,25 @@ def _load() -> dict[str, "Source"]:
     data = json.loads((Path(__file__).resolve().parents[2] / "data" / "sources.json").read_text())
     return {
         key: Source(
-            key=key, name=rec["name"], base_url=rec["base_url"], states=tuple(rec["states"]),
-            snapshot_content_type=rec["snapshot_content_type"], video_auth=rec["video_auth"],
-            has_video=rec["has_video"], attribution=rec["attribution"],
-            poll_period_s=rec["poll_period_s"], token_url=rec["token_url"], notes=rec.get("notes", ""),
-            kind=rec["kind"], license=rec.get("license", ""), terms_url=rec.get("terms_url", ""), feed=rec.get("feed", {}),
-            notice=rec.get("notice", ""), max_requests_per_s=rec.get("max_requests_per_s"), auth=rec.get("auth", {}), counts=rec.get("counts", {}),
+            key=key,
+            name=rec["name"],
+            base_url=rec["base_url"],
+            states=tuple(rec["states"]),
+            snapshot_content_type=rec["snapshot_content_type"],
+            video_auth=rec["video_auth"],
+            has_video=rec["has_video"],
+            attribution=rec["attribution"],
+            poll_period_s=rec["poll_period_s"],
+            token_url=rec["token_url"],
+            notes=rec.get("notes", ""),
+            kind=rec["kind"],
+            license=rec.get("license", ""),
+            terms_url=rec.get("terms_url", ""),
+            feed=rec.get("feed", {}),
+            notice=rec.get("notice", ""),
+            max_requests_per_s=rec.get("max_requests_per_s"),
+            auth=rec.get("auth", {}),
+            counts=rec.get("counts", {}),
         )
         for key, rec in data["sources"].items()
     }

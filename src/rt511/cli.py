@@ -97,7 +97,7 @@ def cmd_counts(args: argparse.Namespace) -> None:
     aligned = sum(1 for c in data["cameras"].values() if c["aligned"])
     print(f"{region.name}: {data['segments']} counted segments, matched {len(values)} of {total} cameras, {aligned} along their own carriageway")
     if values:
-        print(f"  AADT  min {values[0]:,}  median {values[len(values)//2]:,}  max {values[-1]:,}")
+        print(f"  AADT  min {values[0]:,}  median {values[len(values) // 2]:,}  max {values[-1]:,}")
     print(f"wrote {path}")
 
 

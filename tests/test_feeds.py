@@ -54,13 +54,19 @@ class Feeds(unittest.TestCase):
 
     def test_arcgis_drops_images_another_agency_owns_and_pages_through_the_layer(self):
         pages = [
-            {"features": [
-                {"attributes": {"snapshot": "http://www.trimarc.org/images/milestone/CCTV_05_65_0100.jpg", "description": "I-65 at Outer Loop", "highway": None}, "geometry": {"x": -85.7, "y": 38.2}},
-                {"attributes": {"snapshot": "http://pws.trafficwise.org/pullover/172_65.jpg", "description": "I-65 Indiana", "highway": None}, "geometry": {"x": -85.7, "y": 38.3}},
-            ], "exceededTransferLimit": True},
-            {"features": [
-                {"attributes": {"snapshot": "http://www.trimarc.org/images/snapshots/IND_CCTV005.jpg", "description": "I-65 Exit 7 Indiana", "highway": None}, "geometry": {"x": -85.7, "y": 38.4}},
-            ], "exceededTransferLimit": False},
+            {
+                "features": [
+                    {"attributes": {"snapshot": "http://www.trimarc.org/images/milestone/CCTV_05_65_0100.jpg", "description": "I-65 at Outer Loop", "highway": None}, "geometry": {"x": -85.7, "y": 38.2}},
+                    {"attributes": {"snapshot": "http://pws.trafficwise.org/pullover/172_65.jpg", "description": "I-65 Indiana", "highway": None}, "geometry": {"x": -85.7, "y": 38.3}},
+                ],
+                "exceededTransferLimit": True,
+            },
+            {
+                "features": [
+                    {"attributes": {"snapshot": "http://www.trimarc.org/images/snapshots/IND_CCTV005.jpg", "description": "I-65 Exit 7 Indiana", "highway": None}, "geometry": {"x": -85.7, "y": 38.4}},
+                ],
+                "exceededTransferLimit": False,
+            },
         ]
         seen_offsets = []
 
@@ -87,10 +93,20 @@ class Feeds(unittest.TestCase):
 
     def test_ohgo_sends_the_users_key_pages_at_its_rate_and_splits_views(self):
         pages = {
-            "1": {"totalPageCount": 2, "results": [{"latitude": 40.0, "longitude": -83.0, "location": "I-70 at Rt 315", "cameraViews": [
-                {"direction": "East", "largeUrl": "https://itscameras.dot.state.oh.us:443/images/a-e.jpg", "mainRoute": "I-70"},
-                {"direction": "West", "largeUrl": "https://itscameras.dot.state.oh.us/images/a-w.jpg", "mainRoute": "I-70"},
-            ]}]},
+            "1": {
+                "totalPageCount": 2,
+                "results": [
+                    {
+                        "latitude": 40.0,
+                        "longitude": -83.0,
+                        "location": "I-70 at Rt 315",
+                        "cameraViews": [
+                            {"direction": "East", "largeUrl": "https://itscameras.dot.state.oh.us:443/images/a-e.jpg", "mainRoute": "I-70"},
+                            {"direction": "West", "largeUrl": "https://itscameras.dot.state.oh.us/images/a-w.jpg", "mainRoute": "I-70"},
+                        ],
+                    }
+                ],
+            },
             "2": {"totalPageCount": 2, "results": [{"latitude": 40.1, "longitude": -83.1, "location": "SR-2 at X", "cameraViews": [{"direction": "View", "largeUrl": "https://itscameras.dot.state.oh.us/images/b.jpg", "mainRoute": "SR-2 at X"}]}]},
         }
         seen = []

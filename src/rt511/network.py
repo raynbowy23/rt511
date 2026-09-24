@@ -141,14 +141,24 @@ class Snapper:
         pa, pb = self.road.nodes[a], self.road.nodes[b]
         d = self.road.get_edge_data(a, b) or self.road.get_edge_data(b, a)
         return Snap(
-            seg=key, a=a, b=b, t=t, lat=qlat, lon=qlon,
+            seg=key,
+            a=a,
+            b=b,
+            t=t,
+            lat=qlat,
+            lon=qlon,
             bearing=bearing_deg(pa["lat"], pa["lon"], pb["lat"], pb["lon"]),
             two_way=self.road.has_edge(a, b) and self.road.has_edge(b, a),
-            lanes=d.get("lanes"), lanes_forward=d.get("lanes_forward"), lanes_backward=d.get("lanes_backward"),
-            maxspeed_kmh=d["maxspeed_kmh"], maxspeed_source=d["maxspeed_source"],
-            distance_m=p.distance(line), highway=d.get("highway"), name=d.get("name"), ref=d.get("ref"),
+            lanes=d.get("lanes"),
+            lanes_forward=d.get("lanes_forward"),
+            lanes_backward=d.get("lanes_backward"),
+            maxspeed_kmh=d["maxspeed_kmh"],
+            maxspeed_source=d["maxspeed_source"],
+            distance_m=p.distance(line),
+            highway=d.get("highway"),
+            name=d.get("name"),
+            ref=d.get("ref"),
         )
-
 
     def mirror(self, snap: Snap) -> Snap | None:
         """The opposing carriageway of the same divided road, if there is one within MIRROR_MAX_M.

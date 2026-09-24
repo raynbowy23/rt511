@@ -59,20 +59,23 @@ def fetch_segments(region: Region, source: Source) -> list[Segment]:
     offset = 0
     with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=90.0, follow_redirects=True) as http:
         while True:
-            r = http.get(f"{counts['layer']}/query", params={
-                # KYTC publishes ramps as sections of the route they serve; a `where` in the source table keeps mainline sections only.
-                "where": counts.get("where", "1=1"),
-                "geometry": f"{w},{s},{e},{n}",
-                "geometryType": "esriGeometryEnvelope",
-                "inSR": "4326",
-                "outSR": "4326",
-                "spatialRel": "esriSpatialRelIntersects",
-                "outFields": ",".join(sorted(set(fields.values()))),
-                "returnGeometry": "true",
-                "resultOffset": str(offset),
-                "resultRecordCount": str(PAGE),
-                "f": "json",
-            })
+            r = http.get(
+                f"{counts['layer']}/query",
+                params={
+                    # KYTC publishes ramps as sections of the route they serve; a `where` in the source table keeps mainline sections only.
+                    "where": counts.get("where", "1=1"),
+                    "geometry": f"{w},{s},{e},{n}",
+                    "geometryType": "esriGeometryEnvelope",
+                    "inSR": "4326",
+                    "outSR": "4326",
+                    "spatialRel": "esriSpatialRelIntersects",
+                    "outFields": ",".join(sorted(set(fields.values()))),
+                    "returnGeometry": "true",
+                    "resultOffset": str(offset),
+                    "resultRecordCount": str(PAGE),
+                    "f": "json",
+                },
+            )
             r.raise_for_status()
             page = r.json()
             if "error" in page:
@@ -94,14 +97,16 @@ def fetch_segments(region: Region, source: Source) -> list[Segment]:
                 year = a.get(fields["year"]) if "year" in fields else None
                 for path in paths:
                     if len(path) >= 2:
-                        out.append(Segment(
-                            aadt=int(aadt),
-                            year=int(year) if year else None,
-                            roadway=roadway,
-                            county=str(a.get(fields["county"])).strip() if "county" in fields and a.get(fields["county"]) else None,
-                            truck_pct=round(100.0 * float(trucks) / float(aadt), 1) if trucks else None,
-                            coords=[(float(x), float(y)) for x, y in path],
-                        ))
+                        out.append(
+                            Segment(
+                                aadt=int(aadt),
+                                year=int(year) if year else None,
+                                roadway=roadway,
+                                county=str(a.get(fields["county"])).strip() if "county" in fields and a.get(fields["county"]) else None,
+                                truck_pct=round(100.0 * float(trucks) / float(aadt), 1) if trucks else None,
+                                coords=[(float(x), float(y)) for x, y in path],
+                            )
+                        )
             if not page.get("exceededTransferLimit") or not feats:
                 break
             offset += len(feats)
