@@ -24,8 +24,9 @@ import { Board } from './components/Board';
 import { Wall } from './components/Wall';
 import { Highlights } from './components/Highlights';
 import { Diary } from './components/Diary';
-import { RoadTripPicker, TripHud } from './components/RoadTrip';
+import { RelayHud, RoadTripPicker, TripHud } from './components/RoadTrip';
 import { planTrips, RoadTrip, type Trip } from './roadtrip';
+import { pickRelay, type RelayCity, type RelayPick } from './sunrelay';
 import { Topology } from './graph';
 import { useTour } from './hooks/useTour';
 import { useWallRanking } from './hooks/useWallRanking';
@@ -153,31 +154,99 @@ export function App(): ReactElement {
     setTripPicker(false);
   }, [region, stopTrip]);
 
+  // The sun relay: whichever city the sun is setting over, handing off westward through the evening. It chooses the city itself, so anything the viewer chooses by hand ends it.
+  const [relay, setRelay] = useState<RelayPick | null>(null);
+  const [relayNow, setRelayNow] = useState(() => Date.now() / 1000);
+  const relayCities: RelayCity[] = useMemo(
+    () =>
+      (boot?.regions ?? []).flatMap((meta) => {
+        const box = meta.bbox;
+        return box ? [{ key: meta.region, name: meta.region_name ?? meta.region, lat: (box[0] + box[2]) / 2, lon: (box[1] + box[3]) / 2 }] : [];
+      }),
+    [boot],
+  );
+  const stopRelay = useCallback(() => setRelay(null), []);
+  const startRelay = useCallback(() => {
+    tour.stop();
+    roadTrip.stop();
+    setTrip(null);
+    setTripPicker(false);
+    const now = Date.now() / 1000;
+    setRelayNow(now);
+    setRelay(pickRelay(relayCities, now));
+  }, [tour, roadTrip, relayCities]);
+
   const openCamera = useCallback(
     (id: number) => {
       tour.stop();
       stopTrip();
+      stopRelay();
       promote(id);
     },
-    [promote, tour, stopTrip],
+    [promote, tour, stopTrip, stopRelay],
   );
 
   const closeCamera = useCallback(() => {
     tour.stop();
     stopTrip();
+    stopRelay();
     setCameraId(null);
     setExpanded(false);
-  }, [tour, stopTrip]);
+  }, [tour, stopTrip, stopRelay]);
 
   const openRegion = useCallback((key: string) => {
+    setRelay(null);
     setRegion(key);
     setLevel('map');
   }, []);
+
+  // Every half minute the relay asks where the sun is and moves to that city's wall when the answer changes.
+  const relayOn = relay !== null;
+  useEffect(() => {
+    if (!relayOn) return;
+    const tick = (): void => {
+      const now = Date.now() / 1000;
+      setRelayNow(now);
+      setRelay(pickRelay(relayCities, now));
+    };
+    const timer = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(timer);
+  }, [relayOn, relayCities]);
+  const relayCity = relay?.city.key ?? null;
+  useEffect(() => {
+    if (!relayCity) return;
+    setRegion(relayCity);
+    setLevel('wall');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [relayCity]);
+  // Within the city, the camera panel steps through its five most interesting cameras, so the relay shows the sunset rather than one fixed view of it.
+  const statesRef = useRef(poll.states);
+  statesRef.current = poll.states;
+  useEffect(() => {
+    if (!relayCity) return;
+    let turn = 0;
+    const show = (): void => {
+      const best = statesRef.current
+        .filter((state) => state.region === relayCity && state.frames > 0)
+        .sort((a, b) => (b.attention ?? 0) - (a.attention ?? 0))
+        .slice(0, 5);
+      const pick = best[turn % Math.max(1, best.length)];
+      if (pick) promote(pick.id, true);
+      turn++;
+    };
+    const first = window.setTimeout(show, 4000);
+    const timer = window.setInterval(show, 20_000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(timer);
+    };
+  }, [relayCity, promote]);
 
   const [diaryOpen, setDiaryOpen] = useState(false);
   const closeDiary = useCallback(() => setDiaryOpen(false), []);
 
   const goNational = useCallback(() => {
+    setRelay(null);
     setCameraId(null);
     setExpanded(false);
     setLevel('national');
@@ -237,6 +306,12 @@ export function App(): ReactElement {
   // The fragment is read once, after the data is in, so a named camera or region can be resolved against it.
   const applied = useRef(false);
   const pendingTrip = useRef<string | null>(null);
+  const pendingRelay = useRef(false);
+  useEffect(() => {
+    if (!pendingRelay.current || relayCities.length === 0) return;
+    pendingRelay.current = false;
+    startRelay();
+  }, [relayCities, startRelay]);
   useEffect(() => {
     if (!pendingTrip.current || trips.length === 0) return;
     const named = trips.find((candidate) => candidate.id === pendingTrip.current);
@@ -260,6 +335,7 @@ export function App(): ReactElement {
     // A trip named in the fragment resumes once the city's trips are planned, which happens on the render after the region is set.
     const askedTrip = hash.get('trip');
     if (askedTrip) pendingTrip.current = askedTrip;
+    if (hash.has('relay')) pendingRelay.current = true;
     const view = hash.get('view');
     // A camera or a region named in the fragment implies the region level even when no view is given.
     setLevel(view === 'board' ? 'board' : view === 'wall' ? 'wall' : view === 'map' ? 'map' : view === 'national' ? 'national' : startRegion || hasCamera ? 'map' : 'national');
@@ -274,10 +350,11 @@ export function App(): ReactElement {
     if (cameraId !== null) params.push(`cam=${cameraId}`);
     if (tour.running) params.push('tour');
     if (trip) params.push(`trip=${encodeURIComponent(trip.trip.id)}`);
+    if (relay) params.push('relay');
     history.replaceState(null, '', `#${params.join('&')}`);
     document.body.dataset.view = shown;
     document.body.classList.toggle('is-touring', tour.running);
-  }, [boot, level, region, cameraId, tour.running, trip]);
+  }, [boot, level, region, cameraId, tour.running, trip, relay]);
 
   const step = useCallback(
     (direction: 'down' | 'up') => {
@@ -289,8 +366,8 @@ export function App(): ReactElement {
   );
 
   // One listener for the whole application, reading the current state through a ref so it is bound once rather than on every render.
-  const keyState = useRef({ level, cameraId, expanded, tour, region, boot, step, openRegion, goNational, closeCamera, stopTrip });
-  keyState.current = { level, cameraId, expanded, tour, region, boot, step, openRegion, goNational, closeCamera, stopTrip };
+  const keyState = useRef({ level, cameraId, expanded, tour, region, boot, step, openRegion, goNational, closeCamera, stopTrip, stopRelay });
+  keyState.current = { level, cameraId, expanded, tour, region, boot, step, openRegion, goNational, closeCamera, stopTrip, stopRelay };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -304,6 +381,7 @@ export function App(): ReactElement {
         case ' ':
           event.preventDefault();
           current.stopTrip();
+          current.stopRelay();
           current.tour.toggle(current.cameraId ?? undefined);
           break;
         case 'Escape':
@@ -452,10 +530,17 @@ export function App(): ReactElement {
         onToggleView={() => setLevel(effectiveLevel === 'wall' ? 'map' : 'wall')}
         onToggleTour={() => {
           stopTrip();
+          stopRelay();
           tour.toggle(cameraId ?? undefined);
         }}
+        relayOn={relay !== null}
+        onRelay={() => (relay ? stopRelay() : startRelay())}
         tripOn={trip !== null || tripPicker}
-        onRoadTrip={() => (trip ? stopTrip() : setTripPicker((open) => !open))}
+        onRoadTrip={() => {
+          stopRelay();
+          if (trip) stopTrip();
+          else setTripPicker((open) => !open);
+        }}
         onBoard={() => { tour.stop(); setCameraId(null); setLevel('board'); }}
         diaryOpen={diaryOpen}
         onDiary={() => setDiaryOpen((open) => !open)}
@@ -515,7 +600,7 @@ export function App(): ReactElement {
           visible={cameraOpen}
           onClose={closeCamera}
           onExpanded={setExpanded}
-          overlay={trip ? <TripHud trip={trip.trip} index={trip.index} onStop={stopTrip} /> : null}
+          overlay={trip ? <TripHud trip={trip.trip} index={trip.index} onStop={stopTrip} /> : relay ? <RelayHud pick={relay} now={relayNow} onStop={stopRelay} /> : null}
         />
         {effectiveLevel === 'board' && topology && <Board cameras={topology.cameras} activeId={cameraId} onSelect={openCamera} onData={(states, ok) => setPoll((current) => ({ states, ok, intervalS: 600, tick: current.tick + 1 }))} />}
         <Wall
@@ -526,7 +611,7 @@ export function App(): ReactElement {
           activeId={cameraId}
           intervalS={poll.intervalS}
           visible={effectiveLevel === 'wall'}
-          followActive={trip === null}
+          followActive={trip === null && relay === null}
           onSelect={openCamera}
           onVisibleCameras={(ids) => {
             visibleCameras.current = ids;

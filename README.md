@@ -87,6 +87,8 @@ Naming cities polls them continuously whether or not anyone is watching, which i
 
 **Road trip** in the top bar drives a numbered route through the city you are in, camera by camera in driving order: I-235 across Des Moines, I-10 through Los Angeles, I-64 into Louisville. Each camera stays up for a few seconds, longer where it has live video and where the next one is further down the road, and at the end of the route the trip turns around and drives it back. A trip is written into the page address (`#…&trip=I-235:eastbound`), so a screen left running resumes it after a reload.
 
+**Sun relay** follows the sunset across the country. It shows whichever city the sun is setting over, stepping through that city's most interesting cameras, and hands off westward through the evening: Portland ME and Burlington first, Portland OR and Los Angeles last. Between sunsets it waits on the next one, and at night it waits on the first sunrise. `#relay` in the address resumes it.
+
 The optional vehicle detector runs as its own process next to the server. It counts vehicles in a frame the zero-motion gate has flagged and hands the count to the arbiter as evidence. It needs the YOLO26 weights in `data/models/` (see [License](#license)):
 
 ```

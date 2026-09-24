@@ -1,5 +1,6 @@
 import { useEffect, type ReactElement } from 'react';
 import type { Trip } from '../roadtrip';
+import type { RelayPick } from '../sunrelay';
 
 function km(metres: number): string {
   return `${(metres / 1000).toFixed(1)} km`;
@@ -69,6 +70,34 @@ export function TripHud({ trip, index, onStop }: { trip: Trip; index: number; on
       <div className="trip-hud-next">{next ? `Next · ${next.camera.location} in ${km(next.leg_m)}` : 'End of the road · turning around'}</div>
       <button type="button" className="trip-hud-stop" onClick={onStop}>
         End trip
+      </button>
+    </div>
+  );
+}
+
+function inHours(seconds: number): string {
+  const minutes = Math.max(0, Math.round(seconds / 60));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return minutes % 60 ? `${hours} h ${minutes % 60} min` : `${hours} h`;
+}
+
+/** Where the sun is, over the picture, while the sun relay runs. */
+export function RelayHud({ pick, now, onStop }: { pick: RelayPick; now: number; onStop: () => void }): ReactElement {
+  const where = pick.city.name;
+  const headline =
+    pick.phase === 'sunset' ? `Sunset over ${where}` : pick.phase === 'sunrise' ? `Sunrise over ${where}` : pick.phase === 'night' ? `Night everywhere · waiting on ${where}` : `Waiting for sunset · ${where} is next`;
+  const next = pick.next ? `${pick.next.event === 'sunrise' ? 'First light' : 'Next sunset'} · ${pick.next.city.name} in ${inHours(pick.next.at - now)}` : '';
+  return (
+    <div className="trip-hud" role="status">
+      <div className="trip-hud-route">Sun relay</div>
+      <div className="trip-hud-progress">{headline}</div>
+      <div className="trip-hud-next">
+        Sun {pick.elevation >= 0 ? `${pick.elevation.toFixed(1)}° up` : `${Math.abs(pick.elevation).toFixed(1)}° down`}
+        {next ? ` · ${next}` : ''}
+      </div>
+      <button type="button" className="trip-hud-stop" onClick={onStop}>
+        End relay
       </button>
     </div>
   );

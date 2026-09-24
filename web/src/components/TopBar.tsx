@@ -18,6 +18,8 @@ export function TopBar({
   onDiary,
   tripOn = false,
   onRoadTrip,
+  relayOn = false,
+  onRelay,
 }: {
   crumbs: Crumb[];
   status: string;
@@ -31,6 +33,8 @@ export function TopBar({
   onDiary?: () => void;
   tripOn?: boolean;
   onRoadTrip?: () => void;
+  relayOn?: boolean;
+  onRelay?: () => void;
 }): ReactElement {
   return (
     <header className="topbar">
@@ -64,6 +68,11 @@ export function TopBar({
           {level === 'map' ? 'Wall ' : 'Map '}
           <kbd>M</kbd>
         </button>
+        {onRelay && (
+          <button type="button" className={`control${relayOn ? ' is-on' : ''}`} aria-pressed={relayOn} onClick={onRelay}>
+            Sun relay
+          </button>
+        )}
         {onRoadTrip && (
           <button type="button" className={`control${tripOn ? ' is-on' : ''}`} aria-pressed={tripOn} hidden={level === 'national' || level === 'board'} onClick={onRoadTrip}>
             Road trip
