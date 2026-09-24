@@ -5,10 +5,12 @@ This is a batch tool, not a service. It discovers where cameras are, fetches a r
 import argparse
 import asyncio
 import json
+import time
+import urllib.error
 from pathlib import Path
 
 from .catalog import catalog_path, fetch_catalog, load_catalog, write_catalog
-from .counts import aadt_path, match_cameras, write_aadt
+from .counts import aadt_path, has_counts, match_cameras, write_aadt
 from .graph import build, graph_path, write_json
 from .index_national import fetch_index, write_index
 from .metros import find_metros, name_metros
@@ -122,6 +124,48 @@ def cmd_build(args: argparse.Namespace) -> None:
     print(f"wrote {out}")
 
 
+SETUP_PAUSE_S = 20
+"""Rest between two cities' road extracts. Overpass is run by volunteers and asks clients to space their queries."""
+SETUP_RETRY_S = (60, 180)
+"""Waits before the second and third attempt when Overpass answers that it is busy (429) or timed out (504), which on a shared public instance is ordinary."""
+
+
+def _build_with_retry(region: Region) -> bool:
+    for attempt, wait in enumerate((0, *SETUP_RETRY_S), start=1):
+        if wait:
+            print(f"  Overpass is busy, waiting {wait} s before attempt {attempt}")
+            time.sleep(wait)
+        try:
+            write_json(build(region, ROOT), graph_path(ROOT, region))
+            return True
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 502, 503, 504):
+                raise
+    return False
+
+
+def cmd_setup(args: argparse.Namespace) -> None:
+    """Everything a fresh clone needs before the server will start: a road graph for every configured city, and traffic counts where the city's source publishes them. Cities already built are skipped, so it is safe to run again after adding one."""
+    regions = list(load_regions(ROOT).values())
+    todo = [r for r in regions if catalog_path(ROOT, r).exists() and not graph_path(ROOT, r).exists()]
+    print(f"{len(regions)} cities configured, {len(regions) - len(todo)} already built, {len(todo)} to build")
+    failed: list[str] = []
+    for i, region in enumerate(todo):
+        if i:
+            time.sleep(SETUP_PAUSE_S)
+        print(f"building {region.name}")
+        if not _build_with_retry(region):
+            failed.append(region.key)
+            continue
+        if has_counts(get_source(region.source)) and not aadt_path(ROOT, region).exists():
+            data = match_cameras(region, ROOT)
+            write_aadt(data, aadt_path(ROOT, region))
+            print(f"  traffic counts for {len(data['cameras'])} cameras")
+    if failed:
+        raise SystemExit(f"Overpass stayed busy for {', '.join(failed)}. Run `make setup` again later; built cities are kept.")
+    print("done. Start the wall with `make start` and open http://127.0.0.1:8511")
+
+
 def cmd_detect(args: argparse.Namespace) -> None:
     # Imported here so that every other command runs without the detector's optional dependencies installed.
     from .detect import serve
@@ -157,6 +201,9 @@ def main() -> None:
     c = sub.add_parser("catalog", help="fetch a region's camera catalog from its source's published feed")
     c.add_argument("--region", required=True)
     c.set_defaults(func=cmd_catalog)
+
+    su = sub.add_parser("setup", help="build every configured city that has no road graph yet, and join its traffic counts, so the server can start")
+    su.set_defaults(func=cmd_setup)
 
     co = sub.add_parser("counts", help="join the agency's published traffic counts to a region's cameras, where it publishes them (build the graph first)")
     co.add_argument("--region", required=True)

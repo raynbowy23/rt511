@@ -95,7 +95,7 @@ export function createApp(options: AppOptions): App {
         })
       : [...configured.values()].filter(built);
   if (regions.length === 0) {
-    throw new Error('no cities have been built yet. Run `uv run rt511 city "<city>, <state>"`, then catalog and build it.');
+    throw new Error('no cities have been built yet. Run `make setup` to build the cities listed in data/regions.json, or `make add-city CITY="Des Moines, IA"` for a new one.');
   }
 
   const graphs = new Map<string, Graph>();

@@ -7,7 +7,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-USER_AGENT = "rt511/0.1 (personal traffic camera wall; contact via GitHub raynbowy23)"
+USER_AGENT: str = json.loads((Path(__file__).resolve().parents[2] / "data" / "sources.json").read_text())["user_agent"]
+"""The identifying User-Agent on every request, read from the source table so that the pipeline and the server name the project the same way."""
 DEFAULT_POLL_PERIOD_S = 60.0
 """Sixty seconds is the polite default until a source's true picture-refresh rate has been measured. Caltrans publishes its own, five minutes, and its entry says so."""
 

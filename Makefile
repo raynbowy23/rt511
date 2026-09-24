@@ -1,13 +1,14 @@
 # One place for the commands this repository runs. Every target is a thin wrapper over a pnpm script or `uv run rt511`, so the README's longer forms still work and stay the source of truth for what each command does.
 #
 #   make                                       list the targets
+#   make setup                                 first run: dependencies and every included city
 #   make up                                    server and detector together, one Ctrl+C stops both
 #   make add-city CITY="Des Moines, IA"        city, catalog and graph in one go
 #
 # Variables pass straight through, e.g. `make start ARGS="--regions oakland-ca"` or `make detect DEVICE=cpu`.
 
 .DEFAULT_GOAL := help
-.PHONY: help install sync start serve dev up build check test test-server test-python figures \
+.PHONY: help setup install sync start serve dev up build check test test-server test-python figures \
 	detect detect-cpu sources regions index metros city catalog graph counts add-city
 
 # Extra arguments for the server, e.g. ARGS="--regions oakland-ca,des-moines-ia --cameras freeway".
@@ -25,6 +26,12 @@ help: ## list the targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # --- setup
+
+setup: ## first run: install dependencies and build every included city (a few minutes; Overpass is paced)
+	pnpm install
+	uv sync
+	@test -f .env || cp .env.example .env
+	uv run rt511 setup
 
 install: ## install JavaScript and Python dependencies, detector included
 	pnpm install

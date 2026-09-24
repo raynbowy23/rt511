@@ -57,14 +57,22 @@ if (existsSync(envFile)) {
         console.warn(`could not read ${envFile}: ${error instanceof Error ? error.message : String(error)}`);
     }
 }
-const app = createApp({
-    root: args.root,
-    regionKeys: args.regions.split(',').map((key) => key.trim()).filter(Boolean),
-    pollOnDemand: args.regions.trim() === '',
-    cameras: args.cameras,
-    concurrency: args.concurrency,
-    ring: args.ring,
-});
+// A missing city, graph or source file is a setup problem with a one-line fix, so it is said in one line rather than as a stack trace.
+let app;
+try {
+    app = createApp({
+        root: args.root,
+        regionKeys: args.regions.split(',').map((key) => key.trim()).filter(Boolean),
+        pollOnDemand: args.regions.trim() === '',
+        cameras: args.cameras,
+        concurrency: args.concurrency,
+        ring: args.ring,
+    });
+}
+catch (error) {
+    console.error(`rt511 cannot start: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+}
 const server = createServer((req, res) => void app.router.handle(req, res));
 // Without this, a busy port throws an unhandled 'error' event and prints a stack trace, which buries the one fact that matters.
 server.on('error', (error) => {

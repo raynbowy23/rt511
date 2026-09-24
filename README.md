@@ -4,6 +4,17 @@ A traffic camera wall built from state transportation agencies' published camera
 
 It reads only agencies whose written terms allow a third-party viewer to show their cameras, through the feeds they publish for that purpose: California, Iowa, Kentucky, Ohio, Oregon, Maine, New Hampshire and Vermont, 7,641 cameras in all. See [Camera sources](#camera-sources) and [Disclaimer](#disclaimer).
 
+## Quickstart
+
+You need Node with pnpm, and Python 3.12 or newer with [uv](https://docs.astral.sh/uv/).
+
+```
+make setup     # dependencies, then a road graph for each of the twelve included cities (a few minutes)
+make start     # builds the wall and serves it
+```
+
+Open http://127.0.0.1:8511 and pick a city. Every included city works without a key. Ohio and Oregon need your own free API key only to refresh their camera lists and, for Ohio, to read incidents; see [Setup](#setup).
+
 ## Nothing is recorded
 
 Worth saying first. A tool that watches hundreds of cameras could easily become an archive by accident. This one doesn't:
