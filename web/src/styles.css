@@ -86,6 +86,18 @@ body {
   color: var(--fg);
 }
 
+.brand-mark.is-link {
+  padding: 0;
+  background: none;
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.brand-mark.is-link:hover {
+  color: var(--accent);
+}
+
 /* Breadcrumb: country, then region, then camera, with every level above the current one clickable. */
 .crumb-group {
   display: inline-flex;
@@ -631,6 +643,32 @@ body.is-touring .wall {
 
 .tile.is-stale .tile-layer.is-front {
   opacity: 0.4;
+}
+
+.tile-kind {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  z-index: 1;
+  padding: 2px 6px 2px 14px;
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--fg);
+  background: rgba(4, 5, 6, 0.62);
+  border-radius: 2px;
+}
+
+/* The same play mark the top bar uses for things that play. */
+.tile-kind::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  border-style: solid;
+  border-width: 3.5px 0 3.5px 5px;
+  border-color: transparent transparent transparent var(--accent);
+  transform: translateY(-50%);
 }
 
 .tile-label {
@@ -2582,4 +2620,311 @@ body[data-view='wall'] .stage {
 .night-shift-clock {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
+}
+
+/* Front page ------------------------------------------------------------- */
+
+.landing {
+  /* A grid item, so without this the wide table would stretch the page instead of scrolling inside its own box. */
+  min-width: 0;
+  width: min(1080px, 100%);
+  margin: 0 auto;
+  padding: 56px 0 40px;
+}
+
+.landing-hero {
+  padding-bottom: 40px;
+  border-bottom: 1px solid var(--line);
+}
+
+.landing-eyebrow {
+  margin: 0 0 18px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.landing-title {
+  max-width: 17em;
+  margin: 0;
+  font-size: clamp(30px, 4.6vw, 52px);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+}
+
+.landing-lede {
+  max-width: 40em;
+  margin: 22px 0 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--fg) 78%, transparent);
+}
+
+.landing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.landing-cta,
+.landing-secondary,
+.landing-city {
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 200ms ease, border-color 200ms ease, background 200ms ease;
+}
+
+.landing-cta {
+  padding: 12px 20px;
+  color: var(--bg);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.landing-cta:hover {
+  background: color-mix(in srgb, var(--accent) 86%, white);
+}
+
+.landing-secondary {
+  padding: 12px 18px;
+  color: var(--fg);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+}
+
+.landing-secondary:hover,
+.landing-city:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.landing-cities {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 26px;
+}
+
+.landing-cities-label {
+  margin-right: 6px;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.landing-city {
+  padding: 6px 12px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.landing-section {
+  padding: 36px 0 8px;
+}
+
+.landing-heading {
+  margin: 0 0 16px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.landing-features {
+  display: grid;
+  /* Three across, so the six fill two rows with no empty cells showing the grid lines through. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.landing-feature {
+  padding: 18px 20px 20px;
+  background: var(--bg);
+}
+
+.landing-feature h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.landing-feature p,
+.landing-kind p,
+.landing-note,
+.landing-fine p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: color-mix(in srgb, var(--fg) 70%, transparent);
+}
+
+.landing-kinds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+}
+
+.landing-kind {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+.kind-chip {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 9px;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-radius: 2px;
+}
+
+.kind-chip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.kind-chip.is-video {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.kind-chip.is-snapshot {
+  color: color-mix(in srgb, var(--fg) 80%, transparent);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.kind-chip.is-snapshot::before {
+  background: transparent;
+  border: 1px solid currentColor;
+}
+
+.landing-note {
+  max-width: 46em;
+  margin-bottom: 16px;
+}
+
+.landing-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+.landing-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.landing-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.landing-table td {
+  padding: 12px 14px;
+  vertical-align: top;
+  border-bottom: 1px solid var(--line);
+  color: color-mix(in srgb, var(--fg) 82%, transparent);
+}
+
+.landing-table tr:last-child td {
+  border-bottom: none;
+}
+
+.landing-table .is-number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.landing-table a {
+  color: var(--fg);
+  text-decoration-color: color-mix(in srgb, var(--fg) 30%, transparent);
+  text-underline-offset: 3px;
+}
+
+.landing-table a:hover {
+  color: var(--accent);
+}
+
+.landing-site,
+.landing-license {
+  display: block;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.landing-license {
+  max-width: 22em;
+  margin: 0 0 3px;
+}
+
+.landing-fine {
+  padding-bottom: 24px;
+}
+
+.landing-fine p {
+  max-width: 52em;
+}
+
+@media (max-width: 900px) {
+  .landing-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .landing {
+    padding-top: 32px;
+  }
+
+  .landing-features {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .landing-lede {
+    font-size: 15px;
+  }
+}
+
+/* The front page is a page to read, so the scores tab and its reserved width stay out of it. */
+body[data-view='home'] .arbiter {
+  display: none;
+}
+
+body[data-view='home'] .stage.has-arbiter {
+  padding-right: 20px;
 }

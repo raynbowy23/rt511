@@ -355,6 +355,9 @@ export interface NationalSource {
   attribution: string;
   license?: string | undefined;
   terms_url?: string | undefined;
+  /** How often the wall fetches a camera on screen, and, where the agency refreshes faster, how often the one camera open in the panel is fetched. */
+  poll_period_s?: number | undefined;
+  focus_period_s?: number | null | undefined;
   cameras: { ids: number[]; lat: number[]; lon: number[] };
 }
 

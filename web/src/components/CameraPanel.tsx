@@ -191,7 +191,7 @@ export function CameraPanel({
   // A camera without video says so plainly: it is a live snapshot, and the badge says how often a new one arrives, so it is never mistaken for a video feed.
   const snapshotEvery = focusPeriod ?? pollPeriod;
   const snapshot = !streaming && mode === 'Snapshots only' && snapshotEvery !== null;
-  const badge = !live ? 'Replay' : streaming ? 'Live' : snapshot ? `Live snapshot (${every(snapshotEvery)})` : mode;
+  const badge = !live ? 'Replay' : streaming ? 'Live video' : snapshot ? `Live snapshot (${every(snapshotEvery)})` : mode;
   const badgeKey = !live ? 'replay' : streaming ? 'live' : snapshot ? 'snapshot' : mode.toLowerCase().replace(/\s+/g, '-');
   const shownTs = live && focusPeriod !== null && focusTs !== null ? Math.max(focusTs, frame?.ts ?? 0) : frame?.ts;
   const stamp = shownTs !== undefined

@@ -5,7 +5,7 @@ export interface Crumb {
   go?: (() => void) | undefined;
 }
 
-type Level = 'national' | 'map' | 'wall' | 'board';
+type Level = 'home' | 'national' | 'map' | 'wall' | 'board';
 
 /** The top bar: where you are on the left, then three kinds of control that used to look identical and now do not.
  *
@@ -17,6 +17,7 @@ export function TopBar({
   level,
   touring,
   onView,
+  onHome,
   onToggleTour,
   diaryOpen = false,
   onDiary,
@@ -32,6 +33,8 @@ export function TopBar({
   touring: boolean;
   /** Switches to a view within the current scope. A view that is not available leaves the switch without that option. */
   onView: (level: Level) => void;
+  /** The front page. The name in the corner goes there, as it does on most sites. */
+  onHome?: () => void;
   onToggleTour: () => void;
   diaryOpen?: boolean;
   onDiary?: () => void;
@@ -54,7 +57,13 @@ export function TopBar({
   return (
     <header className="topbar">
       <div className="brand">
-        <span className="brand-mark">rt511</span>
+        {onHome && level !== 'home' ? (
+          <button type="button" className="brand-mark is-link" title="Front page" onClick={onHome}>
+            rt511
+          </button>
+        ) : (
+          <span className="brand-mark">rt511</span>
+        )}
         <nav className="crumbs" aria-label="Location">
           {crumbs.map((crumb, i) => (
             <span className="crumb-group" key={`${crumb.label}-${i}`}>
@@ -70,9 +79,14 @@ export function TopBar({
           ))}
         </nav>
       </div>
+      {/* Nothing is polled on the front page, so there is no camera status to report there. */}
       <div className="status">
-        <span className={`status-dot${ok ? '' : ' is-down'}`} />
-        <span className="status-text">{status}</span>
+        {level !== 'home' && (
+          <>
+            <span className={`status-dot${ok ? '' : ' is-down'}`} />
+            <span className="status-text">{status}</span>
+          </>
+        )}
       </div>
       <div className="controls">
         <div className="view-switch" role="tablist" aria-label="View">

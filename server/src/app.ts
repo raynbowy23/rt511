@@ -242,6 +242,8 @@ export function createApp(options: AppOptions): App {
         attribution: source.attribution,
         license: source.license,
         terms_url: source.terms_url,
+        poll_period_s: source.poll_period_s,
+        focus_period_s: source.focus_period_s,
         cameras: national.sources[key] ?? { ids: [], lat: [], lon: [] },
       };
     }

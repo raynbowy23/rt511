@@ -18,6 +18,7 @@ import { CitySwitcher, type City } from './components/CitySwitcher';
 import { Footer, type Credits } from './components/Footer';
 import { IncidentCard } from './components/IncidentCard';
 import { MinimapPane, NationalPane, RegionMapPane } from './components/Panes';
+import { Landing } from './components/Landing';
 import { DOCK_DEFAULT, Splitter } from './components/Splitter';
 import { TopBar, type Crumb } from './components/TopBar';
 import { Board } from './components/Board';
@@ -32,7 +33,7 @@ import { useTour } from './hooks/useTour';
 import { useWallRanking } from './hooks/useWallRanking';
 
 /** Three levels: the country, one region's map or wall, and a camera inside it. */
-type Level = 'national' | 'map' | 'wall' | 'board';
+type Level = 'home' | 'national' | 'map' | 'wall' | 'board';
 
 const POLL_MS = 10_000;
 /** The dispatch feed refreshes every two minutes and the server caches it, so asking once a minute is as fresh as it can be without being pointless. */
@@ -60,7 +61,10 @@ interface Poll {
 export function App(): ReactElement {
   const [boot, setBoot] = useState<Boot | null>(null);
   const [poll, setPoll] = useState<Poll>({ states: [], intervalS: 60, ok: false, tick: 0 });
-  const [level, setLevel] = useState<Level>(() => new URLSearchParams(window.location.hash.slice(1)).get('view') === 'board' ? 'board' : 'national');
+  const [level, setLevel] = useState<Level>(() => {
+    const view = new URLSearchParams(window.location.hash.slice(1)).get('view');
+    return view === 'board' ? 'board' : view === 'national' ? 'national' : 'home';
+  });
   const [region, setRegion] = useState<string | null>(null);
   const [cameraId, setCameraId] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -141,7 +145,7 @@ export function App(): ReactElement {
     (next: Trip) => {
       tour.stop();
       setTripPicker(false);
-      setLevel((current) => (current === 'national' || current === 'board' ? 'wall' : current));
+      setLevel((current) => (current === 'home' || current === 'national' || current === 'board' ? 'wall' : current));
       // The trip is watched in the camera panel at the top of the page, so the page goes there rather than following the tiles.
       window.scrollTo({ top: 0, behavior: 'smooth' });
       roadTrip.start(next);
@@ -254,7 +258,7 @@ export function App(): ReactElement {
 
   // Polls the camera state and hands the same snapshot to every view that needs it.
   useEffect(() => {
-    if (!boot || level === 'board') return;
+    if (!boot || level === 'board' || level === 'home') return;
     let cancelled = false;
     const run = async (): Promise<void> => {
       // Naming the city keeps its cameras polled on a server that was started without one. At the country level nothing is named, so nothing is polled.
@@ -276,7 +280,7 @@ export function App(): ReactElement {
   }, [boot, level, region]);
 
   useEffect(() => {
-    if (!boot || level === 'national' || level === 'board' || !region) {
+    if (!boot || level === 'home' || level === 'national' || level === 'board' || !region) {
       setIncidents(null);
       return;
     }
@@ -338,15 +342,15 @@ export function App(): ReactElement {
     if (hash.has('relay')) pendingRelay.current = true;
     const view = hash.get('view');
     // A camera or a region named in the fragment implies the region level even when no view is given.
-    setLevel(view === 'board' ? 'board' : view === 'wall' ? 'wall' : view === 'map' ? 'map' : view === 'national' ? 'national' : startRegion || hasCamera ? 'map' : 'national');
+    setLevel(view === 'board' ? 'board' : view === 'wall' ? 'wall' : view === 'map' ? 'map' : view === 'national' ? 'national' : view === 'home' ? 'home' : startRegion || hasCamera ? 'map' : 'home');
   }, [boot, topology, tour]);
 
   /** Keeps the fragment pointed at the current level so a screen can be restored to it. replaceState rather than a hash assignment, which would otherwise pile up history entries as the tour walks a corridor. */
   useEffect(() => {
     if (!boot) return;
-    const shown: Level = boot.national ? level : level === 'national' ? 'map' : level;
+    const shown: Level = boot.national ? level : level === 'national' || level === 'home' ? 'map' : level;
     const params: string[] = [`view=${shown}`];
-    if (shown !== 'national' && shown !== 'board' && region) params.push(`region=${region}`);
+    if (shown !== 'home' && shown !== 'national' && shown !== 'board' && region) params.push(`region=${region}`);
     if (cameraId !== null) params.push(`cam=${cameraId}`);
     if (tour.running) params.push('tour');
     if (trip) params.push(`trip=${encodeURIComponent(trip.trip.id)}`);
@@ -388,7 +392,7 @@ export function App(): ReactElement {
           // Escape steps up one level at a time: out of expanded, then out of the camera, then out of the region.
           if (current.expanded) setExpanded(false);
           else if (current.cameraId !== null) current.closeCamera();
-          else if (current.level !== 'national') current.goNational();
+          else if (current.level !== 'national' && current.level !== 'home') current.goNational();
           break;
         case 'f':
         case 'F':
@@ -397,7 +401,7 @@ export function App(): ReactElement {
         case 'm':
         case 'M':
           // At the country level there is no wall to toggle, so M steps down into the first region this run is polling.
-          if (current.level === 'national') {
+          if (current.level === 'national' || current.level === 'home') {
             const first = current.region ?? current.boot?.regions[0]?.region;
             if (first) current.openRegion(first);
           } else {
@@ -437,7 +441,7 @@ export function App(): ReactElement {
 
   const ranks = useWallRanking(wallCameras, statesById, RERANK_MS);
 
-  const scope = level === 'national' || level === 'board' || region === null ? poll.states : poll.states.filter((state) => state.region === region);
+  const scope = level === 'home' || level === 'national' || level === 'board' || region === null ? poll.states : poll.states.filter((state) => state.region === region);
   const withFrames = scope.filter((state) => state.frames > 0).length;
   const status = poll.ok ? `${withFrames} of ${scope.length} cameras live · ${Math.round(poll.intervalS)}s snapshots` : 'backend unreachable, retrying';
 
@@ -466,14 +470,15 @@ export function App(): ReactElement {
     [boot],
   );
 
-  const citySource = level === 'national' || level === 'board' ? undefined : boot?.regions.find((r) => r.region === region);
+  const citySource = level === 'home' || level === 'national' || level === 'board' ? undefined : boot?.regions.find((r) => r.region === region);
   const cameraSource = boot?.regions.find((r) => r.region === camera?.region || (camera?.source !== undefined && r.source === camera.source));
   const regionName = boot?.regions.find((r) => r.region === region)?.region_name ?? region ?? 'region';
   const crumbs: Crumb[] = [];
-  if (boot?.national) crumbs.push({ label: 'United States', go: level === 'national' ? undefined : goNational });
+  if (level === 'home') crumbs.push({ label: 'Welcome' });
+  else if (boot?.national) crumbs.push({ label: 'United States', go: level === 'national' ? undefined : goNational });
   else crumbs.push({ label: boot?.graph.meta.region_name ?? 'rt511' });
   if (level === 'board') crumbs.push({ label: 'National board' });
-  if (level !== 'national' && level !== 'board') {
+  if (level !== 'home' && level !== 'national' && level !== 'board') {
     crumbs.push({ label: regionName, go: camera ? closeCamera : undefined });
     if (camera) crumbs.push({ label: camera.location });
   }
@@ -485,7 +490,7 @@ export function App(): ReactElement {
   const nearbyIncidents = cameraId === null ? [] : liveIncidents.filter((item) => item.cameras.includes(cameraId));
 
   const footerContext =
-    level === 'board' ? 'National top 30' : level === 'national'
+    level === 'home' ? `${plural(cities.length, 'city', 'cities')} ready to watch` : level === 'board' ? 'National top 30' : level === 'national'
       ? `${plural(cities.length, 'city', 'cities')} · ${plural(poll.states.length, 'camera', 'cameras')} polled`
       : [
           regionName,
@@ -516,7 +521,7 @@ export function App(): ReactElement {
   }
 
   // A backend without the national index has no country level to show, so the landing level falls back to the region rather than leaving an empty stage.
-  const effectiveLevel: Level = boot.national ? level : level === 'national' ? 'map' : level;
+  const effectiveLevel: Level = boot.national ? level : level === 'national' || level === 'home' ? 'map' : level;
   const cameraOpen = camera !== null;
 
   return (
@@ -527,6 +532,11 @@ export function App(): ReactElement {
         ok={poll.ok}
         level={effectiveLevel}
         touring={tour.running}
+        onHome={() => {
+          tour.stop();
+          setCameraId(null);
+          setLevel('home');
+        }}
         onView={(next) => {
           // Leaving for the board stops whatever was walking the wall, since the board is the whole country and has no wall to walk.
           if (next === 'board') {
@@ -566,6 +576,16 @@ export function App(): ReactElement {
         data-level={effectiveLevel}
         style={{ '--dock-w': `${dockWidth}px` } as React.CSSProperties}
       >
+        {boot.national && effectiveLevel === 'home' && (
+          <Landing
+            national={boot.national}
+            disclaimer={boot.disclaimer}
+            onMap={goNational}
+            onCity={openRegion}
+            onBoard={() => setLevel('board')}
+            onRelay={startRelay}
+          />
+        )}
         {boot.national && (
           <NationalPane data={boot.national} visible={effectiveLevel === 'national'} states={poll.states} onRegion={openRegion} />
         )}
@@ -626,7 +646,7 @@ export function App(): ReactElement {
         />
       </div>
       <ScoresPane
-        region={level === 'national' || level === 'board' ? null : region}
+        region={level === 'home' || level === 'national' || level === 'board' ? null : region}
         onRegion={openRegion}
         onCamera={(id, key) => { openRegion(key); openCamera(id); }}
         open={arbiterOpen}
