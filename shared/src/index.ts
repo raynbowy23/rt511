@@ -521,15 +521,18 @@ export interface SkyRegion {
   /** Of those, how many have enough history to say what their usual contrast is, and how many are well below it. */
   contrast_known: number;
   contrast_low: number;
-  /** Set when enough of a city's cameras flattened together in daylight to suggest rain, fog or low cloud. A hint from pixels, never a forecast. */
-  weather: 'murky' | null;
+  /** How many of those cameras have turned white against their own recent pictures. */
+  snow_known: number;
+  snow_white: number;
+  /** Set when enough of a city's cameras flattened together in daylight to suggest rain, fog or low cloud, or turned white together to suggest snow. Snow wins when both hold. A hint from pixels, never a forecast. */
+  weather: 'murky' | 'snow' | null;
 }
 
 export interface SkyResponse {
   regions: SkyRegion[];
 }
 
-export type DiaryKind = HighlightKind | 'murky' | 'clear' | 'sunset' | 'sunrise';
+export type DiaryKind = HighlightKind | 'murky' | 'clear' | 'snow' | 'sunset' | 'sunrise';
 
 /** One line in the day's diary. Text and numbers only: no picture is ever kept, because the imagery belongs to the state that published it. */
 export interface DiaryEntry {

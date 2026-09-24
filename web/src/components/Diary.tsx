@@ -6,6 +6,7 @@ const labels: Record<DiaryKind, string> = {
   stopped: 'Stopped traffic',
   movement: 'Unusual movement',
   murky: 'Murky',
+  snow: 'Snow',
   clear: 'Clear again',
   sunset: 'Sunset',
   sunrise: 'Sunrise',
@@ -91,7 +92,7 @@ export function Diary({
           ))}
         </ol>
       )}
-      <p className="diary-note">Text only. No camera imagery is stored. Murky is a hint from picture contrast, not a weather report.</p>
+      <p className="diary-note">Text only. No camera imagery is stored. Murky and snow are hints from the pictures, not a weather report.</p>
     </aside>
   );
 }

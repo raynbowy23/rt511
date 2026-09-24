@@ -51,7 +51,7 @@ function skyColour(brightness: number): [number, number, number] {
 function skyPhrase(sky: SkyRegion): string {
   const sun = sky.sun_elevation > 0 ? `sun ${Math.round(sky.sun_elevation)}°` : sky.sun_elevation > -6 ? 'twilight' : 'night';
   const light = sky.brightness === null ? '' : ` · cameras ${Math.round(sky.brightness * 100)}% bright`;
-  const murk = sky.weather === 'murky' ? ` · murky, ${sky.contrast_low} of ${sky.contrast_known} flat` : '';
+  const murk = sky.weather === 'snow' ? ` · snow, ${sky.snow_white} of ${sky.snow_known} cameras white` : sky.weather === 'murky' ? ` · murky, ${sky.contrast_low} of ${sky.contrast_known} flat` : '';
   return `${sun}${light}${murk}`;
 }
 
@@ -136,6 +136,7 @@ export class NationalView {
       ['is-sky-day', 'sky: day'],
       ['is-sky-dusk', 'dusk'],
       ['is-sky-night', 'night'],
+      ['is-snow', 'snow'],
     ] as [string, string][]) {
       const item = document.createElement('span');
       item.className = 'map-legend-item';
@@ -640,6 +641,14 @@ export class NationalView {
         ctx.arc(sx, sy, radius + 16, 0, Math.PI * 2);
         ctx.fillStyle = halo;
         ctx.fill();
+      }
+      if (marker.sky?.weather === 'snow') {
+        // Snow is a solid white ring, where murk is a dashed grey one.
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius + 10, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(245, 248, 255, 0.95)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
       }
       if (marker.sky?.weather === 'murky') {
         ctx.beginPath();

@@ -2,7 +2,9 @@
  *
  * Two readings. Brightness is the median of the cameras' mean luma, which is what the national map paints as the sunset wave: the east coast going dark first and Las Vegas last. And a murk hint, when most of a city's cameras lose contrast against their own recent pictures at the same time in daylight, which is what rain on the lens, fog and low cloud look like to a thumbnail.
  *
- * The murk hint is a toy, not a measurement. Its thresholds below are guesses that nobody has checked against real weather, and it says so wherever it is shown. It is only ever read in daylight, because dusk flattens every picture in a city at once and would otherwise be reported as a storm every evening. */
+ * A third reading, snow, is the white share of each picture against its own recent pictures: a city where several cameras turned white together in daylight has most likely had snow. Iowa's rural weather-station cameras make this the most useful of the three in winter.
+ *
+ * The murk and snow hints are toys, not measurements. Its thresholds below are guesses that nobody has checked against real weather, and it says so wherever it is shown. It is only ever read in daylight, because dusk flattens every picture in a city at once and would otherwise be reported as a storm every evening. */
 import { solarElevation } from '../../shared/src/index.js';
 import { round } from './config.js';
 import { median } from './poller.js';
@@ -18,6 +20,12 @@ export const SKY = {
     MIN_SHARE: 0.5,
     /** The sun must be at least this high. Below it, the light is changing fast enough that every camera flattens with it. */
     DAYLIGHT_DEG: 10,
+    /** A camera has turned white when at least this share of its picture is white, and that share is at least SNOW_RISE above its own recent median, so a camera that always looks at a white wall or a concrete deck never counts. Both guesses. */
+    SNOW_WHITE: 0.25,
+    SNOW_RISE: 0.15,
+    /** How many cameras with a known white share must have turned white together, and what share of them, before a city reads as snow. Three rather than four because rural weather-station cameras are thin on the ground. */
+    SNOW_MIN_CAMERAS: 3,
+    SNOW_MIN_SHARE: 1 / 3,
 };
 export function readSky(regions, cameras, now) {
     const byRegion = new Map();
@@ -33,6 +41,8 @@ export function readSky(regions, cameras, now) {
         const lights = recent.flatMap((camera) => (camera.brightness === null ? [] : [camera.brightness]));
         let known = 0;
         let low = 0;
+        let snowKnown = 0;
+        let snowWhite = 0;
         for (const camera of recent) {
             // The newest contrast is the one being judged, so it is left out of the median it is judged against.
             const earlier = camera.contrasts.slice(0, -1);
@@ -42,8 +52,18 @@ export function readSky(regions, cameras, now) {
             if (camera.contrast < SKY.LOW_RATIO * median(earlier))
                 low++;
         }
+        for (const camera of recent) {
+            const earlier = (camera.whites ?? []).slice(0, -1);
+            if (camera.white == null || earlier.length < SKY.HISTORY_MIN)
+                continue;
+            snowKnown++;
+            if (camera.white >= SKY.SNOW_WHITE && camera.white - median(earlier) >= SKY.SNOW_RISE)
+                snowWhite++;
+        }
         const sun = solarElevation(lat, lon, now);
         const murky = sun >= SKY.DAYLIGHT_DEG && known >= SKY.MIN_CAMERAS && low / known >= SKY.MIN_SHARE;
+        // Daylight only, for the same reason: headlights and floodlights on wet pavement turn a night picture white too.
+        const snow = sun >= SKY.DAYLIGHT_DEG && snowWhite >= SKY.SNOW_MIN_CAMERAS && snowWhite / snowKnown >= SKY.SNOW_MIN_SHARE;
         return {
             key,
             name,
@@ -54,7 +74,9 @@ export function readSky(regions, cameras, now) {
             cameras: recent.length,
             contrast_known: known,
             contrast_low: low,
-            weather: murky ? 'murky' : null,
+            snow_known: snowKnown,
+            snow_white: snowWhite,
+            weather: snow ? 'snow' : murky ? 'murky' : null,
         };
     });
 }

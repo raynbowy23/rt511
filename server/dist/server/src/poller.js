@@ -32,6 +32,9 @@ export const ACTIVE_DIFF = ACTIVITY_FLOOR * 2;
  * Contrast is the standard deviation of the thumbnail's luma. Rain on the lens, fog and low cloud all flatten a picture, so a whole city's cameras losing contrast together is the sky page's hint that the weather has turned. It is measured here because the thumbnail already exists and costs nothing more to read.
  *
  * Resizing and then taking the luma is the same operation as PIL's convert-then-resize: both are linear, so they commute. The luma weights are ITU-R 601-2, which is what PIL's "L" conversion uses. */
+/** A pixel counts as white when every channel is bright and the three are close together: snow, not a sunlit red truck or a yellow sky. */
+const WHITE_MIN = 0.72 * 255;
+const WHITE_SPREAD = 0.12 * 255;
 export async function analyze(data, prevThumb) {
     const { data: raw } = await sharp(data)
         // Bilinear, matching PIL's BILINEAR in the Python this replaces. sharp's runtime accepts 'linear' (it is in sharp.kernel) but its bundled typings omit it, hence the cast.
@@ -43,10 +46,13 @@ export async function analyze(data, prevThumb) {
     const pixels = THUMB_W * THUMB_H;
     const thumb = new Float32Array(pixels);
     let sum = 0;
+    let whites = 0;
     for (let i = 0; i < pixels; i++) {
         const r = raw[i * 3];
         const g = raw[i * 3 + 1];
         const b = raw[i * 3 + 2];
+        if (Math.min(r, g, b) >= WHITE_MIN && Math.max(r, g, b) - Math.min(r, g, b) <= WHITE_SPREAD)
+            whites++;
         const value = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
         thumb[i] = value;
         sum += value;
@@ -63,7 +69,9 @@ export async function analyze(data, prevThumb) {
             total += Math.abs(thumb[i] - prevThumb[i]);
         diff = total / pixels;
     }
-    return { thumb, brightness, contrast, diff };
+    // The share of the picture that is white, which snow cover raises and nothing else in a daylight road scene does for long.
+    const white = whites / pixels;
+    return { thumb, brightness, contrast, white, diff };
 }
 export function median(values) {
     const sorted = [...values].sort((a, b) => a - b);
@@ -79,6 +87,9 @@ export class CameraSlot {
     /** Contrast of the newest frame, and of recent ones, for the sky page. Kept on the slot rather than the frame because nothing reads it for a frame in the replay ring. */
     contrast = null;
     contrasts = [];
+    /** The white share of the newest frame and of recent ones, for the snow hint. */
+    white = null;
+    whites = [];
     polls = 0;
     unchanged = 0;
     unavailable = 0;
@@ -428,7 +439,7 @@ export class Poller {
             slot.unchanged++;
             return 'unchanged';
         }
-        const { thumb, brightness, contrast, diff } = await analyze(snap.data, slot.lastThumb);
+        const { thumb, brightness, contrast, white, diff } = await analyze(snap.data, slot.lastThumb);
         // Only the newest thumbnail is ever read, to diff the next frame against. Keeping one per retained frame cost 12 KB times the ring times every camera, for nothing.
         slot.lastThumb = thumb;
         slot.frames.push({
@@ -446,6 +457,10 @@ export class Poller {
         slot.contrasts.push(contrast);
         if (slot.contrasts.length > DIFF_HISTORY)
             slot.contrasts.shift();
+        slot.white = white;
+        slot.whites.push(white);
+        if (slot.whites.length > DIFF_HISTORY)
+            slot.whites.shift();
         if (diff !== null) {
             slot.diffs.push(diff);
             if (slot.diffs.length > DIFF_HISTORY)

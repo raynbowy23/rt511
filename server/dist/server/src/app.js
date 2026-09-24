@@ -374,7 +374,7 @@ export function createApp(options) {
         const [lat, lon] = centroid(region);
         return { key: region.key, name: region.name, lat, lon };
     });
-    const currentSky = (now = Date.now() / 1000) => readSky(skyRegions, [...poller.cameras.values()].map((slot) => ({ region: slot.camera.region, lastTs: slot.latest?.ts ?? null, brightness: slot.latest?.brightness ?? null, contrast: slot.contrast, contrasts: slot.contrasts })), now);
+    const currentSky = (now = Date.now() / 1000) => readSky(skyRegions, [...poller.cameras.values()].map((slot) => ({ region: slot.camera.region, lastTs: slot.latest?.ts ?? null, brightness: slot.latest?.brightness ?? null, contrast: slot.contrast, contrasts: slot.contrasts, white: slot.white, whites: slot.whites })), now);
     router.get('/api/sky', () => ({ regions: currentSky() }));
     // What the wall noticed, written down once a minute so the day can be read back. Words and numbers only, never a picture.
     const diary = new Diary(join(root, 'out'));

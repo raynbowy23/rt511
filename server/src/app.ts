@@ -414,7 +414,7 @@ export function createApp(options: AppOptions): App {
   const currentSky = (now = Date.now() / 1000): SkyRegion[] =>
     readSky(
       skyRegions,
-      [...poller.cameras.values()].map((slot) => ({ region: slot.camera.region, lastTs: slot.latest?.ts ?? null, brightness: slot.latest?.brightness ?? null, contrast: slot.contrast, contrasts: slot.contrasts })),
+      [...poller.cameras.values()].map((slot) => ({ region: slot.camera.region, lastTs: slot.latest?.ts ?? null, brightness: slot.latest?.brightness ?? null, contrast: slot.contrast, contrasts: slot.contrasts, white: slot.white, whites: slot.whites })),
       now,
     );
   router.get('/api/sky', (): SkyResponse => ({ regions: currentSky() }));

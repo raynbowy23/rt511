@@ -52,7 +52,11 @@ export type PollResult = 'fresh' | 'unchanged' | 'not_modified' | 'unavailable';
  * Contrast is the standard deviation of the thumbnail's luma. Rain on the lens, fog and low cloud all flatten a picture, so a whole city's cameras losing contrast together is the sky page's hint that the weather has turned. It is measured here because the thumbnail already exists and costs nothing more to read.
  *
  * Resizing and then taking the luma is the same operation as PIL's convert-then-resize: both are linear, so they commute. The luma weights are ITU-R 601-2, which is what PIL's "L" conversion uses. */
-export async function analyze(data: Buffer, prevThumb: Float32Array | null): Promise<{ thumb: Float32Array; brightness: number; contrast: number; diff: number | null }> {
+/** A pixel counts as white when every channel is bright and the three are close together: snow, not a sunlit red truck or a yellow sky. */
+const WHITE_MIN = 0.72 * 255;
+const WHITE_SPREAD = 0.12 * 255;
+
+export async function analyze(data: Buffer, prevThumb: Float32Array | null): Promise<{ thumb: Float32Array; brightness: number; contrast: number; white: number; diff: number | null }> {
   const { data: raw } = await sharp(data)
     // Bilinear, matching PIL's BILINEAR in the Python this replaces. sharp's runtime accepts 'linear' (it is in sharp.kernel) but its bundled typings omit it, hence the cast.
     .resize(THUMB_W, THUMB_H, { fit: 'fill', kernel: 'linear' as keyof sharp.KernelEnum })
@@ -64,10 +68,12 @@ export async function analyze(data: Buffer, prevThumb: Float32Array | null): Pro
   const pixels = THUMB_W * THUMB_H;
   const thumb = new Float32Array(pixels);
   let sum = 0;
+  let whites = 0;
   for (let i = 0; i < pixels; i++) {
     const r = raw[i * 3] as number;
     const g = raw[i * 3 + 1] as number;
     const b = raw[i * 3 + 2] as number;
+    if (Math.min(r, g, b) >= WHITE_MIN && Math.max(r, g, b) - Math.min(r, g, b) <= WHITE_SPREAD) whites++;
     const value = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     thumb[i] = value;
     sum += value;
@@ -83,7 +89,9 @@ export async function analyze(data: Buffer, prevThumb: Float32Array | null): Pro
     for (let i = 0; i < pixels; i++) total += Math.abs((thumb[i] as number) - (prevThumb[i] as number));
     diff = total / pixels;
   }
-  return { thumb, brightness, contrast, diff };
+  // The share of the picture that is white, which snow cover raises and nothing else in a daylight road scene does for long.
+  const white = whites / pixels;
+  return { thumb, brightness, contrast, white, diff };
 }
 
 export function median(values: number[]): number {
@@ -99,6 +107,9 @@ export class CameraSlot {
   /** Contrast of the newest frame, and of recent ones, for the sky page. Kept on the slot rather than the frame because nothing reads it for a frame in the replay ring. */
   contrast: number | null = null;
   readonly contrasts: number[] = [];
+  /** The white share of the newest frame and of recent ones, for the snow hint. */
+  white: number | null = null;
+  readonly whites: number[] = [];
   polls = 0;
   unchanged = 0;
   unavailable = 0;
@@ -449,7 +460,7 @@ export class Poller {
       slot.unchanged++;
       return 'unchanged';
     }
-    const { thumb, brightness, contrast, diff } = await analyze(snap.data, slot.lastThumb);
+    const { thumb, brightness, contrast, white, diff } = await analyze(snap.data, slot.lastThumb);
     // Only the newest thumbnail is ever read, to diff the next frame against. Keeping one per retained frame cost 12 KB times the ring times every camera, for nothing.
     slot.lastThumb = thumb;
     slot.frames.push({
@@ -465,6 +476,9 @@ export class Poller {
     slot.contrast = contrast;
     slot.contrasts.push(contrast);
     if (slot.contrasts.length > DIFF_HISTORY) slot.contrasts.shift();
+    slot.white = white;
+    slot.whites.push(white);
+    if (slot.whites.length > DIFF_HISTORY) slot.whites.shift();
     if (diff !== null) {
       slot.diffs.push(diff);
       if (slot.diffs.length > DIFF_HISTORY) slot.diffs.shift();

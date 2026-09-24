@@ -43,8 +43,9 @@ export class Diary {
                 continue;
             const up = region.sun_elevation > 0;
             const murky = region.weather === 'murky';
+            const snow = region.weather === 'snow';
             const before = this.skies.get(region.key);
-            this.skies.set(region.key, { up, murky });
+            this.skies.set(region.key, { up, murky, snow });
             if (!before)
                 continue;
             const light = region.brightness === null ? '' : ` Its cameras read ${String(Math.round(region.brightness * 100))}% brightness.`;
@@ -54,8 +55,12 @@ export class Diary {
                 entries.push(this.sky(now, 'sunrise', region, `Sunrise over ${region.name}.${light}`));
             if (!before.murky && murky)
                 entries.push(this.sky(now, 'murky', region, `${String(region.contrast_low)} of ${String(region.contrast_known)} cameras over ${region.name} went flat together, which may be rain, fog or low cloud.`));
-            if (before.murky && !murky)
+            if (before.murky && !murky && !snow)
                 entries.push(this.sky(now, 'clear', region, `The cameras over ${region.name} are sharp again.`));
+            if (!before.snow && snow) {
+                const first = !this.snowedThisSeason(region.key, now);
+                entries.push(this.sky(now, 'snow', region, `${first ? 'First snow of the season' : 'Snow'} around ${region.name}: ${String(region.snow_white)} of ${String(region.snow_known)} cameras turned white together.`));
+            }
         }
         if (entries.length > 0)
             this.log.write(entries, now);
@@ -63,6 +68,14 @@ export class Diary {
     }
     sky(now, kind, region, brief) {
         return { ts: round(now, 1), kind, region: region.key, camera: null, brief, attention: null };
+    }
+    /** Whether the diary already records snow for a region since the start of this snow season, taken as the first of July, so the first snowfall of a winter can say so. */
+    snowedThisSeason(region, now) {
+        const when = new Date(now * 1000);
+        const seasonStart = `${String(when.getMonth() >= 6 ? when.getFullYear() : when.getFullYear() - 1)}-07-01`;
+        return this.days()
+            .filter((day) => day >= seasonStart)
+            .some((day) => this.read(day).some((entry) => entry.kind === 'snow' && entry.region === region));
     }
     /** Every day with a diary, newest first. */
     days() {

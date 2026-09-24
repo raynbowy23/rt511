@@ -859,6 +859,13 @@ body.is-expanded {
   background: rgb(34, 48, 110);
 }
 
+.national-legend i.is-snow {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid rgba(245, 248, 255, 0.95);
+}
+
 .national-list {
   display: flex;
   flex-direction: column;
@@ -2209,7 +2216,8 @@ body[data-view='national'] .minimap {
 }
 
 .diary-entry.is-murky .diary-kind,
-.diary-entry.is-clear .diary-kind {
+.diary-entry.is-clear .diary-kind,
+.diary-entry.is-snow .diary-kind {
   color: rgb(170, 184, 200);
 }
 

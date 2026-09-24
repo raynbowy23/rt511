@@ -89,6 +89,8 @@ Naming cities polls them continuously whether or not anyone is watching, which i
 
 **Sun relay** follows the sunset across the country. It shows whichever city the sun is setting over, stepping through that city's most interesting cameras, and hands off westward through the evening: Portland ME and Burlington first, Portland OR and Los Angeles last. Between sunsets it waits on the next one, and at night it waits on the first sunrise. `#relay` in the address resumes it.
 
+**Snow** is read from the pictures. Each frame's share of bright, colourless pixels is compared with that camera's own recent frames, and when at least three cameras in a city turn white together in daylight the city reads as snow: a white ring on the national map, and a diary entry that says so, "first snow of the season" the first time each winter. Iowa's rural weather-station cameras are where this earns its keep. Like the murky-sky hint beside it, it is a hint from pixels, not a weather report.
+
 The optional vehicle detector runs as its own process next to the server. It counts vehicles in a frame the zero-motion gate has flagged and hands the count to the arbiter as evidence. It needs the YOLO26 weights in `data/models/` (see [License](#license)):
 
 ```

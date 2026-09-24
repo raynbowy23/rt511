@@ -9,6 +9,8 @@ import { join } from 'node:path';
 import { after, test } from 'node:test';
 import { solarElevation, type Highlight, type SkyRegion } from '../../shared/src/index.js';
 import { Diary, DIARY } from './diary.js';
+import sharp from 'sharp';
+import { analyze } from './poller.js';
 import { SKY, readSky, type SkyCamera } from './sky.js';
 
 const temporaryDirectories: string[] = [];
@@ -41,6 +43,36 @@ test('most of a city going flat together in daylight reads as murk, and one smea
   assert.equal(one.weather, null);
 });
 
+test('several cameras turning white together in daylight read as snow, and snow outranks murk', () => {
+  const white = (now: number, usual = 0.05): SkyCamera => ({ ...camera(0.08), white: now, whites: [usual, usual, usual, usual, now] });
+  const snowy = readSky([region], [white(0.6), white(0.5), white(0.45), white(0.06), white(0.07)], NOON)[0]!;
+  assert.equal(snowy.snow_white, 3);
+  assert.equal(snowy.weather, 'snow', 'the same cameras are also flat, and snow is the better explanation');
+  const wall = readSky([region], [white(0.6, 0.55), white(0.5, 0.5), white(0.45, 0.45)], NOON)[0]!;
+  assert.equal(wall.snow_white, 0, 'a camera that always looks at something white has not turned white');
+  const night = [white(0.6), white(0.5), white(0.45)].map((c) => ({ ...c, lastTs: MIDNIGHT - 60 }));
+  assert.notEqual(readSky([region], night, MIDNIGHT)[0]!.weather, 'snow', 'headlights at night are not snow');
+});
+
+test('the diary says first snow once a season, then just snow', () => {
+  const book = diary();
+  book.note([], [sky({})], NOON);
+  const first = book.note([], [sky({ weather: 'snow', snow_white: 4, snow_known: 6 })], NOON + 60);
+  assert.match(first[0]!.brief, /^First snow of the season around Tallahassee: 4 of 6 cameras/);
+  book.note([], [sky({})], NOON + 120);
+  return book.drain().then(() => {
+    const again = book.note([], [sky({ weather: 'snow', snow_white: 3, snow_known: 6 })], NOON + 180);
+    assert.match(again[0]!.brief, /^Snow around/);
+  });
+});
+
+test('the white share counts bright neutral pixels only', async () => {
+  const picture = async (r: number, g: number, b: number): Promise<number> => (await analyze(await sharp({ create: { width: 64, height: 48, channels: 3, background: { r, g, b } } }).jpeg().toBuffer(), null)).white;
+  assert.ok((await picture(240, 240, 245)) > 0.95, 'a snowfield is white');
+  assert.ok((await picture(240, 200, 60)) < 0.05, 'a bright yellow sky is not');
+  assert.ok((await picture(90, 90, 90)) < 0.05, 'grey pavement is not');
+});
+
 test('the same flattening at night is not weather', () => {
   const night = [camera(0.08), camera(0.09), camera(0.1), camera(0.1)].map((c) => ({ ...c, lastTs: MIDNIGHT - 60 }));
   assert.equal(readSky([region], night, MIDNIGHT)[0]!.weather, null);
@@ -60,7 +92,7 @@ function diary(): Diary {
   return new Diary(path);
 }
 
-const sky = (over: Partial<SkyRegion>): SkyRegion => ({ key: 'tallahassee', name: 'Tallahassee', ...TLH, sun_elevation: 20, brightness: 0.4, cameras: 5, contrast_known: 5, contrast_low: 0, weather: null, ...over });
+const sky = (over: Partial<SkyRegion>): SkyRegion => ({ key: 'tallahassee', name: 'Tallahassee', ...TLH, sun_elevation: 20, brightness: 0.4, cameras: 5, contrast_known: 5, contrast_low: 0, snow_known: 5, snow_white: 0, weather: null, ...over });
 const highlight: Highlight = { kind: 'movement', brief: 'Unusual movement near Betton Rd.', camera: 7, region: 'tallahassee', attention: 0.9, at: NOON };
 
 test('a restart does not write a sunset it never saw, and a real one is written once', async () => {
