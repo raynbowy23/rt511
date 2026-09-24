@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import { useEffect, useRef, type ReactElement } from 'react';
 import type { RegionMeta } from '../api';
 
 /** Road data is served under the Open Database Licence and the line is fixed by that licence; the map frame shows the same string, which `/api/roads` returns with the geometry. */
@@ -28,8 +28,19 @@ export interface Credits {
  * The credits used to sit here as a wall of twelve agency lines plus Natural Earth, which dominated every screen. They are an obligation rather than decoration, so they are all still here and all still reachable, behind a control that is closed until someone wants them. */
 export function Footer({ context, credits, source, disclaimer }: { context: string; credits: Credits; source: RegionMeta | undefined; disclaimer: string }): ReactElement {
   const total = credits.cameras.length + credits.counts.length + (credits.states ? 1 : 0) + 1;
+  const root = useRef<HTMLElement>(null);
+  // The disclaimer wraps to a different height at every width and the credits open upwards, so the footer publishes its height for what is pinned above it: the minimap and the diary panel.
+  useEffect(() => {
+    const element = root.current;
+    if (!element) return;
+    const publish = (): void => document.documentElement.style.setProperty('--footer-h', `${String(Math.ceil(element.getBoundingClientRect().height))}px`);
+    publish();
+    const observer = new ResizeObserver(publish);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   return (
-    <footer className="footer">
+    <footer className="footer" ref={root}>
       <div className="footer-line">
         <span className="footer-context">{context}</span>
         {source?.site_url && source.source_name && (

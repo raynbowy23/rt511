@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import type { ScoreCamera, ScoresResponse } from '@rt511/shared';
 import { getScores } from '../api';
 import { HoverCard } from './HoverCard';
-import { IncidentReviews } from './IncidentReviews';
 
 const HISTORY_MS = 600_000;
 type Point = { at: number; value: number };
@@ -30,7 +29,7 @@ function CameraExplanation({ camera, tuning }: { camera: ScoreCamera; tuning: Sc
     )}
     <p>Road scale {number(a.scale_prior)} comes from {{ aadt: 'published traffic counts', capacity: 'road capacity from tagged lanes and speed', class: 'road class', default: 'the default for an unplaced camera' }[a.scale_prior_source]}.</p>
     <p>The queue floor is inferred from an incident or confirmed stopped traffic further down the road. It shrinks with road distance and grows as a queue could have reached this camera.</p>
-    <p>Queue floor {number(a.queue_floor)}. Incident floor {number(a.incident_floor)}{a.jev ? ` adjusted by Jev x${a.jev.multiplier}` : ''}. Stopped traffic floor {number(a.gate?.floor ?? 0)}. {driverLabel[camera.driver]} wins. A floor wins a tie because the score cannot drop below it. The result is limited to 0 through 1.</p>
+    <p>Queue floor {number(a.queue_floor)}. Incident floor {number(a.incident_floor)}. Stopped traffic floor {number(a.gate?.floor ?? 0)}. {driverLabel[camera.driver]} wins. A floor wins a tie because the score cannot drop below it. The result is limited to 0 through 1.</p>
   </>;
 }
 
@@ -43,7 +42,6 @@ export function ScoresPane({ open, onOpen, region, onRegion, onCamera }: {
   });
   const [data, setData] = useState<ScoresResponse | null>(null);
   const [failed, setFailed] = useState(false);
-  const [reviews, setReviews] = useState(false);
   const history = useRef(new Map<string, Point[]>());
   const polledAt = useRef(Date.now());
   useEffect(() => {
@@ -106,14 +104,10 @@ export function ScoresPane({ open, onOpen, region, onRegion, onCamera }: {
           <span className={`score-driver is-${camera.driver}`}>{driverLabel[camera.driver]}</span>
           {data.graph_promoted?.some(({ uid }) => uid === camera.id) && <p className="arb-caption">Watched because a neighbour changed</p>}
           <Sparkline points={history.current.get(`c${camera.id}`) ?? []} now={polledAt.current} />
-          <p className="score-breakdown"><span className={camera.driver === 'movement' ? 'is-winner' : ''}>{a.anomaly === null ? 'no picture yet' : <>movement {number(movement)} x road {number(a.scale_amplifier)} = {number(movement * a.scale_amplifier)}</>}</span> · <span className={camera.driver === 'incident' ? 'is-winner' : ''}>incident floor {number(a.incident_floor)}{a.jev && ` adjusted by Jev x${a.jev.multiplier}`}</span> · <span className={camera.driver === 'queue' ? 'is-winner' : ''}>queue floor {number(a.queue_floor)}{a.queue && ` behind ${a.queue.source === 'standstill' ? 'stopped traffic at ' : ''}${a.queue.incident}, ${(a.queue.length_m / 1000).toFixed(1)} km downstream${a.queue.jev_chosen ? ", picked by Jev" : ""}`}</span>{a.gate && <> · <span className={camera.driver === 'still' ? 'is-winner' : ''}>still-traffic floor {number(a.gate.floor)}</span></>}</p>
+          <p className="score-breakdown"><span className={camera.driver === 'movement' ? 'is-winner' : ''}>{a.anomaly === null ? 'no picture yet' : <>movement {number(movement)} x road {number(a.scale_amplifier)} = {number(movement * a.scale_amplifier)}</>}</span> · <span className={camera.driver === 'incident' ? 'is-winner' : ''}>incident floor {number(a.incident_floor)}</span> · <span className={camera.driver === 'queue' ? 'is-winner' : ''}>queue floor {number(a.queue_floor)}{a.queue && ` behind ${a.queue.source === 'standstill' ? 'stopped traffic at ' : ''}${a.queue.incident}, ${(a.queue.length_m / 1000).toFixed(1)} km downstream`}</span>{a.gate && <> · <span className={camera.driver === 'still' ? 'is-winner' : ''}>still-traffic floor {number(a.gate.floor)}</span></>}</p>
         </article>;
       })}
       {data && (view === 'cities' ? data.regions.length === 0 : cameras.length === 0) && <p className="arb-empty">No scores here yet. Open a city to start watching its cameras.</p>}
-      <details className="score-reviews" open={reviews} onToggle={(event) => setReviews(event.currentTarget.open)}>
-        <summary>Incident reviews by Jev</summary>
-        <IncidentReviews open={open && reviews} />
-      </details>
     </div>}
   </aside>;
 }

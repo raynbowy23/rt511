@@ -150,6 +150,12 @@ export function CameraPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the poll tick is the trigger; re-running on loadFrames identity would refetch on every keystroke of state.
   }, [pollTick]);
 
+  // A panel that closes while it is fullscreen would otherwise leave the browser fullscreen on a hidden element: a black screen that only Escape gets out of. Moving to another camera keeps it fullscreen, so a tour can run there.
+  useEffect(() => {
+    if (visible && camera) return;
+    if (document.fullscreenElement && document.fullscreenElement === root.current) void document.exitFullscreen().catch(() => undefined);
+  }, [visible, camera]);
+
   useEffect(() => {
     const onChange = (): void => setFullscreen(document.fullscreenElement === root.current);
     document.addEventListener('fullscreenchange', onChange);

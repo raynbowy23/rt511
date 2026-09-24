@@ -76,8 +76,9 @@ export function Diary({
           Close <kbd>Esc</kbd>
         </button>
       </header>
+      <p className="diary-hint">The wall writes a line here whenever it notices something: a highlight, a sunset or sunrise, murky skies or snow. Click a line to open that camera, or that city, as it is now. Earlier days are in the menu above.</p>
       {entries.length === 0 ? (
-        <p className="diary-empty">Nothing written yet. The wall looks once a minute and writes down highlights, sunsets, sunrises and murky skies as they happen.</p>
+        <p className="diary-empty">Nothing written yet today. The wall looks once a minute, so keep it running and lines will appear here as things happen.</p>
       ) : (
         <ol className="diary-list">
           {entries.map((entry, i) => (

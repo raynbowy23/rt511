@@ -32,7 +32,7 @@ export function LiveMotion({ video, axes, active }: { video: HTMLVideoElement | 
     const movement = a.scale_amplifier * sample.anomaly;
     const floor = a.gate?.floor ?? 0;
     const winner = a.incident_floor >= movement && a.incident_floor >= floor ? 'Incident' : floor >= movement ? 'Stopped traffic' : 'Movement';
-    return `Current change ${sample.change.toFixed(5)}. Typical change ${sample.median.toFixed(5)}. Ratio ${(sample.change / Math.max(sample.median, EPSILON)).toFixed(2)} with a small noise floor. Movement ${sample.anomaly.toFixed(3)}. Road factor ${a.scale_amplifier.toFixed(3)} gives ${movement.toFixed(3)}. Incident floor ${a.incident_floor.toFixed(3)}${a.jev ? ` adjusted by Jev x${a.jev.multiplier}` : ''}. Stopped traffic floor ${floor.toFixed(3)}. ${winner} wins. A floor wins a tie. The result is limited to 0 through 1.`;
+    return `Current change ${sample.change.toFixed(5)}. Typical change ${sample.median.toFixed(5)}. Ratio ${(sample.change / Math.max(sample.median, EPSILON)).toFixed(2)} with a small noise floor. Movement ${sample.anomaly.toFixed(3)}. Road factor ${a.scale_amplifier.toFixed(3)} gives ${movement.toFixed(3)}. Incident floor ${a.incident_floor.toFixed(3)}. Stopped traffic floor ${floor.toFixed(3)}. ${winner} wins. A floor wins a tie. The result is limited to 0 through 1.`;
   };
   const explainRef = useRef(explain);
   explainRef.current = explain;

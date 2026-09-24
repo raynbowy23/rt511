@@ -9,7 +9,6 @@ import type {
   CamerasResponse,
   IncidentsResponse,
   FramesResponse,
-  JevSnapshot,
   Graph,
   NationalResponse,
   RegionsResponse,
@@ -29,8 +28,6 @@ export type {
   Incident,
   IncidentStatus,
   IncidentsResponse,
-  JevSnapshot,
-  VerdictPoint,
   Camera,
   CameraState,
   CamerasResponse,
@@ -138,17 +135,6 @@ const parseCameras = (body: unknown): CamerasResponse => {
   return root as unknown as CamerasResponse;
 };
 
-const parseJev = (body: unknown): JevSnapshot => {
-  const root = obj(body, 'jev');
-  arr(root.incidents, 'jev.incidents');
-  arr(root.cameras, 'jev.cameras');
-  num(root.calls, 'jev.calls');
-  num(root.reask_after_s, 'jev.reask_after_s');
-  const gates = obj(root.gates, 'jev.gates');
-  for (const key of ['noul_threshold', 'act_confidence', 'score_swing', 'cleared_residue', 'supported_lift', 'chosen_gain', 'chosen_others']) num(gates[key], `jev.gates.${key}`);
-  return root as unknown as JevSnapshot;
-};
-
 const parseFrames = (body: unknown): FramesResponse => {
   const root = obj(body, 'frames');
   num(root.id, 'frames.id');
@@ -216,7 +202,6 @@ export const getCameras = (region?: string | null, visible?: number[] | null): P
 export const getFrames = (id: number): Promise<FramesResponse | null> => getJson(`/api/frames/${id}`, parseFrames);
 export const getNational = (): Promise<NationalResponse | null> => getJson('/api/national', parseNational);
 /** `watch` asks the server to keep a bounded set of incident cameras on the fast poll period, which is what makes records become askable on a view other than the wall. Sent true while the pane is open and false once on closing, so the promotion stops promptly rather than waiting out its own expiry. */
-export const getJev = (watch: boolean): Promise<JevSnapshot | null> => getJson(`/api/jev?watch=${watch ? '1' : '0'}`, parseJev);
 
 /** What the state patrol is responding to near one city. A city whose state has no dispatch feed answers with an empty list and a status saying so, which is a normal state rather than a failure. */
 export const getIncidents = (region: string): Promise<IncidentsResponse | null> =>

@@ -36,10 +36,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* A column the height of the window at least, so the footer sits at the bottom of a short page rather than wherever the content ends. */
 #app {
+  display: flex;
+  flex-direction: column;
   min-height: 100%;
-  /* The minimap is fixed to the bottom corner, so the wall keeps a lane clear of it. */
-  padding-bottom: 150px;
 }
 
 .label,
@@ -832,6 +833,7 @@ body.is-expanded {
    One grid holds all three levels and the camera. The camera panel is rendered once, in one place in the tree, and placed by the grid rather than moved between parents: moving a playing <video> between DOM parents is exactly the kind of thing that pauses a stream. */
 
 .stage {
+  flex: 1 0 auto;
   display: grid;
   gap: 14px;
   padding: 16px 20px 24px;
@@ -1305,6 +1307,31 @@ body[data-view='national'] .minimap {
   display: none;
 }
 
+/* The wall keeps a lane clear of the minimap, so its last row can scroll out from under it. */
+body[data-view='wall'] .stage {
+  padding-bottom: 170px;
+}
+
+/* The minimap is a thumbnail of the city map and opens it, so it says so. */
+.minimap::after {
+  content: 'Open map ↗';
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 9px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.minimap-host:hover .minimap {
+  border-color: var(--line-strong);
+}
+
+.minimap-host:hover .minimap::after {
+  color: var(--accent);
+}
+
 /* City menu ---------------------------------------------------------------
    A native details element, so it is keyboard reachable without any focus management of its own. */
 
@@ -1650,8 +1677,9 @@ body[data-view='national'] .minimap {
 .minimap {
   position: fixed;
   right: 20px;
-  bottom: 20px;
-  z-index: 4;
+  /* Above the pinned footer, whose height the footer measures and publishes, since the disclaimer wraps differently at every width. */
+  bottom: calc(var(--footer-h, 72px) + 12px);
+  z-index: 46;
   width: 264px;
   padding: 12px 12px 8px;
   background: color-mix(in srgb, var(--bg) 82%, transparent);
@@ -1863,7 +1891,6 @@ body[data-view='national'] .minimap {
   text-transform: uppercase;
 }
 
-.arb-sub,
 .arb-warn,
 .arb-empty {
   margin: 4px 0 0;
@@ -1929,18 +1956,6 @@ body[data-view='national'] .minimap {
   white-space: nowrap;
 }
 
-.arb-strip {
-  display: block;
-  width: 100%;
-  height: 34px;
-  margin: 8px 0 6px;
-  overflow: visible;
-}
-
-.arb-strip.is-empty {
-  border-bottom: 1px dashed var(--line);
-}
-
 .arb-rule {
   stroke: var(--line);
   stroke-width: 1;
@@ -1970,24 +1985,6 @@ body[data-view='national'] .minimap {
   fill: var(--muted);
 }
 
-.arb-answers {
-  display: grid;
-  gap: 3px;
-}
-
-.arb-answer {
-  display: grid;
-  grid-template-columns: 62px 1fr 44px;
-  align-items: center;
-  gap: 7px;
-  color: var(--muted);
-  font-size: 10.5px;
-}
-
-.arb-answer.is-acted {
-  color: var(--fg);
-}
-
 .arb-bar {
   position: relative;
   height: 4px;
@@ -2011,11 +2008,6 @@ body[data-view='national'] .minimap {
   width: 1px;
   height: 8px;
   background: var(--line-strong);
-}
-
-.arb-answer-value {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 
 .arb-foot {
@@ -2091,14 +2083,6 @@ body[data-view='national'] .minimap {
   color: var(--muted);
   font-size: 10.5px;
   line-height: 1.45;
-}
-
-.arb-strip-legend {
-  margin: 5px 0 10px;
-}
-
-.arb-answers {
-  gap: 9px;
 }
 
 .arb-foot {
@@ -2189,9 +2173,6 @@ body[data-view='national'] .minimap {
 .score-spark polyline { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
 .score-breakdown { color: var(--muted); font-size: 11px; }
 .score-breakdown .is-winner { color: var(--fg); font-weight: 700; }
-.score-reviews { margin-top: 18px; border-top: 1px solid var(--line-strong); padding-top: 12px; }
-.score-reviews summary { cursor: pointer; color: var(--muted); font-size: 12px; }
-.incident-reviews { margin-top: 12px; }
 
 .stage[data-level='board'] .hero { grid-column: 1 / -1; grid-row: 1; }
 .stage[data-level='board'] .board { grid-column: 1 / -1; grid-row: 2; }
@@ -2224,7 +2205,7 @@ body[data-view='national'] .minimap {
   right: 0;
   bottom: 0;
   /* The pinned footer sits above this panel's bottom edge, so the panel keeps clear of it. */
-  padding-bottom: 72px;
+  padding-bottom: calc(var(--footer-h, 72px) + 8px);
   z-index: 40;
   display: flex;
   flex-direction: column;
@@ -2355,6 +2336,12 @@ body[data-view='national'] .minimap {
   grid-column: 2 / -1;
   font-size: 13px;
   line-height: 1.45;
+}
+
+.diary-hint {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .diary-empty,
