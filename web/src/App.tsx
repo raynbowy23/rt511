@@ -509,7 +509,7 @@ export function App(): ReactElement {
   if (!boot) {
     return (
       <>
-        <TopBar crumbs={[{ label: 'rt511' }]} status={status} ok={poll.ok} level="national" touring={false} onToggleView={() => undefined} onToggleTour={() => undefined} onBoard={() => setLevel('board')} />
+        <TopBar crumbs={[{ label: 'rt511' }]} status={status} ok={poll.ok} level="national" touring={false} onView={(next) => setLevel(next)} onToggleTour={() => undefined} />
         <div className="booting">waiting for the backend</div>
       </>
     );
@@ -527,7 +527,15 @@ export function App(): ReactElement {
         ok={poll.ok}
         level={effectiveLevel}
         touring={tour.running}
-        onToggleView={() => setLevel(effectiveLevel === 'wall' ? 'map' : 'wall')}
+        onView={(next) => {
+          // Leaving for the board stops whatever was walking the wall, since the board is the whole country and has no wall to walk.
+          if (next === 'board') {
+            tour.stop();
+            setCameraId(null);
+          }
+          if (next === 'national') setCameraId(null);
+          setLevel(next);
+        }}
         onToggleTour={() => {
           stopTrip();
           stopRelay();
@@ -541,7 +549,6 @@ export function App(): ReactElement {
           if (trip) stopTrip();
           else setTripPicker((open) => !open);
         }}
-        onBoard={() => { tour.stop(); setCameraId(null); setLevel('board'); }}
         diaryOpen={diaryOpen}
         onDiary={() => setDiaryOpen((open) => !open)}
       />

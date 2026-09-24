@@ -1,19 +1,23 @@
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
 export interface Crumb {
   label: string;
   go?: (() => void) | undefined;
 }
 
+type Level = 'national' | 'map' | 'wall' | 'board';
+
+/** The top bar: where you are on the left, then three kinds of control that used to look identical and now do not.
+ *
+ * The view switch is a segmented control that shows the view you are in, the way a tab does: the country as a map or as the board of its best cameras, a city as a map or as its wall of cameras. Autoplay modes are separate buttons with a play icon, which say "Stop" while they run, since each one takes over the screen until it is stopped. The diary is a panel and sits apart at the end. Keyboard shortcuts are in the tooltips rather than printed on the buttons. */
 export function TopBar({
   crumbs,
   status,
   ok,
   level,
   touring,
-  onToggleView,
+  onView,
   onToggleTour,
-  onBoard,
   diaryOpen = false,
   onDiary,
   tripOn = false,
@@ -24,11 +28,11 @@ export function TopBar({
   crumbs: Crumb[];
   status: string;
   ok: boolean;
-  level: 'national' | 'map' | 'wall' | 'board';
+  level: Level;
   touring: boolean;
-  onToggleView: () => void;
+  /** Switches to a view within the current scope. A view that is not available leaves the switch without that option. */
+  onView: (level: Level) => void;
   onToggleTour: () => void;
-  onBoard: () => void;
   diaryOpen?: boolean;
   onDiary?: () => void;
   tripOn?: boolean;
@@ -36,6 +40,17 @@ export function TopBar({
   relayOn?: boolean;
   onRelay?: () => void;
 }): ReactElement {
+  const inCity = level === 'map' || level === 'wall';
+  const views: { level: Level; label: string; title: string }[] = inCity
+    ? [
+        { level: 'map', label: 'Map', title: 'The city’s roads and cameras (M)' },
+        { level: 'wall', label: 'Wall', title: 'Every camera in the city, busiest first (M)' },
+      ]
+    : [
+        { level: 'national', label: 'Map', title: 'Every city on one map' },
+        { level: 'board', label: 'Board', title: 'The most interesting cameras across the country right now' },
+      ];
+
   return (
     <header className="topbar">
       <div className="brand">
@@ -60,28 +75,72 @@ export function TopBar({
         <span className="status-text">{status}</span>
       </div>
       <div className="controls">
+        <div className="view-switch" role="tablist" aria-label="View">
+          {views.map((view) => (
+            <button
+              key={view.level}
+              type="button"
+              role="tab"
+              aria-selected={level === view.level}
+              className={`view-option${level === view.level ? ' is-on' : ''}`}
+              title={view.title}
+              onClick={() => level !== view.level && onView(view.level)}
+            >
+              {view.label}
+            </button>
+          ))}
+        </div>
+        <div className="modes" aria-label="Autoplay">
+          {inCity && (
+            <Mode on={touring} label="Tour" title="Walk the wall’s most interesting cameras one after another (Space)" onClick={onToggleTour} />
+          )}
+          {inCity && onRoadTrip && (
+            <Mode on={tripOn} label="Road trip" title="Drive a numbered route camera by camera" onClick={onRoadTrip} />
+          )}
+          {onRelay && <Mode on={relayOn} label="Sun relay" title="Follow the sunset, or the sunrise, from city to city" onClick={onRelay} />}
+        </div>
         {onDiary && (
-          <button type="button" className={`control${diaryOpen ? ' is-on' : ''}`} aria-pressed={diaryOpen} onClick={onDiary}>Diary</button>
-        )}
-        <button type="button" className={`control${level === 'board' ? ' is-on' : ''}`} aria-pressed={level === 'board'} onClick={onBoard}>Board</button>
-        <button type="button" className={`control${level === 'map' ? ' is-on' : ''}`} data-action="view" hidden={level === 'national' || level === 'board'} onClick={onToggleView}>
-          {level === 'map' ? 'Wall ' : 'Map '}
-          <kbd>M</kbd>
-        </button>
-        {onRelay && (
-          <button type="button" className={`control${relayOn ? ' is-on' : ''}`} aria-pressed={relayOn} onClick={onRelay}>
-            Sun relay
+          <button type="button" className={`control diary-toggle${diaryOpen ? ' is-on' : ''}`} aria-pressed={diaryOpen} title="What the wall noticed, day by day" onClick={onDiary}>
+            <BookIcon />
+            Diary
           </button>
         )}
-        {onRoadTrip && (
-          <button type="button" className={`control${tripOn ? ' is-on' : ''}`} aria-pressed={tripOn} hidden={level === 'national' || level === 'board'} onClick={onRoadTrip}>
-            Road trip
-          </button>
-        )}
-        <button type="button" className={`control${touring ? ' is-on' : ''}`} data-action="tour" hidden={level === 'national' || level === 'board'} onClick={onToggleTour}>
-          Tour <kbd>Space</kbd>
-        </button>
       </div>
     </header>
   );
 }
+
+function Mode({ on, label, title, onClick }: { on: boolean; label: string; title: string; onClick: () => void }): ReactElement {
+  return (
+    <button type="button" className={`control mode${on ? ' is-on' : ''}`} aria-pressed={on} title={on ? `Stop ${label.toLowerCase()}` : title} onClick={onClick}>
+      {on ? <StopIcon /> : <PlayIcon />}
+      {on ? `Stop ${label.toLowerCase()}` : label}
+    </button>
+  );
+}
+
+function Icon({ children }: { children: ReactNode }): ReactElement {
+  return (
+    <svg className="control-icon" viewBox="0 0 10 10" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
+const PlayIcon = (): ReactElement => (
+  <Icon>
+    <path d="M2 1.2 8.6 5 2 8.8Z" />
+  </Icon>
+);
+
+const StopIcon = (): ReactElement => (
+  <Icon>
+    <rect x="2" y="2" width="6" height="6" />
+  </Icon>
+);
+
+const BookIcon = (): ReactElement => (
+  <Icon>
+    <path d="M1.2 1.8h3.1c.5 0 .7.3.7.7v6c0-.4-.3-.6-.7-.6H1.2ZM8.8 1.8H5.7c-.5 0-.7.3-.7.7v6c0-.4.3-.6.7-.6h3.1Z" fill="none" stroke="currentColor" strokeWidth="0.9" strokeLinejoin="round" />
+  </Icon>
+);

@@ -13,6 +13,8 @@
   --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
   --gap: 10px;
   --fade: 900ms;
+  /* The top bar's height, which the panels pinned under it follow. Two rows on a narrow screen. */
+  --topbar-h: 52px;
 }
 
 * {
@@ -63,7 +65,7 @@ body {
   display: flex;
   align-items: center;
   gap: 24px;
-  height: 52px;
+  height: var(--topbar-h);
   padding: 0 20px;
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(12px);
@@ -151,11 +153,6 @@ button.crumb:hover {
   box-shadow: none;
 }
 
-.controls {
-  display: flex;
-  gap: 8px;
-}
-
 .control {
   display: inline-flex;
   align-items: center;
@@ -185,13 +182,115 @@ button.crumb:hover {
   color: color-mix(in srgb, currentColor 55%, transparent);
 }
 
+.control-icon {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  fill: currentColor;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* The view switch reads as one control with the current view lit, like tabs, rather than as a button naming somewhere else. */
+.view-switch {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+.view-option {
+  padding: 5px 12px;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-radius: 2px;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 200ms ease, background 200ms ease;
+}
+
+.view-option:hover {
+  color: var(--fg);
+}
+
+.view-option.is-on {
+  color: var(--bg);
+  background: var(--accent);
+  cursor: default;
+}
+
+/* Autoplay modes. Each takes over the screen while it runs, so a running one is filled in and says Stop. */
+.modes {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.control.mode.is-on {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.diary-toggle {
+  margin-left: 4px;
+}
+
+/* Narrow screens: the status line goes first, then the controls wrap onto a row of their own under the location. */
+@media (max-width: 1180px) {
+  .status {
+    display: none;
+  }
+
+  .brand {
+    margin-right: auto;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  :root {
+    --topbar-h: 92px;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    align-content: center;
+    row-gap: 10px;
+    padding: 0 16px;
+  }
+
+  .brand {
+    flex-basis: 100%;
+  }
+
+  /* One row that scrolls sideways rather than wrapping, so the bar keeps a known height. */
+  .controls {
+    flex-basis: 100%;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .controls > * {
+    flex: none;
+  }
+}
+
 /* Hero ------------------------------------------------------------------- */
 
 .hero {
   display: grid;
   margin: 0;
   /* The top bar is sticky, so a hero scrolled to the top of the viewport would slide underneath it. */
-  scroll-margin-top: 68px;
+  scroll-margin-top: calc(var(--topbar-h) + 16px);
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 1px;
   background: var(--line);
@@ -1697,7 +1796,7 @@ body[data-view='national'] .minimap {
 
 .arbiter {
   position: fixed;
-  top: 52px;
+  top: var(--topbar-h);
   right: 0;
   bottom: 0;
   z-index: 6;
@@ -2121,7 +2220,7 @@ body[data-view='national'] .minimap {
 /* The diary: what the wall noticed, one line per moment. A panel over the right of the stage, below the top bar, so the wall keeps running behind it. */
 .diary {
   position: fixed;
-  top: 52px;
+  top: var(--topbar-h);
   right: 0;
   bottom: 0;
   /* The pinned footer sits above this panel's bottom edge, so the panel keeps clear of it. */
@@ -2311,7 +2410,7 @@ body[data-view='national'] .minimap {
 /* Road trip: a picker under the top bar, and the trip's progress drawn over the picture. */
 .trip-picker {
   position: fixed;
-  top: 60px;
+  top: calc(var(--topbar-h) + 8px);
   right: 20px;
   z-index: 40;
   width: min(420px, calc(100vw - 40px));
