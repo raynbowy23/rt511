@@ -551,3 +551,16 @@ export interface DiaryResponse {
   days: string[];
   entries: DiaryEntry[];
 }
+
+/** One minute of a city's pulse: the median frame difference across its cameras with a recent picture, and how many there were. */
+export interface PulsePoint {
+  ts: number;
+  diff: number;
+  n: number;
+}
+
+export interface PulseResponse {
+  /** The local day the points belong to, as YYYY-MM-DD. */
+  day: string;
+  regions: Record<string, PulsePoint[]>;
+}

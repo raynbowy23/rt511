@@ -1,7 +1,7 @@
 import { AlbersUsa, groupForState, groupForStates, type Box, type ProjGroup } from './albers';
 import { latOfLonLat, lonOfLonLat, type LonLat } from '@rt511/shared';
 import { capture, release } from './ptz';
-import type { CameraState, NationalRegion, NationalResponse, SkyRegion } from './api';
+import type { CameraState, NationalRegion, NationalResponse, PulsePoint, SkyRegion } from './api';
 import { prefersReducedMotion } from './motion';
 
 const MAX_ZOOM_FACTOR = 26;
@@ -297,8 +297,14 @@ export class NationalView {
       const sky = document.createElement('span');
       sky.className = 'national-row-sky';
       detail.appendChild(sky);
+      // The city's pulse through the day, drawn by setPulse.
+      const pulse = document.createElement('canvas');
+      pulse.className = 'national-row-pulse';
+      pulse.width = 240;
+      pulse.height = 36;
+      pulse.hidden = true;
 
-      row.append(name, status, detail);
+      row.append(name, status, detail, pulse);
       row.addEventListener('pointerenter', () => {
         this.hovered = marker;
         this.drawOverlay();
@@ -351,6 +357,43 @@ export class NationalView {
       if (text) text.textContent = marker.sky ? ` · ${skyPhrase(marker.sky)}` : '';
     }
     this.drawOverlay();
+  }
+
+  /** Each city's movement through the day, as a small line in its row: midnight at the left, the next midnight at the right, the line scaled to the city's own busiest minute so a quiet city's rush hour shows as clearly as a big one's. Gaps are left where the city had no pictures. */
+  setPulse(regions: Record<string, PulsePoint[]>, now = Date.now() / 1000): void {
+    const midnight = new Date(now * 1000);
+    midnight.setHours(0, 0, 0, 0);
+    const start = midnight.getTime() / 1000;
+    for (const [key, row] of this.rows) {
+      const canvas = row.querySelector('canvas.national-row-pulse') as HTMLCanvasElement | null;
+      if (!canvas) continue;
+      const points = (regions[key] ?? []).filter((p) => p.ts >= start);
+      canvas.hidden = points.length < 2;
+      if (canvas.hidden) continue;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) continue;
+      const { width, height } = canvas;
+      ctx.clearRect(0, 0, width, height);
+      const peak = Math.max(...points.map((p) => p.diff)) || 1;
+      const x = (ts: number): number => ((ts - start) / 86400) * width;
+      const y = (diff: number): number => height - 3 - (diff / peak) * (height - 6);
+      // Six-hour marks, so the morning and evening can be found at a glance.
+      ctx.fillStyle = 'rgba(150, 165, 185, 0.18)';
+      for (let h = 6; h < 24; h += 6) ctx.fillRect(Math.round((h / 24) * width), 0, 1, height);
+      ctx.strokeStyle = 'rgba(226, 178, 104, 0.9)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      points.forEach((p, i) => {
+        // A gap of more than ten minutes is a break in the line, not a slope across it.
+        const gap = i > 0 && p.ts - points[i - 1]!.ts > 600;
+        if (i === 0 || gap) ctx.moveTo(x(p.ts), y(p.diff));
+        else ctx.lineTo(x(p.ts), y(p.diff));
+      });
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(236, 240, 246, 0.8)';
+      ctx.fillRect(Math.round(x(now)), 0, 1, height);
+      canvas.title = `Movement through the day, ${points.length} minutes recorded`;
+    }
   }
 
   /** Called when the view becomes visible: a canvas sized while its container was hidden comes back as zero by zero. */

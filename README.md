@@ -91,6 +91,8 @@ Naming cities polls them continuously whether or not anyone is watching, which i
 
 **Snow** is read from the pictures. Each frame's share of bright, colourless pixels is compared with that camera's own recent frames, and when at least three cameras in a city turn white together in daylight the city reads as snow: a white ring on the national map, and a diary entry that says so, "first snow of the season" the first time each winter. Iowa's rural weather-station cameras are where this earns its keep. Like the murky-sky hint beside it, it is a hint from pixels, not a weather report.
 
+**City pulse** is a small line under each city in the national list: how much its cameras moved, minute by minute, from midnight to midnight. Each minute is the median frame difference across the city's cameras with a recent picture, scaled to that city's own busiest minute, so a quiet city's rush hour shows as clearly as a big one's. It is numbers only, kept in `out/pulse-<date>.jsonl` so a restart keeps the day, and a city nobody has open is read from its sparse radar cameras.
+
 The optional vehicle detector runs as its own process next to the server. It counts vehicles in a frame the zero-motion gate has flagged and hands the count to the arbiter as evidence. It needs the YOLO26 weights in `data/models/` (see [License](#license)):
 
 ```

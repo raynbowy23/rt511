@@ -17,6 +17,7 @@ import type {
   StreamResponse,
   SkyResponse,
   DiaryResponse,
+  PulseResponse,
 } from '@rt511/shared';
 import { arr, field, latLonLine, latLonRings, lonLatRings, num, obj, ShapeError, str } from './validate';
 
@@ -304,7 +305,7 @@ export const getHighlights = (region?: string): Promise<HighlightsResponse | nul
   return root as unknown as HighlightsResponse;
 });
 
-export type { DiaryEntry, DiaryKind, DiaryResponse, SkyRegion, SkyResponse } from '@rt511/shared';
+export type { DiaryEntry, DiaryKind, DiaryResponse, PulsePoint, PulseResponse, SkyRegion, SkyResponse } from '@rt511/shared';
 
 export const getSky = (): Promise<SkyResponse | null> => getJson('/api/sky', (body) => {
   const root = obj(body, 'sky');
@@ -328,4 +329,18 @@ export const getDiary = (day?: string): Promise<DiaryResponse | null> => getJson
     if (entry.camera !== null) num(entry.camera, 'diary.entry.camera');
   }
   return root as unknown as DiaryResponse;
+});
+
+export const getPulse = (): Promise<PulseResponse | null> => getJson('/api/pulse', (body) => {
+  const root = obj(body, 'pulse');
+  str(root.day, 'pulse.day');
+  const regions = obj(root.regions, 'pulse.regions');
+  for (const [key, points] of Object.entries(regions)) {
+    for (const value of arr(points, `pulse.regions.${key}`)) {
+      const point = obj(value, `pulse.regions.${key}[]`);
+      num(point.ts, 'pulse.point.ts');
+      num(point.diff, 'pulse.point.diff');
+    }
+  }
+  return root as unknown as PulseResponse;
 });

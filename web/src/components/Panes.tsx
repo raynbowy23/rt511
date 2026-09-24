@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
-import { getSky, type CameraState, type Graph, type Incident, type NationalResponse } from '../api';
+import { getPulse, getSky, type CameraState, type Graph, type Incident, type NationalResponse } from '../api';
 import { MapView } from '../map';
 import { Minimap } from '../minimap';
 import { NationalView } from '../national';
@@ -50,8 +50,9 @@ export function NationalPane({
     if (!visible) return;
     let cancelled = false;
     const run = async (): Promise<void> => {
-      const sky = await getSky();
+      const [sky, pulse] = await Promise.all([getSky(), getPulse()]);
       if (!cancelled && sky) view.current?.setSky(sky.regions);
+      if (!cancelled && pulse) view.current?.setPulse(pulse.regions);
     };
     void run();
     const timer = window.setInterval(() => void run(), 60_000);

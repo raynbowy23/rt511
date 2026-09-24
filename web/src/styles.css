@@ -2442,3 +2442,11 @@ body[data-view='national'] .minimap {
   color: var(--fg);
   border-color: var(--line-strong);
 }
+
+/* A city's movement through the day, under its row in the national list. */
+.national-row-pulse {
+  grid-column: 1 / -1;
+  width: 100%;
+  height: 36px;
+  margin-top: 6px;
+}

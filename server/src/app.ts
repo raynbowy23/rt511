@@ -4,7 +4,7 @@
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { GraphPromotion, CamerasResponse, ScoreCamera, ScoresResponse, Graph, Incident, IncidentsResponse, NationalResponse, RegionsResponse, RoadsResponse, Highlight, SkyRegion, SkyResponse, DiaryResponse } from '../../shared/src/index.js';
+import type { GraphPromotion, CamerasResponse, ScoreCamera, ScoresResponse, Graph, Incident, IncidentsResponse, NationalResponse, RegionsResponse, RoadsResponse, Highlight, SkyRegion, SkyResponse, DiaryResponse, PulseResponse } from '../../shared/src/index.js';
 import { AttentionEngine, buildScalePriors, driver, summarizeRegions, TUNING } from './attention.js';
 import { CORRIDOR, buildQueueIndex, promotionTrigger, selectPromotions, type HeldTrigger } from './corridor.js';
 import { CadFeed, loadCadSources, type CameraPositions } from './cad.js';
@@ -29,6 +29,7 @@ import { HttpError, Router, send } from './http.js';
 import { DETECTOR, Detector, createDetect } from './detector.js';
 import { Diary, DIARY } from './diary.js';
 import { readSky } from './sky.js';
+import { Pulse } from './pulse.js';
 import { localDay } from './jsonlog.js';
 import { JEV, JevArbiter, createAsk, createGateAsk, type CameraTelemetry, type GateCandidate, type Neighbour } from './jev.js';
 import { Poller } from './poller.js';
@@ -421,10 +422,14 @@ export function createApp(options: AppOptions): App {
 
   // What the wall noticed, written down once a minute so the day can be read back. Words and numbers only, never a picture.
   const diary = new Diary(join(root, 'out'));
+  // Each city's pulse is recorded on the same minute, from frames the poller already holds.
+  const pulse = new Pulse(join(root, 'out'));
   const diaryTimer = setInterval(() => {
     const now = Date.now() / 1000;
     diary.note(currentHighlights(null), currentSky(now), now);
+    pulse.record([...poller.cameras.values()].map((slot) => ({ region: slot.camera.region, lastTs: slot.latest?.ts ?? null, diff: slot.latest?.diff ?? null })), now);
   }, DIARY.EVERY_S * 1000);
+  router.get('/api/pulse', (): PulseResponse => ({ day: localDay(Date.now() / 1000), regions: pulse.today() }));
   diaryTimer.unref();
   router.get('/api/diary', ({ query }): DiaryResponse => {
     const days = diary.days();
