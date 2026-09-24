@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { getFrames, snapUrl, type Camera, type RegionMeta, type Frame, type Incident } from '../api';
 import { since } from './IncidentCard';
 import { usePlayer } from '../hooks/usePlayer';
@@ -23,6 +23,7 @@ export function CameraPanel({
   visible,
   onClose,
   onExpanded,
+  overlay = null,
 }: {
   camera: Camera | null;
   source: RegionMeta | undefined;
@@ -36,6 +37,8 @@ export function CameraPanel({
   visible: boolean;
   onClose: () => void;
   onExpanded: (expanded: boolean) => void;
+  /** Drawn over the picture, such as a road trip's progress. */
+  overlay?: ReactNode;
 }): ReactElement {
   const root = useRef<HTMLElement>(null);
   const stage = useRef<HTMLDivElement>(null);
@@ -186,6 +189,7 @@ export function CameraPanel({
           <span className="hero-mode">{badge}</span>
         </div>
         <div className="hero-zoom" ref={zoom} />
+        {overlay}
       </div>
       <div className="hero-panel">
         <div className="hero-titles">

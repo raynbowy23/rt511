@@ -85,6 +85,8 @@ pnpm start --ring 30                        keep more replay history
 
 Naming cities polls them continuously whether or not anyone is watching, which is what you want for a screen left on.
 
+**Road trip** in the top bar drives a numbered route through the city you are in, camera by camera in driving order: I-235 across Des Moines, I-10 through Los Angeles, I-64 into Louisville. Each camera stays up for a few seconds, longer where it has live video and where the next one is further down the road, and at the end of the route the trip turns around and drives it back. A trip is written into the page address (`#…&trip=I-235:eastbound`), so a screen left running resumes it after a reload.
+
 The optional vehicle detector runs as its own process next to the server. It counts vehicles in a frame the zero-motion gate has flagged and hands the count to the arbiter as evidence. It needs the YOLO26 weights in `data/models/` (see [License](#license)):
 
 ```

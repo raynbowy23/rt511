@@ -24,6 +24,8 @@ import { Board } from './components/Board';
 import { Wall } from './components/Wall';
 import { Highlights } from './components/Highlights';
 import { Diary } from './components/Diary';
+import { RoadTripPicker, TripHud } from './components/RoadTrip';
+import { planTrips, RoadTrip, type Trip } from './roadtrip';
 import { Topology } from './graph';
 import { useTour } from './hooks/useTour';
 import { useWallRanking } from './hooks/useWallRanking';
@@ -111,19 +113,61 @@ export function App(): ReactElement {
   const tourRef = useRef(tour);
   tourRef.current = tour;
 
+  // Road trips: every numbered route in the current city, driven camera by camera in order. The runner is a timer like the tour, so it lives outside React and reports each stop back through state.
+  const trips = useMemo(() => (topology && region ? planTrips(topology, region) : []), [topology, region]);
+  const tripsRef = useRef(trips);
+  tripsRef.current = trips;
+  const [trip, setTrip] = useState<{ trip: Trip; index: number } | null>(null);
+  const [tripPicker, setTripPicker] = useState(false);
+  const roadTrip = useMemo(
+    () =>
+      new RoadTrip(
+        (current, index) => {
+          setTrip({ trip: current, index });
+          promote(current.stops[index]!.camera.id, true);
+        },
+        // At the end of the road, drive the same route back if it runs the other way.
+        (ended) => tripsRef.current.find((other) => other.route === ended.route && other.id !== ended.id) ?? null,
+      ),
+    [promote],
+  );
+  useEffect(() => () => roadTrip.stop(), [roadTrip]);
+  const stopTrip = useCallback(() => {
+    roadTrip.stop();
+    setTrip(null);
+  }, [roadTrip]);
+  const startTrip = useCallback(
+    (next: Trip) => {
+      tour.stop();
+      setTripPicker(false);
+      setLevel((current) => (current === 'national' || current === 'board' ? 'wall' : current));
+      // The trip is watched in the camera panel at the top of the page, so the page goes there rather than following the tiles.
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      roadTrip.start(next);
+    },
+    [roadTrip, tour],
+  );
+  // A trip belongs to the city it was planned in.
+  useEffect(() => {
+    stopTrip();
+    setTripPicker(false);
+  }, [region, stopTrip]);
+
   const openCamera = useCallback(
     (id: number) => {
       tour.stop();
+      stopTrip();
       promote(id);
     },
-    [promote, tour],
+    [promote, tour, stopTrip],
   );
 
   const closeCamera = useCallback(() => {
     tour.stop();
+    stopTrip();
     setCameraId(null);
     setExpanded(false);
-  }, [tour]);
+  }, [tour, stopTrip]);
 
   const openRegion = useCallback((key: string) => {
     setRegion(key);
@@ -192,6 +236,13 @@ export function App(): ReactElement {
 
   // The fragment is read once, after the data is in, so a named camera or region can be resolved against it.
   const applied = useRef(false);
+  const pendingTrip = useRef<string | null>(null);
+  useEffect(() => {
+    if (!pendingTrip.current || trips.length === 0) return;
+    const named = trips.find((candidate) => candidate.id === pendingTrip.current);
+    pendingTrip.current = null;
+    if (named) startTrip(named);
+  }, [trips, startTrip]);
   useEffect(() => {
     if (!boot || !topology || applied.current) return;
     applied.current = true;
@@ -206,6 +257,9 @@ export function App(): ReactElement {
     const owner = site ? site.slice(0, site.indexOf(':')) : null;
     setRegion(startRegion ?? owner ?? boot.regions[0]?.region ?? null);
     if (hash.has('tour')) tour.start(hasCamera ? startCamera : undefined);
+    // A trip named in the fragment resumes once the city's trips are planned, which happens on the render after the region is set.
+    const askedTrip = hash.get('trip');
+    if (askedTrip) pendingTrip.current = askedTrip;
     const view = hash.get('view');
     // A camera or a region named in the fragment implies the region level even when no view is given.
     setLevel(view === 'board' ? 'board' : view === 'wall' ? 'wall' : view === 'map' ? 'map' : view === 'national' ? 'national' : startRegion || hasCamera ? 'map' : 'national');
@@ -219,10 +273,11 @@ export function App(): ReactElement {
     if (shown !== 'national' && shown !== 'board' && region) params.push(`region=${region}`);
     if (cameraId !== null) params.push(`cam=${cameraId}`);
     if (tour.running) params.push('tour');
+    if (trip) params.push(`trip=${encodeURIComponent(trip.trip.id)}`);
     history.replaceState(null, '', `#${params.join('&')}`);
     document.body.dataset.view = shown;
     document.body.classList.toggle('is-touring', tour.running);
-  }, [boot, level, region, cameraId, tour.running]);
+  }, [boot, level, region, cameraId, tour.running, trip]);
 
   const step = useCallback(
     (direction: 'down' | 'up') => {
@@ -234,8 +289,8 @@ export function App(): ReactElement {
   );
 
   // One listener for the whole application, reading the current state through a ref so it is bound once rather than on every render.
-  const keyState = useRef({ level, cameraId, expanded, tour, region, boot, step, openRegion, goNational, closeCamera });
-  keyState.current = { level, cameraId, expanded, tour, region, boot, step, openRegion, goNational, closeCamera };
+  const keyState = useRef({ level, cameraId, expanded, tour, region, boot, step, openRegion, goNational, closeCamera, stopTrip });
+  keyState.current = { level, cameraId, expanded, tour, region, boot, step, openRegion, goNational, closeCamera, stopTrip };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -248,6 +303,7 @@ export function App(): ReactElement {
       switch (event.key) {
         case ' ':
           event.preventDefault();
+          current.stopTrip();
           current.tour.toggle(current.cameraId ?? undefined);
           break;
         case 'Escape':
@@ -394,11 +450,17 @@ export function App(): ReactElement {
         level={effectiveLevel}
         touring={tour.running}
         onToggleView={() => setLevel(effectiveLevel === 'wall' ? 'map' : 'wall')}
-        onToggleTour={() => tour.toggle(cameraId ?? undefined)}
+        onToggleTour={() => {
+          stopTrip();
+          tour.toggle(cameraId ?? undefined);
+        }}
+        tripOn={trip !== null || tripPicker}
+        onRoadTrip={() => (trip ? stopTrip() : setTripPicker((open) => !open))}
         onBoard={() => { tour.stop(); setCameraId(null); setLevel('board'); }}
         diaryOpen={diaryOpen}
         onDiary={() => setDiaryOpen((open) => !open)}
       />
+      {tripPicker && <RoadTripPicker trips={trips} onPick={startTrip} onClose={() => setTripPicker(false)} />}
       {diaryOpen && (
         <Diary
           regionName={(key) => boot.regions.find((meta) => meta.region === key)?.region_name ?? key}
@@ -453,6 +515,7 @@ export function App(): ReactElement {
           visible={cameraOpen}
           onClose={closeCamera}
           onExpanded={setExpanded}
+          overlay={trip ? <TripHud trip={trip.trip} index={trip.index} onStop={stopTrip} /> : null}
         />
         {effectiveLevel === 'board' && topology && <Board cameras={topology.cameras} activeId={cameraId} onSelect={openCamera} onData={(states, ok) => setPoll((current) => ({ states, ok, intervalS: 600, tick: current.tick + 1 }))} />}
         <Wall
@@ -463,6 +526,7 @@ export function App(): ReactElement {
           activeId={cameraId}
           intervalS={poll.intervalS}
           visible={effectiveLevel === 'wall'}
+          followActive={trip === null}
           onSelect={openCamera}
           onVisibleCameras={(ids) => {
             visibleCameras.current = ids;

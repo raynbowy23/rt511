@@ -16,6 +16,8 @@ export function TopBar({
   onBoard,
   diaryOpen = false,
   onDiary,
+  tripOn = false,
+  onRoadTrip,
 }: {
   crumbs: Crumb[];
   status: string;
@@ -27,6 +29,8 @@ export function TopBar({
   onBoard: () => void;
   diaryOpen?: boolean;
   onDiary?: () => void;
+  tripOn?: boolean;
+  onRoadTrip?: () => void;
 }): ReactElement {
   return (
     <header className="topbar">
@@ -60,6 +64,11 @@ export function TopBar({
           {level === 'map' ? 'Wall ' : 'Map '}
           <kbd>M</kbd>
         </button>
+        {onRoadTrip && (
+          <button type="button" className={`control${tripOn ? ' is-on' : ''}`} aria-pressed={tripOn} hidden={level === 'national' || level === 'board'} onClick={onRoadTrip}>
+            Road trip
+          </button>
+        )}
         <button type="button" className={`control${touring ? ' is-on' : ''}`} data-action="tour" hidden={level === 'national' || level === 'board'} onClick={onToggleTour}>
           Tour <kbd>Space</kbd>
         </button>

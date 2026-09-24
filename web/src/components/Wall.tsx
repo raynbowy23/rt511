@@ -18,9 +18,12 @@ const Tile = memo(function Tile({
   intervalS,
   observer,
   caption,
+  follow,
   onSelect,
 }: {
   caption?: string | undefined;
+  /** Whether becoming active scrolls this tile into view. */
+  follow: boolean;
   camera: Camera;
   state: CameraState | undefined;
   rank: TileRank;
@@ -67,8 +70,8 @@ const Tile = memo(function Tile({
   }, [rank.tier]);
 
   useEffect(() => {
-    if (active) root.current?.scrollIntoView({ block: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
-  }, [active]);
+    if (active && follow) root.current?.scrollIntoView({ block: 'nearest', behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+  }, [active, follow]);
 
   useEffect(() => {
     const element = root.current;
@@ -125,10 +128,13 @@ export function Wall({
   activeId,
   intervalS,
   visible,
+  followActive = true,
   onSelect,
   onVisibleCameras,
 }: {
   highlights?: ReactNode;
+  /** Scroll the active camera's tile into view when it changes. Off during a road trip, where the camera panel above the wall is what is being watched. */
+  followActive?: boolean;
   cameras: Camera[];
   captions?: Map<number, string> | undefined;
   states: Map<number, CameraState>;
@@ -223,6 +229,7 @@ export function Wall({
             active={activeId === camera.id}
             intervalS={intervalS}
             observer={observer}
+            follow={followActive}
             onSelect={onSelect}
           />
         ))}

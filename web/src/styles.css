@@ -2273,3 +2273,164 @@ body[data-view='national'] .minimap {
   font-size: 10px;
   line-height: 1.45;
 }
+
+/* Road trip: a picker under the top bar, and the trip's progress drawn over the picture. */
+.trip-picker {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  z-index: 40;
+  width: min(420px, calc(100vw - 40px));
+  max-height: calc(100vh - 160px);
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--bg-raise) 96%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+}
+
+.trip-picker-head {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.trip-picker-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.trip-picker-close {
+  margin-left: auto;
+  padding: 5px 10px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.trip-picker-close kbd {
+  font: inherit;
+  color: color-mix(in srgb, currentColor 55%, transparent);
+}
+
+.trip-picker-list {
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.trip-picker-item {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 14px;
+  color: var(--fg);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  font: inherit;
+  cursor: pointer;
+}
+
+.trip-picker-item:hover,
+.trip-picker-item:focus-visible {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.trip-picker-route {
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trip-picker-facts,
+.trip-picker-ends,
+.trip-picker-empty {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.trip-picker-empty {
+  margin: 0;
+  padding: 14px;
+  line-height: 1.5;
+}
+
+.trip-hud {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 3;
+  display: grid;
+  gap: 4px;
+  min-width: 260px;
+  max-width: min(460px, 70%);
+  padding: 10px 12px;
+  color: var(--fg);
+  background: rgba(5, 6, 8, 0.72);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+}
+
+.trip-hud-route {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.trip-hud-progress,
+.trip-hud-next {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trip-hud-next {
+  color: var(--muted);
+}
+
+.trip-hud-bar {
+  height: 3px;
+  background: var(--line-strong);
+}
+
+.trip-hud-bar span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 600ms ease;
+}
+
+.trip-hud-stop {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 4px 9px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.trip-hud-stop:hover {
+  color: var(--fg);
+  border-color: var(--line-strong);
+}

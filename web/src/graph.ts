@@ -51,6 +51,11 @@ export class Topology {
     return next ? { camera: next, edge } : null;
   }
 
+  /** The flow edges leaving a site along traffic, for planners that choose their own next step rather than taking `hop`'s. */
+  flowOut(siteId: string): Edge[] {
+    return (this.out.get(siteId) ?? []).filter((e) => FLOW.includes(e.kind) && e.src === siteId);
+  }
+
   /** Freeway sites ordered by mile marker, used to seed the corridor tour. */
   freewayStarts(): Site[] {
     return this.graph.sites
