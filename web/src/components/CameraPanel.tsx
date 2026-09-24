@@ -13,6 +13,8 @@ import { Crossfade } from './Crossfade';
  * The chrome is React. Playback, the transform and the frame layers are not: they are media and pointer work on a ten-second cadence that the virtual DOM has nothing to offer. */
 /** How long each frame of the timelapse stays up. A frame is roughly a minute of real time, so this plays ten minutes in about four seconds. */
 const TIMELAPSE_MS = 400;
+/** How often the panel restates that its camera is open, for a source with no faster focus period. Inside the server's thirty-second claim, with room for a slow request. */
+const PANEL_RESTATE_S = 20;
 
 export function CameraPanel({
   camera,
@@ -63,11 +65,14 @@ export function CameraPanel({
   /** The open camera at its agency's own refresh rate, where that is faster than the wall's poll: how often a new picture can be expected, and when the newest was taken. */
   const [focusPeriod, setFocusPeriod] = useState<number | null>(null);
   const [focusTs, setFocusTs] = useState<number | null>(null);
+  /** How often the wall itself is fetching this camera, for the badge of a snapshot camera without a focus period. */
+  const [pollPeriod, setPollPeriod] = useState<number | null>(null);
   const wantsFocus = camera !== null && visible && live && !streaming;
 
   useEffect(() => {
     setFocusPeriod(null);
     setFocusTs(null);
+    setPollPeriod(null);
     if (!camera || !wantsFocus) return;
     let cancelled = false;
     let timer = 0;
@@ -75,9 +80,10 @@ export function CameraPanel({
       const response = await getLive(camera.id);
       if (cancelled) return;
       setFocusPeriod(response?.period_s ?? null);
+      setPollPeriod(response?.poll_s ?? null);
       if (response?.ts) setFocusTs(response.ts);
-      // A source with no focus period has nothing faster to offer, and the ring's own refresh carries on, so there is no reason to keep asking.
-      if (response && response.period_s !== null) timer = window.setTimeout(() => void run(), response.period_s * 1000);
+      // Asked again on the focus period, or every twenty seconds for a source without one, because each ask also keeps this camera on its source's own poll period and that claim lapses after thirty.
+      timer = window.setTimeout(() => void run(), (response?.period_s ?? PANEL_RESTATE_S) * 1000);
     };
     void run();
     return () => {
@@ -176,7 +182,11 @@ export function CameraPanel({
     return snapUrl(camera.id, frame.k, frame.ts);
   }, [camera, live, frame, frames.length, focusPeriod, focusTs]);
 
-  const badge = live ? (streaming ? 'Live' : focusPeriod !== null ? `Every ${String(focusPeriod)} s` : mode) : 'Replay';
+  // A camera without video says so plainly: it is a live snapshot, and the badge says how often a new one arrives, so it is never mistaken for a video feed.
+  const snapshotEvery = focusPeriod ?? pollPeriod;
+  const snapshot = !streaming && mode === 'Snapshots only' && snapshotEvery !== null;
+  const badge = !live ? 'Replay' : streaming ? 'Live' : snapshot ? `Live snapshot (${every(snapshotEvery)})` : mode;
+  const badgeKey = !live ? 'replay' : streaming ? 'live' : snapshot ? 'snapshot' : mode.toLowerCase().replace(/\s+/g, '-');
   const shownTs = live && focusPeriod !== null && focusTs !== null ? Math.max(focusTs, frame?.ts ?? 0) : frame?.ts;
   const stamp = shownTs !== undefined
     ? `${new Date(shownTs * 1000).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })} · ${
@@ -189,7 +199,7 @@ export function CameraPanel({
     .join(' ');
 
   return (
-    <section className={className} ref={root} hidden={!visible} data-mode={badge.toLowerCase().replace(/\s+/g, '-')}>
+    <section className={className} ref={root} hidden={!visible} data-mode={badgeKey}>
       <div className="hero-stage" ref={stage}>
         <div className="hero-media" ref={media}>
           <Crossfade
@@ -341,4 +351,9 @@ export function CameraPanel({
       </div>
     </section>
   );
+}
+
+/** A refresh period as a person would say it: seconds under a minute, whole minutes from there. */
+function every(seconds: number): string {
+  return seconds < 60 ? `${String(Math.round(seconds))} s` : `${String(Math.round(seconds / 60))} min`;
 }

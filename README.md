@@ -29,7 +29,7 @@ The files on disk are all text, and none of them is a picture: the source table,
 
 Each camera is polled no faster than its agency refreshes it: every five minutes for Caltrans, which publishes that interval, and every minute elsewhere until a source's rate has been measured. Cameras nobody is looking at slow down further. The poller waits on each image's `Last-Modified` rather than ticking on a fixed clock, and only keeps a frame if the bytes changed.
 
-The camera open in the panel can go faster. Where an agency's pictures refresh quicker than the wall polls, that one camera is fetched at the agency's own rate for as long as the panel stays open: every 5 seconds in Ohio, which ODOT publishes, and every 15 seconds in Kentucky, which is what its pictures measured. The panel crossfades from one picture to the next, and the badge says how often a new one arrives. These pictures are kept apart from the replay and the scoring, which stay on the ordinary poll, and only the newest is held.
+The camera open in the panel can go faster. Where an agency's pictures refresh quicker than the wall polls, that one camera is fetched at the agency's own rate for as long as the panel stays open: every 5 seconds in Ohio, which ODOT publishes, and every 15 seconds in Kentucky, which is what its pictures measured. The panel crossfades from one picture to the next, and the badge says how often a new one arrives, as in "Live snapshot (5 s)". Only a camera with video is labelled plain "Live". These pictures are kept apart from the replay and the scoring, which stay on the ordinary poll, and only the newest is held.
 
 | | |
 | --- | --- |

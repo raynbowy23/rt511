@@ -617,12 +617,14 @@ export function createApp(options: AppOptions): App {
   router.get('/api/live/:id', ({ params }): LiveResponse => {
     const uid = Number(params.id);
     const slot = slotFor(params.id as string);
+    // The camera in the panel is the one camera the viewer is certainly looking at, whether or not its tile is on screen, so it is held on its source's own period rather than left on the slow tier the map view puts the rest of the city on. One claim per camera, so two viewers with different panels open do not take turns cancelling each other.
+    poller.setPriority(`panel:${String(uid)}`, [uid]);
     const period = focus.claim(uid, slot.camera);
     const held = focus.frame(uid);
     const newest = slot.frames[slot.frames.length - 1] ?? null;
     // Whichever picture is newer, since the ordinary poll carries on beside the focus fetch and either may have the latest.
     const ts = Math.max(held?.ts ?? 0, newest?.ts ?? 0);
-    return { id: uid, period_s: period, ts: ts > 0 ? ts : null };
+    return { id: uid, period_s: period, poll_s: round(poller.periodFor(slot), 0), ts: ts > 0 ? ts : null };
   });
 
   /** Frame k of the ring buffer. Negative k counts from the newest, so the default is the latest frame. `k=live` is the newest picture from either the focus fetch or the ring. */

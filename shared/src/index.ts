@@ -573,9 +573,10 @@ export interface CountResponse {
   frame_ts?: number;
 }
 
-/** The camera open in the panel: how often its source refreshes the picture when that is faster than the wall's poll, and when the newest picture was taken. `period_s` is null for a source with no focus period. */
+/** The camera open in the panel: how often its source refreshes the picture when that is faster than the wall's poll, and when the newest picture was taken. `period_s` is null for a source with no focus period. `poll_s` is how often the wall itself is fetching this camera right now, which is what a snapshot camera without a focus period is refreshed at. */
 export interface LiveResponse {
   id: number;
   period_s: number | null;
+  poll_s: number;
   ts: number | null;
 }

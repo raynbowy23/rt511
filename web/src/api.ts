@@ -370,6 +370,7 @@ export const getLive = (id: number): Promise<LiveResponse | null> => getJson(`/a
   const root = obj(body, 'live');
   num(root.id, 'live.id');
   if (root.period_s !== null) num(root.period_s, 'live.period_s');
+  num(root.poll_s, 'live.poll_s');
   if (root.ts !== null) num(root.ts, 'live.ts');
   return root as unknown as LiveResponse;
 });
