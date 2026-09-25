@@ -191,6 +191,7 @@ export function CameraPanel({
   // A camera without video says so plainly: it is a live snapshot, and the badge says how often a new one arrives, so it is never mistaken for a video feed.
   const snapshotEvery = focusPeriod ?? pollPeriod;
   const snapshot = !streaming && mode === 'Snapshots only' && snapshotEvery !== null;
+  const tuning = camera !== null && visible && live && ((camera.has_video && !streaming && mode === 'Loading') || frames.length === 0);
   const badge = !live ? 'Replay' : streaming ? 'Live video' : snapshot ? `Live snapshot (${every(snapshotEvery)})` : mode;
   const badgeKey = !live ? 'replay' : streaming ? 'live' : snapshot ? 'snapshot' : mode.toLowerCase().replace(/\s+/g, '-');
   const shownTs = live && focusPeriod !== null && focusTs !== null ? Math.max(focusTs, frame?.ts ?? 0) : frame?.ts;
@@ -225,6 +226,12 @@ export function CameraPanel({
             autoPlay
             onLoadedMetadata={(event) => adoptSource(event.currentTarget.videoWidth, event.currentTarget.videoHeight)}
           />
+        </div>
+        {/* While a stream is being tuned in, or before a camera's first picture, a slow scan crosses the frame and a ring breathes in the middle, so the wait reads as something happening. It fades away when the picture arrives. */}
+        <div className={`hero-tuning${tuning ? ' is-on' : ''}`} aria-hidden="true">
+          <span className="hero-tuning-scan" />
+          <span className="hero-tuning-ring" />
+          <span className="hero-tuning-text">{camera?.has_video ? 'Tuning in' : 'Waiting for the first picture'}</span>
         </div>
         <div className="hero-badge">
           <span className="hero-mode">{badge}</span>

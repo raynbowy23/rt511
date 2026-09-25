@@ -372,6 +372,101 @@ button.crumb:hover {
   opacity: 1;
 }
 
+.hero-tuning {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 14px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 700ms ease;
+}
+
+.hero-tuning.is-on {
+  opacity: 1;
+}
+
+/* A soft band of light drifting down the frame, like a set warming up. */
+.hero-tuning-scan {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 0%, color-mix(in srgb, var(--accent) 10%, transparent) 48%, color-mix(in srgb, var(--accent) 18%, transparent) 50%, transparent 56%);
+  background-size: 100% 260%;
+  animation: tuning-scan 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes tuning-scan {
+  from {
+    background-position: 0 100%;
+  }
+  to {
+    background-position: 0 0%;
+  }
+}
+
+.hero-tuning-ring {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  animation: tuning-ring 1.8s ease-in-out infinite;
+}
+
+.hero-tuning-ring::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  animation: tuning-ripple 1.8s ease-out infinite;
+}
+
+@keyframes tuning-ring {
+  0%,
+  100% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes tuning-ripple {
+  from {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.hero-tuning-text {
+  position: relative;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--fg) 75%, transparent);
+  animation: tuning-text 1.8s ease-in-out infinite;
+}
+
+@keyframes tuning-text {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .hero-badge {
   position: absolute;
   top: 12px;
@@ -980,6 +1075,24 @@ body.is-expanded {
   animation: view-in 560ms cubic-bezier(0.22, 0.7, 0.2, 1) both;
 }
 
+/* Arriving in a city from the country map continues the zoom: the city map comes in a little small and grows into place. */
+.stage.is-entering.is-arriving {
+  animation-name: view-arrive;
+  animation-duration: 700ms;
+  transform-origin: 50% 40%;
+}
+
+@keyframes view-arrive {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @keyframes view-in {
   from {
     opacity: 0;
@@ -1056,6 +1169,17 @@ body.is-expanded {
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 14px;
   align-items: stretch;
+}
+
+/* The flight into a city: the list steps back while the map zooms, and the whole view fades in the last stretch as the city map fades in behind it. */
+.national.is-zooming .national-list {
+  opacity: 0.25;
+  transition: opacity 500ms ease;
+}
+
+.national.is-leaving {
+  opacity: 0;
+  transition: opacity 300ms ease;
 }
 
 .national-frame {
@@ -1968,6 +2092,10 @@ body[data-view='wall'] .stage {
 
   .tile.is-resizing,
   .stage.is-entering,
+  .hero-tuning-scan,
+  .hero-tuning-ring,
+  .hero-tuning-ring::after,
+  .hero-tuning-text,
   .hero-still-layer.is-front,
   .tile-clock i,
   .tile.is-fresh::after {

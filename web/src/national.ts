@@ -11,6 +11,8 @@ const CELL_PX = 6;
 /** Past this much zoom the cells are finer than the cameras are spaced, so individual positions are drawn instead. */
 const DOTS_FROM = 7;
 const PULSE_MS = 2600;
+/** How long the flight into a city takes. Long enough to read as travel, short enough not to be waited on. */
+const ZOOM_MS = 900;
 
 interface View {
   cx: number;
@@ -79,6 +81,8 @@ export class NationalView {
   private readonly markers: Marker[] = [];
 
   private view: View | null = null;
+  private zooming = false;
+  private zoomFrame = 0;
   private width = 0;
   private height = 0;
   private frame = 0;
@@ -219,7 +223,7 @@ export class NationalView {
   /** Stops the pulse loop and releases the observer. The pulse re-arms itself every frame, so without this a double mount would leave a second loop redrawing an orphaned canvas forever. */
   destroy(): void {
     this.observer.disconnect();
-    for (const frame of [this.frame, this.resizeFrame, this.pulseFrame]) if (frame !== 0) cancelAnimationFrame(frame);
+    for (const frame of [this.frame, this.resizeFrame, this.pulseFrame, this.zoomFrame]) if (frame !== 0) cancelAnimationFrame(frame);
     this.frame = 0;
     this.resizeFrame = 0;
     this.pulseFrame = 0;
@@ -268,7 +272,7 @@ export class NationalView {
       const name = document.createElement('button');
       name.type = 'button';
       name.disabled = !region.served;
-      name.addEventListener('click', () => this.onRegion(region.key));
+      name.addEventListener('click', () => this.enter(region.key));
       name.className = 'national-row-name';
       name.textContent = region.name;
 
@@ -488,7 +492,7 @@ export class NationalView {
     this.overlay.style.cursor = 'grab';
     if (this.dragMoved) return;
     const target = this.hit(event);
-    if (target?.region.served) this.onRegion(target.region.key);
+    if (target?.region.served) this.enter(target.region.key);
   }
 
   private hit(event: { clientX: number; clientY: number }): Marker | null {
@@ -536,6 +540,46 @@ export class NationalView {
     const { minX, minY, maxX, maxY } = this.projection.bounds;
     view.cx = clamp(view.cx, minX, maxX);
     view.cy = clamp(view.cy, minY, maxY);
+  }
+
+  /** Flies into a city, then hands over to it. The scale grows geometrically, which is how a zoom feels even, while the centre slides onto the city's marker; the country fades in the last stretch so the city map, fading in behind it, takes over rather than replacing it. Without motion, or with no view yet, it hands over at once. */
+  private enter(key: string): void {
+    if (this.zooming) return;
+    const marker = this.markers.find((item) => item.region.key === key);
+    const view = this.view;
+    if (!marker || !view || prefersReducedMotion()) {
+      this.onRegion(key);
+      return;
+    }
+    this.zooming = true;
+    const from = { cx: view.cx, cy: view.cy, scale: view.scale };
+    const to = Math.max(from.scale * 6, this.fitScale() * 9);
+    const start = performance.now();
+    this.root.classList.add('is-zooming');
+    const step = (now: number): void => {
+      const t = Math.min(1, (now - start) / ZOOM_MS);
+      const eased = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+      view.scale = from.scale * (to / from.scale) ** eased;
+      view.cx = from.cx + (marker.x - from.cx) * eased;
+      view.cy = from.cy + (marker.y - from.cy) * eased;
+      view.fitted = false;
+      this.draw();
+      this.drawOverlay();
+      if (t > 0.72) this.root.classList.add('is-leaving');
+      if (t < 1) {
+        this.zoomFrame = requestAnimationFrame(step);
+        return;
+      }
+      this.zoomFrame = 0;
+      this.onRegion(key);
+      // Back to the whole country, out of sight, so the map is ready when the viewer returns to it.
+      window.setTimeout(() => {
+        this.zooming = false;
+        this.root.classList.remove('is-zooming', 'is-leaving');
+        this.fit(true);
+      }, 400);
+    };
+    this.zoomFrame = requestAnimationFrame(step);
   }
 
   private invalidate(): void {

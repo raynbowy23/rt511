@@ -514,11 +514,16 @@ export function App(): ReactElement {
   }, []);
 
   // A change of view fades the new one in. Restarted by hand, because the class is already on the element after the first change and a class that does not change does not replay its animation.
+  const previousLevel = useRef(level);
   useEffect(() => {
     const element = stageRef.current;
+    const from = previousLevel.current;
+    previousLevel.current = level;
     if (!element) return;
-    element.classList.remove('is-entering');
+    element.classList.remove('is-entering', 'is-arriving');
     void element.offsetWidth;
+    // Coming into a city from the country map carries on that map's zoom rather than just fading.
+    if (from === 'national' && (level === 'map' || level === 'wall')) element.classList.add('is-arriving');
     element.classList.add('is-entering');
   }, [level]);
 
