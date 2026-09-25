@@ -30,7 +30,7 @@ Keeping them separate means the weights can differ by intent. An ambient screen 
 ## The equation
 
 ```
-anomaly(c,t)   = diff(c,t) / baseline(c, hourOfWeek)
+anomaly(c,t)   = min( cap(n), ½ · diff(c,t) / baseline(c, hourOfWeek) )   cap(n) = ½ + ½ · min(1, n / 10), n = the camera's own frame differences
 spectacle(c,t) = α · absolute + (1−α) · relative
 amplifier(c)   = Pmin + (Pmax − Pmin) · scalePrior(c)      Pmin = 0.5, Pmax = 1.5
 floor(c,t)     = incidentFloor(code, distance) × exp(−λ · age)
@@ -39,6 +39,8 @@ gateFloor(c,t) = τ_gridlock when the arbiter has called this camera stopped tra
 
 attention(c,t) = clamp( max( amplifier(c) · (wₐ·anomaly + wₛ·spectacle) , floor , queueFloor , gateFloor ), 0, 1 )
 ```
+
+The cap is a warm-up. A camera with only a few frame differences has a noisy baseline, and without it most of a freshly opened city read 1.00 for its first minutes. It holds a camera's movement score to the ordinary 0.5 until it has history of its own and lets it reach 1 at ten differences. A still picture still reads 0 from the start, because only the saturation waits.
 
 The `max` is the important structural choice. Consequence is not a weighted contributor, it is a **floor**. A reported crash with a closure guarantees its cameras a place regardless of how still the picture is, because that is exactly the case a pixel-difference score gets wrong.
 

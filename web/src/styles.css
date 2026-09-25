@@ -1714,7 +1714,12 @@ body[data-view='wall'] .stage {
   position: sticky;
   bottom: 0;
   z-index: 45;
-  padding: 8px 20px;
+  /* Where the page is, the credits and the project on the left; the disclaimer as a short block of its own on the right, a few lines deep rather than one line across the whole screen. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 860px);
+  align-items: center;
+  gap: 6px 32px;
+  padding: 10px 20px;
   border-top: 1px solid var(--line);
   margin-top: 8px;
   background: color-mix(in srgb, var(--bg) 92%, transparent);
@@ -2501,11 +2506,23 @@ body[data-view='wall'] .stage {
 
 /* The disclaimer is the condition every camera on the page is shown under, so it is always visible rather than folded into the credits. Quiet, but legible. */
 .footer-disclaimer {
-  margin: 4px 0 0;
-  padding: 0;
-  color: var(--muted);
-  font-size: 10.5px;
-  line-height: 1.45;
+  margin: 0;
+  padding: 0 0 0 16px;
+  border-left: 1px solid var(--line-strong);
+  color: color-mix(in srgb, var(--fg) 62%, transparent);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+@media (max-width: 900px) {
+  .footer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .footer-disclaimer {
+    padding-left: 0;
+    border-left: none;
+  }
 }
 
 .hero-rights {
@@ -2734,7 +2751,7 @@ body[data-view='home'] .stage {
   height: calc(100vh - var(--topbar-h) - var(--footer-h, 72px));
   min-height: 480px;
   overflow: hidden;
-  background: radial-gradient(ellipse 70% 60% at 50% 38%, #0e1118 0%, var(--bg) 72%);
+  background: radial-gradient(ellipse 75% 70% at 68% 42%, #1b2130 0%, #11151d 45%, #0b0d12 100%);
 }
 
 .landing-sky {
@@ -2771,9 +2788,9 @@ body[data-view='home'] .stage {
 
 .landing-lede {
   margin: 18px 0 0;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.6;
-  color: color-mix(in srgb, var(--fg) 66%, transparent);
+  color: color-mix(in srgb, var(--fg) 84%, transparent);
 }
 
 .landing-actions {
@@ -2808,7 +2825,7 @@ body[data-view='home'] .stage {
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--fg) 62%, transparent);
   background: none;
   border: none;
   border-bottom: 1px solid transparent;
@@ -2830,7 +2847,7 @@ body[data-view='home'] .stage {
   font-size: 10px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: color-mix(in srgb, var(--muted) 80%, transparent);
+  color: color-mix(in srgb, var(--fg) 55%, transparent);
 }
 
 .landing-legend i {
@@ -2853,7 +2870,7 @@ body[data-view='home'] .stage {
 }
 
 .landing-legend .is-night {
-  background: rgb(86, 118, 214);
+  background: rgb(120, 150, 236);
 }
 
 /* Sources and terms, over the right of the picture. */

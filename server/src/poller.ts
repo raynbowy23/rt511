@@ -15,6 +15,13 @@ const RETRY_S = 20;
 const MIN_DELAY_S = 10;
 const UNAVAILABLE_S = 300;
 export const ACTIVITY_MIN_SAMPLES = 3;
+/** Frame differences a camera needs of its own before its movement score may reach the top of the range. A baseline of a handful of differences is noisy, and without this most of a freshly opened city read 1.00 for its first minutes, which said more about the missing history than about the roads. Ten is ten minutes on screen. */
+export const ACTIVITY_WARMUP_SAMPLES = 10;
+
+/** The highest movement score a camera with this much history may have: the score of an ordinary picture, 0.5, with nothing of its own, rising to the full 1 at ACTIVITY_WARMUP_SAMPLES. A cap rather than a pull towards the middle, so a still picture still reads 0 from the start and only the saturation waits for evidence. */
+export function warmupCap(samples: number): number {
+  return 0.5 + 0.5 * Math.min(1, samples / ACTIVITY_WARMUP_SAMPLES);
+}
 /** A frame difference below this is sensor noise on a still scene, and dividing by it would make an empty rural camera look busy. */
 export const ACTIVITY_FLOOR = 0.004;
 export const DEFAULT_RING = 10;
@@ -149,7 +156,7 @@ export class CameraSlot {
     if (this.diffs.length >= ACTIVITY_MIN_SAMPLES) baseline = median(this.diffs);
     else if (fallbackBaseline !== null) baseline = fallbackBaseline;
     else return null;
-    return round(Math.min(1, (0.5 * frame.diff) / Math.max(baseline, ACTIVITY_FLOOR)), 3);
+    return round(Math.min(warmupCap(this.diffs.length), (0.5 * frame.diff) / Math.max(baseline, ACTIVITY_FLOOR)), 3);
   }
 
   summary(fallbackBaseline: number | null, periodS: number, scored: Scored | null): WireCameraState {

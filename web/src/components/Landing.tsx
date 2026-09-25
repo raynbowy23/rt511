@@ -26,7 +26,7 @@ export function Landing({
       <div className="landing-copy">
         <h1 className="landing-title">rt511</h1>
         <p className="landing-lede">
-          {cameras.toLocaleString()} traffic cameras across {national.covered_states.length} states, each one lit by the sun that is on it right now.
+          Live traffic cameras from coast to coast, {cameras.toLocaleString()} of them, each glowing with its own time of day. Step in and watch the roads breathe.
         </p>
         <div className="landing-actions">
           <button type="button" className="landing-cta" onClick={onMap}>
@@ -55,7 +55,7 @@ export function Landing({
 const LIGHT = {
   day: [243, 226, 178],
   dusk: [236, 138, 72],
-  night: [86, 118, 214],
+  night: [120, 150, 236],
   DUSK_DEG: 6,
 } as const;
 
@@ -158,7 +158,7 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
       if (outline) {
         outline.setTransform(ratio, 0, 0, ratio, 0, 0);
         // The states as the faintest of lines, just enough to say "this is a country".
-        outline.strokeStyle = 'rgba(255,255,255,0.05)';
+        outline.strokeStyle = 'rgba(255,255,255,0.1)';
         outline.lineWidth = 1;
         outline.beginPath();
         for (const ring of states) {
@@ -186,7 +186,7 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
         const g = contexts[layerOf[i]!];
         if (!g) continue;
         // Low enough that a city of hundreds of cameras glows rather than burning out to white, since the lights add up where they overlap.
-        g.globalAlpha = kind === 'night' ? 0.26 : kind === 'dusk' ? 0.62 : 0.4;
+        g.globalAlpha = kind === 'night' ? 0.42 : kind === 'dusk' ? 0.72 : 0.5;
         g.drawImage(sprites[kind], point.x * scale + offsetX - size / 2, point.y * scale + offsetY - size / 2, size, size);
       }
     };
@@ -216,7 +216,8 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
       context.globalCompositeOperation = 'lighter';
       for (let k = 0; k < LAYERS; k++) {
         const { phase, speed } = rhythm[k]!;
-        context.globalAlpha = 0.5 + 0.5 * Math.sin(t * speed + phase);
+        // Never fully out: each group dims to about a third and back, so the country breathes without going dark.
+        context.globalAlpha = 0.65 + 0.35 * Math.sin(t * speed + phase);
         context.drawImage(layers[k]!, 0, 0);
       }
     };

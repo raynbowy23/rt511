@@ -11,7 +11,7 @@ import { CAMERA_RADIUS_KM, distanceKm } from './cad.js';
 import { loadAadt, round } from './config.js';
 import { CORRIDOR } from './corridor.js';
 import { JsonLog } from './jsonlog.js';
-import { ACTIVE_DIFF, ACTIVITY_FLOOR, ACTIVITY_MIN_SAMPLES, median, type CameraSlot, type Scored } from './poller.js';
+import { ACTIVE_DIFF, ACTIVITY_FLOOR, ACTIVITY_MIN_SAMPLES, median, warmupCap, type CameraSlot, type Scored } from './poller.js';
 
 /** Every number the score depends on, in one place, because a constant buried in the expression that uses it is a constant nobody ever revisits. */
 export const TUNING = {
@@ -217,7 +217,8 @@ export class AttentionEngine {
     const rolling = slot.diffs.length >= ACTIVITY_MIN_SAMPLES ? median(slot.diffs) : fallbackBaseline;
     const { mu, n, sd } = this.baseline(slot.uid, rolling, cell);
 
-    const anomaly = diff === null || mu === null ? null : round(Math.min(1, (TUNING.ANOMALY_AT_BASELINE * diff) / Math.max(mu, ACTIVITY_FLOOR)), 3);
+    // Capped while the camera's own history is short, by the same rule `activity` applies, so the two still agree exactly before any hourly history exists.
+    const anomaly = diff === null || mu === null ? null : round(Math.min(warmupCap(slot.diffs.length), (TUNING.ANOMALY_AT_BASELINE * diff) / Math.max(mu, ACTIVITY_FLOOR)), 3);
     const prior = this.scalePrior(slot.uid);
     const absolute = diff === null ? 0 : Math.min(1, diff / TUNING.ABSOLUTE_FULL_SCALE);
     const relative = anomaly ?? 0;

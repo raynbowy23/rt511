@@ -530,8 +530,8 @@ test('Welford sample deviation agrees with two-pass variance before each newest 
   const values = [.01, .03, .02, .08, .004];
   const at = 1790000000;
   const previous: number[] = [];
-  // Captured from the original scorer before adding variance, with the same fixed prior and frame sequence.
-  const fixture = [[.167, .134], [.562, .45], [.368, .294], [1, .8], [.062, .05]];
+  // Captured from the original scorer before adding variance, with the same fixed prior and frame sequence. The fourth frame saturated at 1 there; with the warm-up cap a camera holding five differences tops out at 0.75, and its attention scales with it from 0.8 to 0.6. The other four sit below the cap and are unchanged. Removing warmupCap restores [1, .8].
+  const fixture = [[.167, .134], [.562, .45], [.368, .294], [.75, .6], [.062, .05]];
   for (const [i, value] of values.entries()) {
     const camera = slot(1, [.01, .02, .03, .04, .05], value);
     engine.observe(camera, 'fresh', at);
