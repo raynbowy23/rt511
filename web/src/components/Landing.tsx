@@ -59,7 +59,7 @@ const LIGHT = {
   DUSK_DEG: 6,
 } as const;
 
-/** The picture itself. Positions are projected once; colour is re-read from the sun once a minute; between those, every point breathes on its own slow cycle so the country looks alive rather than printed. */
+/** The picture itself. Positions are projected once and colour is re-read from the sun once a minute. Between those the lights breathe in a dozen groups, each on its own slow cycle, so the country looks alive rather than printed. */
 function CameraSky({ national, onClick }: { national: NationalResponse; onClick: () => void }): ReactElement {
   const canvas = useRef<HTMLCanvasElement>(null);
 
@@ -75,14 +75,14 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
       for (const ring of state.polygons) for (const point of ring) outline.push(point);
     }
     const projection = new AlbersUsa({ conus: outline, alaska: [], hawaii: [] });
-    const points: { x: number; y: number; lat: number; lon: number; phase: number; speed: number }[] = [];
+    const points: { x: number; y: number; lat: number; lon: number }[] = [];
     for (const source of Object.values(national.sources)) {
       const group = groupForStates(source.states);
       if (group !== 'conus') continue;
       const { lat, lon } = source.cameras;
       for (let i = 0; i < lat.length; i++) {
         const [x, y] = projection.project(lon[i] as number, lat[i] as number, group);
-        points.push({ x, y, lat: lat[i] as number, lon: lon[i] as number, phase: Math.random() * Math.PI * 2, speed: 0.4 + Math.random() * 0.9 });
+        points.push({ x, y, lat: lat[i] as number, lon: lon[i] as number });
       }
     }
     const states: [number, number][][] = [];
@@ -137,68 +137,102 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
     let scale = 1;
     let offsetX = 0;
     let offsetY = 0;
-    const ratio = Math.min(2, window.devicePixelRatio || 1);
+    // The lights are soft, so they need no more than one and a half device pixels each, and every layer below is that much cheaper to blend.
+    const ratio = Math.min(1.5, window.devicePixelRatio || 1);
+
+    // Every light belongs to one of a dozen layers, drawn once and then only blended each frame with its own slowly changing brightness. Twelve full-canvas blends a frame is a small fixed cost whatever the number of cameras, where stamping seven and a half thousand sprites a frame was what made it stutter.
+    const LAYERS = 12;
+    const layerOf = points.map(() => Math.floor(Math.random() * LAYERS));
+    const rhythm = Array.from({ length: LAYERS }, (_, k) => ({ phase: (k / LAYERS) * Math.PI * 2, speed: 0.00045 + (k % 4) * 0.00012 }));
+    const base = document.createElement('canvas');
+    const layers = Array.from({ length: LAYERS }, () => document.createElement('canvas'));
+
+    const build = (): void => {
+      const pixelW = Math.max(1, Math.round(width * ratio));
+      const pixelH = Math.max(1, Math.round(height * ratio));
+      for (const layer of [base, ...layers]) {
+        layer.width = pixelW;
+        layer.height = pixelH;
+      }
+      const outline = base.getContext('2d');
+      if (outline) {
+        outline.setTransform(ratio, 0, 0, ratio, 0, 0);
+        // The states as the faintest of lines, just enough to say "this is a country".
+        outline.strokeStyle = 'rgba(255,255,255,0.05)';
+        outline.lineWidth = 1;
+        outline.beginPath();
+        for (const ring of states) {
+          ring.forEach(([x, y], i) => {
+            const sx = x * scale + offsetX;
+            const sy = y * scale + offsetY;
+            if (i === 0) outline.moveTo(sx, sy);
+            else outline.lineTo(sx, sy);
+          });
+          outline.closePath();
+        }
+        outline.stroke();
+      }
+      // The glow scales with the picture, so a phone and a wall-sized screen both read as a field of lights rather than dust or blobs.
+      const size = Math.max(5, Math.min(11, width / 170));
+      const contexts = layers.map((layer) => {
+        const g = layer.getContext('2d');
+        g?.setTransform(ratio, 0, 0, ratio, 0, 0);
+        if (g) g.globalCompositeOperation = 'lighter';
+        return g;
+      });
+      for (let i = 0; i < points.length; i++) {
+        const point = points[i]!;
+        const kind = kinds[i] ?? 'night';
+        const g = contexts[layerOf[i]!];
+        if (!g) continue;
+        // Low enough that a city of hundreds of cameras glows rather than burning out to white, since the lights add up where they overlap.
+        g.globalAlpha = kind === 'night' ? 0.26 : kind === 'dusk' ? 0.62 : 0.4;
+        g.drawImage(sprites[kind], point.x * scale + offsetX - size / 2, point.y * scale + offsetY - size / 2, size, size);
+      }
+    };
+
     const resize = (): void => {
       const box = element.getBoundingClientRect();
       width = box.width;
       height = box.height;
       element.width = Math.round(width * ratio);
       element.height = Math.round(height * ratio);
-      // On a wide screen the country sits to the right and a little high, leaving the lower left to the words; on a narrow one it takes the top.
+      // On a wide screen the country is a smaller picture on the right, clear of the words on the left; on a narrow one it takes the top.
       const wide = width > 900;
-      scale = Math.min((wide ? width * 0.84 : width) / (maxX - minX), (wide ? height : height * 0.62) / (maxY - minY)) * 0.9;
-      offsetX = (wide ? width * 0.16 + (width * 0.84 - (maxX - minX) * scale) / 2 : (width - (maxX - minX) * scale) / 2) - minX * scale;
-      offsetY = (wide ? (height - (maxY - minY) * scale) / 3 : height * 0.06) - minY * scale;
+      const boxW = wide ? width * 0.5 : width * 0.92;
+      const boxH = wide ? height * 0.72 : height * 0.5;
+      scale = Math.min(boxW / (maxX - minX), boxH / (maxY - minY));
+      offsetX = (wide ? width * 0.46 : width * 0.04) + (boxW - (maxX - minX) * scale) / 2 - minX * scale;
+      offsetY = (wide ? (height - (maxY - minY) * scale) / 2.2 : height * 0.06) - minY * scale;
+      build();
     };
 
     const draw = (t: number): void => {
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
-      context.clearRect(0, 0, width, height);
-      // The states as the faintest of lines, just enough to say "this is a country".
-      context.strokeStyle = 'rgba(255,255,255,0.045)';
-      context.lineWidth = 1;
-      context.beginPath();
-      for (const ring of states) {
-        ring.forEach(([x, y], i) => {
-          const sx = x * scale + offsetX;
-          const sy = y * scale + offsetY;
-          if (i === 0) context.moveTo(sx, sy);
-          else context.lineTo(sx, sy);
-        });
-        context.closePath();
-      }
-      context.stroke();
-      context.globalCompositeOperation = 'lighter';
-      // The glow scales with the picture, so a phone and a wall-sized screen both read as a field of lights rather than dust or blobs.
-      const size = Math.max(5, Math.min(12, width / 150));
-      for (let i = 0; i < points.length; i++) {
-        const point = points[i]!;
-        const kind = kinds[i] ?? 'night';
-        const breathe = 0.55 + 0.45 * Math.sin(t * 0.001 * point.speed + point.phase);
-        // Low enough that a city of hundreds of cameras glows rather than burning out to white, since the lights add up where they overlap.
-        context.globalAlpha = (kind === 'night' ? 0.2 : kind === 'dusk' ? 0.5 : 0.32) * breathe;
-        context.drawImage(sprites[kind], point.x * scale + offsetX - size / 2, point.y * scale + offsetY - size / 2, size, size);
-      }
-      context.globalAlpha = 1;
+      context.setTransform(1, 0, 0, 1, 0, 0);
       context.globalCompositeOperation = 'source-over';
+      context.globalAlpha = 1;
+      context.clearRect(0, 0, element.width, element.height);
+      context.drawImage(base, 0, 0);
+      context.globalCompositeOperation = 'lighter';
+      for (let k = 0; k < LAYERS; k++) {
+        const { phase, speed } = rhythm[k]!;
+        context.globalAlpha = 0.5 + 0.5 * Math.sin(t * speed + phase);
+        context.drawImage(layers[k]!, 0, 0);
+      }
     };
 
     resize();
     const still = prefersReducedMotion();
     let frame = 0;
-    let last = 0;
     const loop = (t: number): void => {
-      // Twenty-odd frames a second is plenty for a slow breath, and leaves the machine alone.
-      if (t - last > 45) {
-        draw(t);
-        last = t;
-      }
+      draw(t);
       frame = window.requestAnimationFrame(loop);
     };
     if (still) draw(0);
     else frame = window.requestAnimationFrame(loop);
     const sun = window.setInterval(() => {
       readSun();
+      build();
       if (still) draw(0);
     }, 60_000);
     const observer = new ResizeObserver(() => {

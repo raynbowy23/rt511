@@ -1,5 +1,6 @@
-import { memo, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import { memo, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { snapUrl, type Camera, type CameraState } from '../api';
+import type { AttentionAxes } from '@rt511/shared';
 import { prefersReducedMotion } from '../motion';
 
 export type Tier = 'big' | 'wide' | 'unit';
@@ -52,7 +53,14 @@ const Tile = memo(function Tile({
       face.classList.remove('is-front');
       front.current = front.current === 0 ? 1 : 0;
       shownTs.current = lastTs;
-      root.current?.classList.add('has-frame');
+      const element = root.current;
+      element?.classList.add('has-frame');
+      // A brief glow when a new picture lands, so the wall shows it is working even when the picture barely changed.
+      if (element && !prefersReducedMotion()) {
+        element.classList.remove('is-fresh');
+        void element.offsetWidth;
+        element.classList.add('is-fresh');
+      }
     };
     back.onerror = () => {
       back.onload = null;
@@ -81,6 +89,11 @@ const Tile = memo(function Tile({
   }, [observer]);
 
   const activity = state?.activity ?? null;
+  const attention = state?.attention ?? null;
+  const driver = driverOf(attention, state?.axes ?? null);
+  const period = state?.period_s ?? intervalS;
+  // Where the countdown to the next picture starts, read once per picture: the line then runs on its own in CSS, with nothing re-rendering every second.
+  const clockDelay = useMemo(() => (lastTs === null ? 0 : Math.min(period, Math.max(0, Date.now() / 1000 - lastTs))), [lastTs, period]);
   // Judge staleness against this camera's own poll period. The wall-wide interval is the shortest across sources, which would call a 60 s camera stale on a 30 s clock.
   const stale = hasFrames && Date.now() / 1000 - (lastTs ?? 0) > 3 * (state?.period_s ?? intervalS);
   const className = [
@@ -116,9 +129,19 @@ const Tile = memo(function Tile({
         </span>
         {caption && <span className="tile-city">{caption}</span>}
       </div>
+      {attention !== null && driver && (
+        <span className={`tile-score is-${driver.key}`} title={driver.title}>
+          <b>{attention.toFixed(2)}</b> {driver.word}
+        </span>
+      )}
       <div className="tile-pulse">
         <i style={{ transform: `scaleX(${activity === null ? 0 : Math.max(0.02, Math.min(1, activity))})` }} />
       </div>
+      {hasFrames && (
+        <div className="tile-clock" title="Fills until this camera's next picture is due">
+          <i key={lastTs} style={{ animationDuration: `${String(period)}s`, animationDelay: `-${String(clockDelay)}s` }} />
+        </div>
+      )}
     </button>
   );
 });
@@ -223,6 +246,9 @@ export function Wall({
   return (
     <main className="pane pane-wall wall-host" hidden={!visible}>
       {highlights}
+      <p className="wall-how">
+        Ranked by how unusual each camera's movement is against its own normal for this hour, scaled by how big the road is. An incident or stopped traffic nearby holds a camera up. Bigger tiles score higher, and the thin line along the top of each picture fills until its next one arrives.
+      </p>
       <div className="wall" ref={grid}>
         {cameras.map((camera) => (
           <Tile
@@ -241,4 +267,17 @@ export function Wall({
       </div>
     </main>
   );
+}
+
+/** Which part of the score won, in a word. The score is the larger of the movement term and three floors, and a floor wins a tie, so whichever floor equals the score is the reason; otherwise it is movement. */
+function driverOf(attention: number | null, axes: AttentionAxes | null): { key: string; word: string; title: string } | null {
+  if (attention === null || !axes) return null;
+  const floors: { key: string; word: string; title: string; value: number }[] = [
+    { key: 'incident', word: 'incident', title: 'Held up by a reported incident nearby', value: axes.incident_floor },
+    { key: 'queue', word: 'queue', title: 'Held up by a queue that may reach this camera from an incident or stopped traffic further down the road', value: axes.queue_floor },
+    { key: 'still', word: 'stopped', title: 'Held up because the traffic in the picture looks stopped', value: axes.gate?.floor ?? 0 },
+  ];
+  const floor = floors.reduce((best, item) => (item.value > best.value ? item : best));
+  if (floor.value > 0 && floor.value >= attention - 1e-6) return floor;
+  return { key: 'movement', word: 'moving', title: 'Movement against this camera\'s own normal for this hour, scaled by the size of the road' };
 }

@@ -723,6 +723,103 @@ body.is-touring .wall {
   background: var(--accent);
 }
 
+/* The score, and the reason for it, in the corner of every tile. */
+.tile-score {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 2px 7px;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--fg) 70%, transparent);
+  background: rgba(4, 5, 6, 0.66);
+  border-radius: 2px;
+  transition: color 400ms ease;
+}
+
+.tile-score b {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+
+.tile.is-hot .tile-score b,
+.tile-score.is-incident b,
+.tile-score.is-queue b,
+.tile-score.is-still b {
+  color: var(--accent);
+}
+
+.tile-score.is-incident {
+  color: var(--incident);
+}
+
+/* The countdown to the next picture: a line along the top that fills over the camera's own poll period, restarted each time a picture lands. Pure CSS, so it runs smoothly with nothing re-rendering. */
+.tile-clock {
+  position: absolute;
+  inset: 0 0 auto 0;
+  z-index: 2;
+  height: 2px;
+  overflow: hidden;
+}
+
+.tile-clock i {
+  display: block;
+  height: 100%;
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+  transform-origin: left center;
+  transform: scaleX(0);
+  will-change: transform;
+  animation-name: tile-clock;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes tile-clock {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* A new picture: a short glow round the tile. */
+.tile.is-fresh::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 70%, transparent);
+  animation: tile-fresh 1400ms ease-out forwards;
+}
+
+@keyframes tile-fresh {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.wall-how {
+  max-width: 62em;
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
 /* The wall re-ranks on a slow cadence; a tile that changed size settles in rather than snapping. */
 .tile.is-resizing {
   animation: settle 900ms ease;
@@ -1849,7 +1946,9 @@ body[data-view='wall'] .stage {
   }
 
   .tile.is-resizing,
-  .hero-still-layer.is-front {
+  .hero-still-layer.is-front,
+  .tile-clock i,
+  .tile.is-fresh::after {
     animation: none;
   }
 }
