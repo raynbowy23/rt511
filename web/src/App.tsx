@@ -445,7 +445,7 @@ export function App(): ReactElement {
 
   const scope = level === 'home' || level === 'national' || level === 'board' || region === null ? poll.states : poll.states.filter((state) => state.region === region);
   const withFrames = scope.filter((state) => state.frames > 0).length;
-  const status = poll.ok ? `${withFrames} of ${scope.length} cameras live · ${Math.round(poll.intervalS)}s snapshots` : 'backend unreachable, retrying';
+  const status = poll.ok ? `${withFrames} of ${scope.length} cameras with a picture · new every ${Math.round(poll.intervalS)} s` : 'backend unreachable, retrying';
 
   // The strip lists the cities this server can show, with the centre the national index carries so "nearest" is a computation.
   const cities: City[] = useMemo(() => {
