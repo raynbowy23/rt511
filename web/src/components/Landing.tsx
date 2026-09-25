@@ -318,7 +318,7 @@ function Sources({ national, disclaimer, onClose }: { national: NationalResponse
         </button>
       </header>
       <p className="landing-note">
-        Only agencies whose published terms let a viewer like this show their cameras. <span className="kind-chip is-video">Video</span> means some cameras stream live; <span className="kind-chip is-snapshot">Snapshots</span> means a still picture the agency refreshes on its own clock.
+        Only agencies whose published terms let a viewer like this show their cameras. <span className="kind-chip is-video">Live</span> means some cameras stream video; <span className="kind-chip is-snapshot">Snapshot</span> means a still picture the agency refreshes on its own clock.
       </p>
       <div className="landing-table-wrap">
         <table className="landing-table">
@@ -343,7 +343,7 @@ function Sources({ national, disclaimer, onClose }: { national: NationalResponse
                 </td>
                 <td>{source.states.join(', ')}</td>
                 <td className="is-number">{source.cameras.ids.length.toLocaleString()}</td>
-                <td>{source.has_video ? <span className="kind-chip is-video">Video</span> : <span className="kind-chip is-snapshot">Snapshots</span>}</td>
+                <td>{source.has_video ? <span className="kind-chip is-video">Live and snapshot</span> : <span className="kind-chip is-snapshot">Snapshot</span>}</td>
                 <td>{refresh(source)}</td>
                 <td>
                   {source.license && <span className="landing-license">{source.license}</span>}

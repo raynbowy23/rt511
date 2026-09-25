@@ -13,6 +13,8 @@
   --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
   --gap: 10px;
   --fade: 900ms;
+  /* The colour of a live stream and nothing else, so a red pill always means video. */
+  --live: #e5484d;
   /* The top bar's height, which the panels pinned under it follow. Two rows on a narrow screen. */
   --topbar-h: 52px;
 }
@@ -490,8 +492,44 @@ button.crumb:hover {
   background: currentColor;
 }
 
+/* Live video: a solid red pill with a pulsing dot, the broadcast convention, so it reads as video from across the room. */
 .hero[data-mode='live'] .hero-badge {
-  color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  background: var(--live);
+  border-color: var(--live);
+}
+
+.hero[data-mode='live'] .hero-badge::before {
+  width: 6px;
+  height: 6px;
+  background: #fff;
+  animation: live-dot 1.6s ease-in-out infinite;
+}
+
+@keyframes live-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* A snapshot: grey, with a hollow frame where the live dot would be, a still picture rather than a stream. */
+.hero[data-mode='snapshot'] .hero-badge {
+  color: color-mix(in srgb, var(--fg) 78%, transparent);
+  background: rgba(0, 0, 0, 0.6);
+  border-color: var(--line-strong);
+}
+
+.hero[data-mode='snapshot'] .hero-badge::before {
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  background: transparent;
+  border: 1px solid currentColor;
 }
 
 .hero-panel {
@@ -749,21 +787,41 @@ body.is-touring .wall {
   font-size: 9px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: var(--fg);
-  background: rgba(255, 255, 255, 0.12);
   border-radius: 2px;
 }
 
-/* The same play mark the top bar uses for things that play. */
 .tile-kind::before {
   content: '';
   position: absolute;
-  left: 6px;
+  left: 5px;
   top: 50%;
-  border-style: solid;
-  border-width: 3.5px 0 3.5px 5px;
-  border-color: transparent transparent transparent var(--accent);
   transform: translateY(-50%);
+}
+
+/* The same pair as the camera panel: red with a dot for a stream, grey with a hollow frame for a still. */
+.tile-kind.is-live {
+  color: #fff;
+  font-weight: 600;
+  background: var(--live);
+}
+
+.tile-kind.is-live::before {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.tile-kind.is-snapshot {
+  color: color-mix(in srgb, var(--fg) 75%, transparent);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.tile-kind.is-snapshot::before {
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  border: 1px solid currentColor;
 }
 
 .tile-label {
@@ -2108,6 +2166,7 @@ body[data-view='wall'] .stage {
   }
 
   .tile.is-resizing,
+  .hero[data-mode='live'] .hero-badge::before,
   .wall.is-arriving .tile,
   .stage.is-entering,
   .hero-tuning-scan,
@@ -3103,8 +3162,9 @@ body[data-view='home'] .stage {
 }
 
 .kind-chip.is-video {
-  color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: #fff;
+  font-weight: 600;
+  background: var(--live);
 }
 
 .kind-chip.is-snapshot {
@@ -3113,6 +3173,7 @@ body[data-view='home'] .stage {
 }
 
 .kind-chip.is-snapshot::before {
+  border-radius: 1px;
   background: transparent;
   border: 1px solid currentColor;
 }

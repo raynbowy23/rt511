@@ -127,7 +127,7 @@ const Tile = memo(function Tile({
       <div className="tile-label">
         {/* Every tile is a snapshot, so the ones that open onto a live stream say so. It sits in the label strip rather than on the picture, where agencies print their own captions. */}
         <span className="tile-where">
-          {camera.has_video && <span className="tile-kind">Video</span>}
+          {camera.has_video ? <span className="tile-kind is-live">Live</span> : <span className="tile-kind is-snapshot">Snapshot</span>}
           {camera.location}
         </span>
         {caption && <span className="tile-city">{caption}</span>}
