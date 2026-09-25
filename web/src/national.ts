@@ -135,8 +135,8 @@ export class NationalView {
     legend.className = 'map-legend national-legend';
     for (const [cls, text] of [
       ['is-ramp', 'cameras indexed'],
-      ['is-live', 'watching now'],
-      ['is-configured', 'ready to watch'],
+      ['is-live', 'polled now'],
+      ['is-configured', 'configured'],
       ['is-sky-day', 'sky: day'],
       ['is-sky-dusk', 'dusk'],
       ['is-sky-night', 'night'],
@@ -260,7 +260,7 @@ export class NationalView {
     const summary = document.createElement('div');
     summary.className = 'national-summary';
     // The honest headline: most of what this view draws is catalogue, not coverage.
-    summary.innerHTML = `<b>${served} of ${this.data.regions.length}</b> cities being watched in this run<br>${totalCameras.toLocaleString()} cameras indexed across ${this.data.covered_states.length} states`;
+    summary.innerHTML = `<b>${served} of ${this.data.regions.length}</b> regions polled in this run<br>${totalCameras.toLocaleString()} cameras indexed across ${this.data.covered_states.length} states`;
     this.list.appendChild(summary);
 
     for (const marker of this.markers) {
@@ -278,8 +278,7 @@ export class NationalView {
 
       const status = document.createElement('span');
       status.className = 'national-row-status';
-      // Not "Live": that word belongs to video, and here it only meant this server is watching the city.
-      status.textContent = region.served ? 'Watching' : region.built ? 'Ready' : 'Not built';
+      status.textContent = region.served ? 'Live' : region.built ? 'Configured' : 'Unbuilt';
 
       const detail = document.createElement('span');
       detail.className = 'national-row-detail';
@@ -297,7 +296,7 @@ export class NationalView {
       }
       const counts = document.createElement('span');
       counts.className = 'national-row-counts';
-      counts.textContent = region.served ? ` · ${region.cameras} cameras watched` : ` · ${marker.indexed} cameras, not running in this run`;
+      counts.textContent = region.served ? ` · ${region.cameras} polled` : ` · ${marker.indexed} in index, not polled`;
       detail.appendChild(counts);
       const sky = document.createElement('span');
       sky.className = 'national-row-sky';
@@ -345,7 +344,7 @@ export class NationalView {
       if (row && marker.region.served) {
         const detail = row.querySelector('.national-row-counts');
         if (detail) {
-          detail.textContent = ` · ${marker.region.cameras} cameras watched · ${marker.live} with pictures`;
+          detail.textContent = ` · ${marker.region.cameras} polled · ${marker.live} with frames`;
         }
       }
     }
@@ -521,8 +520,8 @@ export class NationalView {
       const y = clientY - rect.top;
       const region = marker.region;
       this.tip.textContent = region.served
-        ? `${region.name} · ${region.cameras} cameras watched${marker.sky ? ` · ${skyPhrase(marker.sky)}` : ''}`
-        : `${region.name} · ready, not running in this run`;
+        ? `${region.name} · ${region.cameras} cameras polled${marker.sky ? ` · ${skyPhrase(marker.sky)}` : ''}`
+        : `${region.name} · configured, not polled in this run`;
       this.tip.hidden = false;
       this.tip.style.left = `${Math.min(x + 14, rect.width - this.tip.offsetWidth - 10)}px`;
       this.tip.style.top = `${Math.max(8, y - this.tip.offsetHeight - 12)}px`;
