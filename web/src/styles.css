@@ -920,6 +920,23 @@ body.is-touring .wall {
   animation: settle 900ms ease;
 }
 
+/* The wall's entrance, one tile after another. Placed after the resize settle so it wins while both apply. */
+.wall.is-arriving .tile {
+  animation: tile-in var(--arrive-ms) cubic-bezier(0.22, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * var(--arrive-step));
+}
+
+@keyframes tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 @keyframes settle {
   from {
     opacity: 0.45;
@@ -2091,6 +2108,7 @@ body[data-view='wall'] .stage {
   }
 
   .tile.is-resizing,
+  .wall.is-arriving .tile,
   .stage.is-entering,
   .hero-tuning-scan,
   .hero-tuning-ring,

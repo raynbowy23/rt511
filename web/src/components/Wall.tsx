@@ -10,6 +10,9 @@ export interface TileRank {
   top: boolean;
 }
 
+/** The wall's entrance: each tile follows the one before by STEP_MS, and the queue is capped so a city of eighty cameras is fully in after about a second and a half rather than waiting on tiles far below the fold. */
+const ARRIVE = { STEP_MS: 34, MAX_STAGGER: 30, DURATION_MS: 620 } as const;
+
 /** One camera. The cross-fade is deliberately outside React: the two layers swap classes when a new snapshot has decoded, which is a DOM detail on a ten-second cadence, not state anything else needs. Re-rendering a tile to change an image source would throw away the layer that is currently visible. */
 const Tile = memo(function Tile({
   camera,
@@ -179,6 +182,22 @@ export function Wall({
   const [observer, setObserver] = useState<IntersectionObserver | null>(null);
   const report = useRef(onVisibleCameras);
   report.current = onVisibleCameras;
+
+  // Arrival: when the wall comes into view, or turns to another city, the tiles come in one after another in rank order, busiest first. Each tile's place in the queue is set on the element here rather than passed down, so a re-rank later does not re-render every tile for it. The class comes off once the last one has landed, so a tile that changes size afterwards settles as it always has.
+  const city = cameras[0]?.region ?? null;
+  useEffect(() => {
+    const element = grid.current;
+    if (!visible || !element || prefersReducedMotion()) return;
+    const tiles = [...element.children] as HTMLElement[];
+    tiles.forEach((tile, i) => tile.style.setProperty('--i', String(Math.min(i, ARRIVE.MAX_STAGGER))));
+    element.style.setProperty('--arrive-step', `${String(ARRIVE.STEP_MS)}ms`);
+    element.style.setProperty('--arrive-ms', `${String(ARRIVE.DURATION_MS)}ms`);
+    element.classList.remove('is-arriving');
+    void element.offsetWidth;
+    element.classList.add('is-arriving');
+    const done = window.setTimeout(() => element.classList.remove('is-arriving'), ARRIVE.MAX_STAGGER * ARRIVE.STEP_MS + ARRIVE.DURATION_MS);
+    return () => window.clearTimeout(done);
+  }, [visible, city]);
 
   /** One observer for the whole grid. The margin is half a screen above and below, which is about two rows of tiles: enough that a tile is warm by the time it scrolls in, and not so much that the fast tier quietly becomes the whole city again. */
   useEffect(() => {
