@@ -581,7 +581,6 @@ export function App(): ReactElement {
             national={boot.national}
             disclaimer={boot.disclaimer}
             onMap={goNational}
-            onCity={openRegion}
             onBoard={() => setLevel('board')}
             onRelay={startRelay}
           />

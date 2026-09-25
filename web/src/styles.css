@@ -2622,118 +2622,165 @@ body[data-view='wall'] .stage {
   font-variant-numeric: tabular-nums;
 }
 
-/* Front page ------------------------------------------------------------- */
+/* Front page -------------------------------------------------------------
+   One picture filling the window between the top bar and the footer, with the words in the lower left. */
+
+body[data-view='home'] .stage {
+  padding: 0;
+}
 
 .landing {
-  /* A grid item, so without this the wide table would stretch the page instead of scrolling inside its own box. */
+  position: relative;
   min-width: 0;
-  width: min(1080px, 100%);
-  margin: 0 auto;
-  padding: 56px 0 40px;
+  height: calc(100vh - var(--topbar-h) - var(--footer-h, 72px));
+  min-height: 480px;
+  overflow: hidden;
+  background: radial-gradient(ellipse 70% 60% at 50% 38%, #0e1118 0%, var(--bg) 72%);
 }
 
-.landing-hero {
-  padding-bottom: 40px;
-  border-bottom: 1px solid var(--line);
+.landing-sky {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
 }
 
-.landing-eyebrow {
-  margin: 0 0 18px;
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: var(--accent);
+.landing-copy {
+  position: absolute;
+  left: clamp(20px, 5vw, 64px);
+  bottom: clamp(20px, 6vh, 64px);
+  max-width: 34em;
+  /* The picture underneath stays clickable around the words. */
+  pointer-events: none;
+}
+
+.landing-copy > * {
+  pointer-events: auto;
 }
 
 .landing-title {
-  max-width: 17em;
   margin: 0;
-  font-size: clamp(30px, 4.6vw, 52px);
-  font-weight: 500;
-  line-height: 1.08;
-  letter-spacing: -0.01em;
+  font-size: clamp(40px, 7vw, 92px);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--fg);
 }
 
 .landing-lede {
-  max-width: 40em;
-  margin: 22px 0 0;
-  font-size: 16px;
+  margin: 18px 0 0;
+  font-size: 15px;
   line-height: 1.6;
-  color: color-mix(in srgb, var(--fg) 78%, transparent);
+  color: color-mix(in srgb, var(--fg) 66%, transparent);
 }
 
 .landing-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 30px;
-}
-
-.landing-cta,
-.landing-secondary,
-.landing-city {
-  font: inherit;
-  font-size: 11px;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: color 200ms ease, border-color 200ms ease, background 200ms ease;
-}
-
-.landing-cta {
-  padding: 12px 20px;
-  color: var(--bg);
-  background: var(--accent);
-  border: 1px solid var(--accent);
-}
-
-.landing-cta:hover {
-  background: color-mix(in srgb, var(--accent) 86%, white);
-}
-
-.landing-secondary {
-  padding: 12px 18px;
-  color: var(--fg);
-  background: transparent;
-  border: 1px solid var(--line-strong);
-}
-
-.landing-secondary:hover,
-.landing-city:hover {
-  color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-}
-
-.landing-cities {
-  display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 18px;
   margin-top: 26px;
 }
 
-.landing-cities-label {
-  margin-right: 6px;
+.landing-cta {
+  padding: 11px 20px;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bg);
+  background: var(--accent);
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 200ms ease;
+}
+
+.landing-cta:hover {
+  background: color-mix(in srgb, var(--accent) 84%, white);
+}
+
+.landing-link {
+  padding: 4px 0;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  transition: color 200ms ease, border-color 200ms ease;
+}
+
+.landing-link:hover,
+.landing-link.is-on {
+  color: var(--fg);
+  border-bottom-color: color-mix(in srgb, var(--fg) 40%, transparent);
+}
+
+.landing-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 22px 0 0;
   font-size: 10px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--muted) 80%, transparent);
 }
 
-.landing-city {
-  padding: 6px 12px;
-  color: var(--muted);
-  background: transparent;
+.landing-legend i {
+  width: 7px;
+  height: 7px;
+  margin-left: 8px;
+  border-radius: 50%;
+}
+
+.landing-legend i:first-child {
+  margin-left: 0;
+}
+
+.landing-legend .is-day {
+  background: rgb(243, 226, 178);
+}
+
+.landing-legend .is-dusk {
+  background: rgb(236, 138, 72);
+}
+
+.landing-legend .is-night {
+  background: rgb(86, 118, 214);
+}
+
+/* Sources and terms, over the right of the picture. */
+.landing-sources {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  bottom: 20px;
+  width: min(780px, calc(100% - 40px));
+  overflow: auto;
+  padding: 20px 22px;
+  background: color-mix(in srgb, var(--bg-raise) 94%, transparent);
+  backdrop-filter: blur(14px);
   border: 1px solid var(--line);
+  border-radius: 4px;
 }
 
-.landing-section {
-  padding: 36px 0 8px;
+.landing-sources header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-.landing-heading {
-  margin: 0 0 16px;
+.landing-sources h2 {
+  margin: 0;
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.18em;
@@ -2741,59 +2788,24 @@ body[data-view='wall'] .stage {
   color: var(--muted);
 }
 
-.landing-features {
-  display: grid;
-  /* Three across, so the six fill two rows with no empty cells showing the grid lines through. */
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1px;
-  background: var(--line);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.landing-feature {
-  padding: 18px 20px 20px;
-  background: var(--bg);
-}
-
-.landing-feature h3 {
-  margin: 0 0 6px;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.landing-feature p,
-.landing-kind p,
-.landing-note,
-.landing-fine p {
-  margin: 0;
+.landing-note {
+  margin: 0 0 16px;
   font-size: 13px;
   line-height: 1.6;
   color: color-mix(in srgb, var(--fg) 70%, transparent);
 }
 
-.landing-kinds {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 14px;
-}
-
-.landing-kind {
-  display: grid;
-  gap: 10px;
-  align-content: start;
-  padding: 18px 20px;
-  border: 1px solid var(--line);
-  border-radius: 3px;
+.landing-disclaimer {
+  margin: 16px 0 0;
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .kind-chip {
-  justify-self: start;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 3px 9px;
+  gap: 6px;
+  padding: 2px 8px;
   font-size: 10px;
   letter-spacing: 0.13em;
   text-transform: uppercase;
@@ -2822,11 +2834,6 @@ body[data-view='wall'] .stage {
 .kind-chip.is-snapshot::before {
   background: transparent;
   border: 1px solid currentColor;
-}
-
-.landing-note {
-  max-width: 46em;
-  margin-bottom: 16px;
 }
 
 .landing-table-wrap {
@@ -2892,31 +2899,17 @@ body[data-view='wall'] .stage {
   margin: 0 0 3px;
 }
 
-.landing-fine {
-  padding-bottom: 24px;
-}
-
-.landing-fine p {
-  max-width: 52em;
-}
-
-@media (max-width: 900px) {
-  .landing-features {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 760px) {
-  .landing {
-    padding-top: 32px;
+  .landing-title {
+    letter-spacing: 0.22em;
   }
 
-  .landing-features {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .landing-lede {
-    font-size: 15px;
+  .landing-sources {
+    top: 10px;
+    right: 10px;
+    bottom: 10px;
+    width: calc(100% - 20px);
+    padding: 16px;
   }
 }
 
