@@ -62,6 +62,8 @@ const LIGHT = {
 /** The picture itself. Positions are projected once and colour is re-read from the sun once a minute. Between those the lights breathe in a dozen groups, each on its own slow cycle, so the country looks alive rather than printed. */
 function CameraSky({ national, onClick }: { national: NationalResponse; onClick: () => void }): ReactElement {
   const canvas = useRef<HTMLCanvasElement>(null);
+  /** Whether the pointer is over the country, which is the only place a click opens the map. */
+  const overRef = useRef(false);
 
   useEffect(() => {
     const element = canvas.current;
@@ -205,25 +207,76 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
       offsetX = (wide ? width * 0.46 : width * 0.04) + (boxW - (maxX - minX) * scale) / 2 - minX * scale;
       offsetY = (wide ? (height - (maxY - minY) * scale) / 2.2 : height * 0.06) - minY * scale;
       build();
+      outlinePath();
     };
 
+    // Hover: the pointer over the country lifts it a little and turns the lights up, and only a click there opens the map. `lift` eases towards `over` each frame, so it glides rather than jumps.
+    const still = prefersReducedMotion();
+    const hit = document.createElement('canvas').getContext('2d');
+    let country = new Path2D();
+    let over = false;
+    let lift = 0;
+    const outlinePath = (): void => {
+      country = new Path2D();
+      for (const ring of states) {
+        ring.forEach(([x, y], i) => {
+          const sx = x * scale + offsetX;
+          const sy = y * scale + offsetY;
+          if (i === 0) country.moveTo(sx, sy);
+          else country.lineTo(sx, sy);
+        });
+        country.closePath();
+      }
+    };
+    const onMove = (event: PointerEvent): void => {
+      const box = element.getBoundingClientRect();
+      over = hit?.isPointInPath(country, event.clientX - box.left, event.clientY - box.top) ?? false;
+      element.style.cursor = over ? 'pointer' : 'default';
+      overRef.current = over;
+      if (still) {
+        lift = over ? 1 : 0;
+        draw(0);
+      }
+    };
+    const onLeave = (): void => {
+      over = false;
+      overRef.current = false;
+      element.style.cursor = 'default';
+      if (still) {
+        lift = 0;
+        draw(0);
+      }
+    };
+    element.addEventListener('pointermove', onMove);
+    element.addEventListener('pointerleave', onLeave);
+
     const draw = (t: number): void => {
+      lift += ((over ? 1 : 0) - lift) * 0.1;
+      // Grown about its own centre and raised a few pixels, both in device pixels since the layers are drawn at that resolution.
+      const grow = 1 + 0.03 * (still ? 0 : lift);
+      const cx = (minX + maxX) / 2 * scale + offsetX;
+      const cy = (minY + maxY) / 2 * scale + offsetY;
       context.setTransform(1, 0, 0, 1, 0, 0);
       context.globalCompositeOperation = 'source-over';
       context.globalAlpha = 1;
       context.clearRect(0, 0, element.width, element.height);
+      context.setTransform(grow, 0, 0, grow, cx * ratio * (1 - grow), cy * ratio * (1 - grow) - 6 * ratio * (still ? 0 : lift));
       context.drawImage(base, 0, 0);
+      // The outlines drawn a second time, as much as the hover has risen, so the country's edges firm up under the pointer.
+      if (lift > 0.01) {
+        context.globalAlpha = lift;
+        context.drawImage(base, 0, 0);
+      }
       context.globalCompositeOperation = 'lighter';
       for (let k = 0; k < LAYERS; k++) {
         const { phase, speed } = rhythm[k]!;
-        // Never fully out: each group dims to about a third and back, so the country breathes without going dark.
-        context.globalAlpha = 0.65 + 0.35 * Math.sin(t * speed + phase);
+        // Never fully out: each group dims to about a third and back, so the country breathes without going dark. Hovering turns every group up.
+        context.globalAlpha = Math.min(1, (0.65 + 0.35 * Math.sin(t * speed + phase)) * (1 + 0.45 * lift));
         context.drawImage(layers[k]!, 0, 0);
       }
     };
 
     resize();
-    const still = prefersReducedMotion();
     let frame = 0;
     const loop = (t: number): void => {
       draw(t);
@@ -245,10 +298,12 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
       window.cancelAnimationFrame(frame);
       window.clearInterval(sun);
       observer.disconnect();
+      element.removeEventListener('pointermove', onMove);
+      element.removeEventListener('pointerleave', onLeave);
     };
   }, [national]);
 
-  return <canvas ref={canvas} className="landing-sky" title="Open the map" onClick={onClick} />;
+  return <canvas ref={canvas} className="landing-sky" aria-label="Map of every camera. Click the country to open the map." onClick={() => overRef.current && onClick()} />;
 }
 
 /** The agencies behind the pictures, with their 511 sites, what they publish and under what terms, and the disclaimer in full. */

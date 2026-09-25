@@ -71,6 +71,8 @@ export function App(): ReactElement {
   const [dockWidth, setDockWidth] = useState(() => readDockWidth());
   /** The cameras the wall can actually see, restated on every poll. A ref rather than state: it changes on every scroll and nothing renders from it. */
   const visibleCameras = useRef<number[]>([]);
+  /** The stage, so a change of view can restart its fade-in. */
+  const stageRef = useRef<HTMLDivElement>(null);
   const [incidents, setIncidents] = useState<IncidentsResponse | null>(null);
   const [openIncident, setOpenIncident] = useState<string | null>(null);
   const [arbiterOpen, setArbiterOpen] = useState(() => readArbiterOpen());
@@ -511,6 +513,15 @@ export function App(): ReactElement {
     }
   }, []);
 
+  // A change of view fades the new one in. Restarted by hand, because the class is already on the element after the first change and a class that does not change does not replay its animation.
+  useEffect(() => {
+    const element = stageRef.current;
+    if (!element) return;
+    element.classList.remove('is-entering');
+    void element.offsetWidth;
+    element.classList.add('is-entering');
+  }, [level]);
+
   if (!boot) {
     return (
       <>
@@ -572,6 +583,7 @@ export function App(): ReactElement {
         />
       )}
       <div
+        ref={stageRef}
         className={`stage${cameraOpen ? ' has-camera' : ''}${arbiterOpen ? ' has-arbiter' : ''}`}
         data-level={effectiveLevel}
         style={{ '--dock-w': `${dockWidth}px` } as React.CSSProperties}

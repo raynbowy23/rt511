@@ -975,6 +975,22 @@ body.is-expanded {
   align-items: stretch;
 }
 
+/* Changing view fades the new one in and lets it settle a few pixels, rather than cutting. Restarted from App on every change of view. */
+.stage.is-entering {
+  animation: view-in 560ms cubic-bezier(0.22, 0.7, 0.2, 1) both;
+}
+
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* The arbitration pane takes its width from the stage rather than covering it. Both canvas views watch their own box, so they re-measure on their own when this changes. */
 .stage.has-arbiter {
   padding-right: calc(var(--arb-w) + 20px);
@@ -1951,6 +1967,7 @@ body[data-view='wall'] .stage {
   }
 
   .tile.is-resizing,
+  .stage.is-entering,
   .hero-still-layer.is-front,
   .tile-clock i,
   .tile.is-fresh::after {
@@ -2760,14 +2777,14 @@ body[data-view='home'] .stage {
   display: block;
   width: 100%;
   height: 100%;
-  cursor: pointer;
 }
 
 .landing-copy {
   position: absolute;
   left: clamp(20px, 5vw, 64px);
   bottom: clamp(20px, 6vh, 64px);
-  max-width: 34em;
+  /* Wide enough for the four links on one line; the paragraph keeps its own shorter measure. */
+  max-width: min(780px, calc(100% - 40px));
   /* The picture underneath stays clickable around the words. */
   pointer-events: none;
 }
@@ -2787,6 +2804,7 @@ body[data-view='home'] .stage {
 }
 
 .landing-lede {
+  max-width: 34em;
   margin: 18px 0 0;
   font-size: 16px;
   line-height: 1.6;
@@ -2795,7 +2813,8 @@ body[data-view='home'] .stage {
 
 .landing-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   align-items: center;
   gap: 6px 18px;
   margin-top: 26px;
@@ -3018,6 +3037,10 @@ body[data-view='home'] .stage {
 @media (max-width: 760px) {
   .landing-title {
     letter-spacing: 0.22em;
+  }
+
+  .landing-actions {
+    flex-wrap: wrap;
   }
 
   .landing-sources {
