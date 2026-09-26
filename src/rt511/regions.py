@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .geocode import geocode
-from .sources import source_for_state
+from .sources import LOCAL_DIR, get_source, source_for_state
 
 OVERPASS_CLASSES = "motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified"
 KM_PER_DEG_LAT = 110.574
@@ -79,10 +79,16 @@ def _store(root: Path) -> Path:
     return root / "data" / "regions.json"
 
 
+def data_dir(root: Path, region: Region) -> Path:
+    """Where a region's catalog and counts are kept: `data/local/` for a city on a local source, so nothing drawn from it can be committed, and `data/` otherwise."""
+    return root / "data" / "local" if get_source(region.source).local else root / "data"
+
+
 def load_regions(root: Path) -> dict[str, Region]:
     regions = dict(BUILTIN)
-    path = _store(root)
-    if path.exists():
+    for path in (_store(root), LOCAL_DIR / "regions.json"):
+        if not path.exists():
+            continue
         for rec in json.loads(path.read_text()):
             rec["bbox"] = tuple(rec["bbox"])
             if rec.get("center"):
@@ -92,7 +98,8 @@ def load_regions(root: Path) -> dict[str, Region]:
 
 
 def save_region(region: Region, root: Path) -> None:
-    path = _store(root)
+    # A city on a local source is saved with it, under data/local/, so publishing the repository never names it.
+    path = root / "data" / "local" / "regions.json" if get_source(region.source).local else _store(root)
     existing = [r for r in (json.loads(path.read_text()) if path.exists() else []) if r["key"] != region.key]
     existing.append(region.to_dict())
     existing.sort(key=lambda r: r["key"])

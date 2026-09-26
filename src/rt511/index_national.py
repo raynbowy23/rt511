@@ -38,7 +38,8 @@ async def fetch_index(concurrency: int = 4) -> dict[str, list[IndexEntry]]:
                 return source.key, []
 
     async with httpx.AsyncClient(headers={"User-Agent": USER_AGENT}, timeout=60.0, follow_redirects=True) as http:
-        pairs = await asyncio.gather(*(one(s) for s in SOURCES.values()))
+        # The index is committed, so a local source never goes into it: its cities still work, but the national map does not draw its cameras.
+        pairs = await asyncio.gather(*(one(s) for s in SOURCES.values() if not s.local))
     return dict(pairs)
 
 

@@ -43,7 +43,9 @@ class Source:
     counts: dict = field(default_factory=dict)
     """The agency's published traffic-count layer, its field names, licence and attribution, where one is joined. Empty for sources without one."""
     auth: dict = field(default_factory=dict)
-    """How a user's own key is found and sent: the environment variable holding it, the header, the header's format, and where to register. Empty for sources that need none."""
+    """How a user's own key is found and sent: the environment variable holding it, then either a header and the header's format or a query parameter, and where to register. Empty for sources that need none."""
+    local: bool = False
+    """True for a source defined in `data/local/sources.json`: one this machine may read, under an arrangement of its own with the agency, that the public repository does not claim. Its cities, catalogs and counts live under `data/local/` too, which git ignores."""
 
     @property
     def stream_direct(self) -> bool:
@@ -51,8 +53,17 @@ class Source:
         return not self.video_auth
 
 
+LOCAL_DIR = Path(__file__).resolve().parents[2] / "data" / "local"
+"""Where this machine keeps what is not published: sources read under a private arrangement with an agency, and the cities, catalogs and counts built from them. Git ignores it."""
+
+
 def _load() -> dict[str, "Source"]:
-    data = json.loads((Path(__file__).resolve().parents[2] / "data" / "sources.json").read_text())
+    public = json.loads((Path(__file__).resolve().parents[2] / "data" / "sources.json").read_text())["sources"]
+    private_path = LOCAL_DIR / "sources.json"
+    private = json.loads(private_path.read_text())["sources"] if private_path.exists() else {}
+    clash = sorted(set(public) & set(private))
+    if clash:
+        raise SystemExit(f"data/local/sources.json redefines published sources {clash}; give local sources keys of their own")
     return {
         key: Source(
             key=key,
@@ -74,8 +85,9 @@ def _load() -> dict[str, "Source"]:
             max_requests_per_s=rec.get("max_requests_per_s"),
             auth=rec.get("auth", {}),
             counts=rec.get("counts", {}),
+            local=key in private,
         )
-        for key, rec in data["sources"].items()
+        for key, rec in {**public, **private}.items()
     }
 
 
@@ -102,15 +114,26 @@ def _dotenv(name: str) -> str | None:
     return None
 
 
-def auth_headers(source: Source) -> dict[str, str]:
-    """The header carrying the user's own key for a source that needs one, or nothing. Each user registers for their own key under the agency's terms; the project never ships one."""
-    if not source.auth:
-        return {}
+def _key(source: Source) -> str:
     env = source.auth["env"]
     value = os.environ.get(env) or _dotenv(env)
     if not value:
         raise SystemExit(f"{source.name} needs your own API key in {env}. Register at {source.auth['register']} and put {env}=<key> in .env.")
-    return {source.auth["header"]: source.auth["format"].format(key=value)}
+    return value
+
+
+def auth_headers(source: Source) -> dict[str, str]:
+    """The header carrying the user's own key for a source that sends it in a header, or nothing. Each user registers for their own key under the agency's terms; the project never ships one."""
+    if not source.auth or "header" not in source.auth:
+        return {}
+    return {source.auth["header"]: source.auth["format"].format(key=_key(source))}
+
+
+def auth_params(source: Source) -> dict[str, str]:
+    """The query parameter carrying the user's own key, for a source that takes it in the URL, or nothing."""
+    if not source.auth or "query" not in source.auth:
+        return {}
+    return {source.auth["query"]: _key(source)}
 
 
 def get_source(key: str) -> Source:

@@ -125,6 +125,40 @@ class Feeds(unittest.TestCase):
         self.assertEqual({c.direction for c in cams[:2]}, {"E", "W"})
         self.assertEqual(cams[2].roadway, "SR-2")
 
+    def test_dev511_sends_the_key_in_the_query_keeps_enabled_views_and_their_streams(self):
+        body = [
+            {
+                "Id": 1,
+                "Roadway": "I-94 ",
+                "Direction": "Eastbound",
+                "Latitude": 43.03,
+                "Longitude": -87.95,
+                "Location": "I-94 at 35th St",
+                "Views": [
+                    {"Id": 10, "Url": "https://511.example.gov/map/Cctv/10", "Status": "Enabled", "Description": "East", "VideoUrl": "https://cctv.example.gov/a/playlist.m3u8"},
+                    {"Id": 11, "Url": "https://511.example.gov/map/Cctv/11", "Status": "Disabled", "Description": "West", "VideoUrl": ""},
+                ],
+            },
+            {"Id": 2, "Roadway": "", "Direction": "Unknown", "Latitude": 43.1, "Longitude": -87.9, "Location": "US 41 at Capitol Dr", "Views": [{"Id": 12, "Url": "https://511.example.gov/map/Cctv/12", "Status": "Enabled", "Description": "", "VideoUrl": None}]},
+            {"Id": 3, "Latitude": None, "Longitude": -87.9, "Location": "no position", "Views": [{"Id": 13, "Url": "https://511.example.gov/map/Cctv/13", "Status": "Enabled"}]},
+        ]
+        seen = []
+
+        def handler(request):
+            seen.append(dict(request.url.params))
+            return httpx.Response(200, json=body)
+
+        src = source("dev511", {"url": "https://511.example.gov/api/v2/get/cameras"}, auth={"env": "TEST_DEV511", "query": "key", "register": "https://example.gov"})
+        with mock.patch.dict(os.environ, {"TEST_DEV511": "k"}):
+            cams = run(handler, src)
+        self.assertEqual(seen, [{"key": "k", "format": "json"}], "one call for the whole state, with the key in the query")
+        self.assertEqual([c.image_url for c in cams], ["https://511.example.gov/map/Cctv/10", "https://511.example.gov/map/Cctv/12"], "a disabled view and a camera with no position are left out")
+        self.assertEqual(cams[0].video_url, "https://cctv.example.gov/a/playlist.m3u8")
+        self.assertIsNone(cams[1].video_url)
+        self.assertEqual((cams[0].roadway, cams[0].direction), ("I-94", "E"))
+        self.assertEqual(cams[1].roadway, "US 41", "an empty roadway falls back to the route the name opens with")
+        self.assertEqual(cams[0].location, "I-94 at 35th St", "a single enabled view needs no label of its own")
+
     def test_a_missing_key_says_where_to_register_rather_than_sending_nothing(self):
         src = source("ohgo", {"url": "https://publicapi.ohgo.com/api/v1/cameras"}, auth={"env": "TEST_ABSENT_KEY", "header": "Authorization", "format": "APIKEY {key}", "register": "https://publicapi.ohgo.com/docs/registration"})
         with mock.patch("rt511.sources._dotenv", return_value=None), mock.patch.dict(os.environ, {}, clear=False):

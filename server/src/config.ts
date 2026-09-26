@@ -120,7 +120,13 @@ function bbox(value: unknown, where: string): BBox {
 /** The canonical table of 511 sites. Every measured fact about a site lives in this file so that the Python pipeline and this server cannot drift apart; nothing from it is duplicated in code. */
 export function loadSources(root: string): SourceTable {
   const data = obj(readJson(join(root, 'data', 'sources.json')), 'sources.json');
-  const table = obj(data.sources, 'sources.json.sources');
+  const published = obj(data.sources, 'sources.json.sources');
+  // Sources this machine reads under an arrangement of its own with an agency live in data/local/, which git ignores, so the published repository never claims them.
+  const localPath = join(root, 'data', 'local', 'sources.json');
+  const local = existsSync(localPath) ? obj(obj(readJson(localPath), 'local sources.json').sources, 'local sources.json.sources') : {};
+  const clash = Object.keys(local).filter((key) => key in published);
+  if (clash.length > 0) throw new DataError(`data/local/sources.json redefines published sources ${clash.join(', ')}; give local sources keys of their own`);
+  const table = { ...published, ...local };
   const sources: Record<string, Source> = {};
   for (const [key, value] of Object.entries(table)) {
     const rec = obj(value, `sources.json.sources.${key}`);
@@ -151,9 +157,11 @@ export function loadSources(root: string): SourceTable {
 
 export function loadRegions(root: string): Map<string, RegionRecord> {
   const regions = new Map<string, RegionRecord>();
-  const path = join(root, 'data', 'regions.json');
-  if (!existsSync(path)) return regions;
-  for (const [i, value] of arr(readJson(path), 'regions.json').entries()) {
+  // The published cities, then any on local sources, which are kept under data/local/ with them.
+  const entries = [join(root, 'data', 'regions.json'), join(root, 'data', 'local', 'regions.json')]
+    .filter((path) => existsSync(path))
+    .flatMap((path) => arr(readJson(path), 'regions.json'));
+  for (const [i, value] of entries.entries()) {
     const rec = obj(value, `regions.json[${i}]`);
     const where = `regions.json[${i}]`;
     const centre = rec.center === null || rec.center === undefined ? null : arr(rec.center, `${where}.center`);
@@ -177,8 +185,14 @@ export function centroid(region: RegionRecord): [number, number] {
   return [round((south + north) / 2, 6), round((west + east) / 2, 6)];
 }
 
+/** A region's data file: under data/local/ when the region is a local one and the file is there, otherwise the published one. */
+function dataFile(root: string, name: string): string {
+  const local = join(root, 'data', 'local', name);
+  return existsSync(local) ? local : join(root, 'data', name);
+}
+
 export function catalogPath(root: string, key: string): string {
-  return join(root, 'data', `cameras_${key}.json`);
+  return dataFile(root, `cameras_${key}.json`);
 }
 
 export function graphPath(root: string, key: string): string {
@@ -256,7 +270,7 @@ export interface AadtTable {
 
 /** Traffic counts for one region, or null where there are none. Absent is the ordinary case: only Florida publishes a count layer this project has joined, so every other city scores on road class alone. */
 export function loadAadt(root: string, region: string): AadtTable | null {
-  const path = join(root, 'data', `aadt_${region}.json`);
+  const path = dataFile(root, `aadt_${region}.json`);
   if (!existsSync(path)) return null;
   const data = obj(readJson(path), path);
   const table = obj(data.cameras, `${path}.cameras`);

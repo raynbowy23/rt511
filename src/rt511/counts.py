@@ -17,7 +17,7 @@ from .catalog import catalog_path, load_catalog
 from .geo import LocalFrame, bearing_diff
 from .graph import graph_path
 from .refs import ref_tokens
-from .regions import Region
+from .regions import Region, data_dir
 from .sources import USER_AGENT, Source, get_source
 
 PAGE = 2000
@@ -184,7 +184,7 @@ def match_cameras(region: Region, root: Path) -> dict:
 
 
 def aadt_path(root: Path, region: Region) -> Path:
-    return root / "data" / f"aadt_{region.key}.json"
+    return data_dir(root, region) / f"aadt_{region.key}.json"
 
 
 def write_aadt(data: dict, path: Path) -> None:

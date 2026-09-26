@@ -15,9 +15,9 @@ from urllib.parse import quote
 
 import httpx
 
-from .sources import Source, auth_headers
+from .sources import Source, auth_headers, auth_params
 
-DIRECTIONS = {"north": "N", "east": "E", "south": "S", "west": "W", "nb": "N", "eb": "E", "sb": "S", "wb": "W"}
+DIRECTIONS = {"north": "N", "east": "E", "south": "S", "west": "W", "nb": "N", "eb": "E", "sb": "S", "wb": "W", "northbound": "N", "eastbound": "E", "southbound": "S", "westbound": "W"}
 ARCGIS_PAGE = 1000
 """Records asked for per ArcGIS request. Hosted layers cap a page at somewhere between one and two thousand, and asking for less than the cap keeps the paging loop honest on every server."""
 ID_SPACE = 9_999_991
@@ -289,7 +289,38 @@ def compass_snapshots(document: bytes) -> dict[str, bytes]:
     return out
 
 
-READERS = {"caltrans": _caltrans, "arcgis": _arcgis, "ohgo": _ohgo, "tripcheck": _tripcheck, "compass": _compass}
+async def _dev511(http: httpx.AsyncClient, source: Source) -> list[FeedCamera]:
+    """The developer API of the vendor 511 platform several states run, `api/v2/get/cameras`, with the user's own key as a query parameter. One call returns the whole state. Every view of a camera is its own image and stream facing its own way, so each becomes its own camera, and only views the agency marks Enabled are kept."""
+    r = await Pace(source).get(http, source.feed["url"], params={**auth_params(source), "format": "json"}, headers={**auth_headers(source), "Accept": "application/json"})
+    r.raise_for_status()
+    out: list[FeedCamera] = []
+    for cam in r.json():
+        lat, lon = _number(cam.get("Latitude")), _number(cam.get("Longitude"))
+        if lat is None or lon is None:
+            continue
+        location = str(cam.get("Location") or "").strip()
+        views = [view for view in cam.get("Views") or [] if view.get("Url") and view.get("Status", "Enabled") == "Enabled"]
+        for view in views:
+            image = str(view["Url"])
+            label = str(view.get("Description") or "").strip()
+            out.append(
+                FeedCamera(
+                    id=stable_id(_host_path(image)),
+                    lat=lat,
+                    lon=lon,
+                    image_url=image,
+                    video_url=str(view.get("VideoUrl") or "") or None,
+                    roadway=str(cam.get("Roadway") or "").strip() or _leading_route(location),
+                    direction=_direction(cam.get("Direction")),
+                    location=f"{location} ({label})" if label and len(views) > 1 else location,
+                    mile_marker=None,
+                    system=source.name,
+                )
+            )
+    return out
+
+
+READERS = {"caltrans": _caltrans, "arcgis": _arcgis, "ohgo": _ohgo, "tripcheck": _tripcheck, "compass": _compass, "dev511": _dev511}
 
 
 async def feed_cameras(http: httpx.AsyncClient, source: Source) -> list[FeedCamera]:

@@ -10,7 +10,7 @@ import httpx
 
 from .feeds import feed_cameras
 from .refs import ref_tokens
-from .regions import Region, distance_km
+from .regions import Region, data_dir, distance_km
 from .sources import USER_AGENT, Source, get_source
 
 
@@ -93,7 +93,7 @@ async def fetch_catalog(region: Region) -> list[Camera]:
 
 
 def catalog_path(root: Path, region: Region) -> Path:
-    return root / "data" / f"cameras_{region.key}.json"
+    return data_dir(root, region) / f"cameras_{region.key}.json"
 
 
 def write_catalog(cams: list[Camera], path: Path) -> None:

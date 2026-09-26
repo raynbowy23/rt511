@@ -3,6 +3,8 @@ __pycache__/
 *.pyc
 out/
 data/osm_*.json
+# Sources read under a private arrangement with an agency, and every city, catalog and count built from them. Never published.
+data/local/
 node_modules/
 web/dist/
 server/dist/**/*.test.js
