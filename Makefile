@@ -8,7 +8,7 @@
 # Variables pass straight through, e.g. `make start ARGS="--regions oakland-ca"` or `make detect DEVICE=cpu`.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup install sync start serve dev up build check test test-server test-web test-python figures \
+.PHONY: help setup install sync start serve dev up build check test test-server test-web test-python smoke figures \
 	detect detect-cpu sources regions index metros city catalog graph counts add-city
 
 # Extra arguments for the server, e.g. ARGS="--regions oakland-ca,des-moines-ia --cameras freeway".
@@ -79,6 +79,9 @@ test: test-server test-web test-python ## every test suite
 
 test-server:
 	pnpm --filter @rt511/server test
+
+smoke: ## drive the built wall in headless Chrome on synthetic cities (run make test and make build first)
+	node web/e2e/smoke.mjs
 
 test-web:
 	pnpm --filter rt511-web test

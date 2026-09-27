@@ -27,3 +27,8 @@ jobs:
         run: make check
       - name: Tests
         run: make test
+      - name: Build the wall
+        run: make build
+      # The real server on synthetic cities, driven in the runner's own Chrome. Nothing contacts an agency and no key is read.
+      - name: Browser smoke test
+        run: make smoke
