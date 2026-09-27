@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } 
 import {
   getCameras,
   getGraph,
+  getScores,
   getIncidents,
   getNational,
   getRegions,
@@ -29,6 +30,7 @@ import { Diary } from './components/Diary';
 import { Duel } from './components/Duel';
 import { usePreferences } from './hooks/usePreferences';
 import { features, score, type Candidate } from './preference';
+import type { AttentionFlow } from './flows';
 import { RelayHud, RoadTripPicker, TripHud } from './components/RoadTrip';
 import { planTrips, RoadTrip, type Trip } from './roadtrip';
 import { pickRelay, type RelayCity, type RelayPick } from './sunrelay';
@@ -457,6 +459,38 @@ export function App(): ReactElement {
   );
   const ranks = useWallRanking(wallCameras, statesById, RERANK_MS, personalScore);
 
+  // Attention spreading along the roads, for the city map: which cameras the scorer is looking at closely because a neighbour saw something, read every ten seconds while the map is on screen, and which carry a queue floor from an incident or stopped traffic further down the road, read from the poll the map already has.
+  const [promotions, setPromotions] = useState<AttentionFlow[]>([]);
+  const mapShown = level === 'map' && region !== null;
+  useEffect(() => {
+    if (!mapShown) {
+      setPromotions([]);
+      return;
+    }
+    let cancelled = false;
+    const run = async (): Promise<void> => {
+      const scores = await getScores();
+      if (cancelled || !scores) return;
+      setPromotions(scores.graph_promoted.map((item) => ({ from: item.because, to: item.uid, reason: item.reason, strength: 0.7 })));
+    };
+    void run();
+    const timer = window.setInterval(() => void run(), 10_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [mapShown]);
+  const flows = useMemo((): AttentionFlow[] => {
+    const queues: AttentionFlow[] = poll.states.flatMap((state) => {
+      const queue = state.axes?.queue;
+      if (!queue || !state.axes || state.axes.queue_floor <= 0) return [];
+      return [{ from: queue.anchor, to: state.id, reason: queue.source === 'incident' ? 'incident' : 'still', strength: state.axes.queue_floor }];
+    });
+    // One flow per pair of cameras, a queue winning over a promotion between the same two, since it says more.
+    const seen = new Set(queues.map((flow) => `${String(flow.from)}>${String(flow.to)}`));
+    return [...queues, ...promotions.filter((flow) => !seen.has(`${String(flow.from)}>${String(flow.to)}`))];
+  }, [poll.states, promotions]);
+
   // The pool "Which would you watch?" draws from: this city's cameras with a score and a recent picture to show.
   const duelCandidates = useMemo((): Candidate[] => {
     if (!topology || !region) return [];
@@ -656,6 +690,7 @@ export function App(): ReactElement {
           activeSite={activeSite}
           incidents={liveIncidents}
           activeIncident={openIncident}
+          flows={flows}
           onCamera={openCamera}
           onIncident={setOpenIncident}
         >

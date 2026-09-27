@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactElement, type ReactNode } from 'react';
+import type { AttentionFlow } from '../flows';
 import { getPulse, getSky, type CameraState, type Graph, type Incident, type NationalResponse } from '../api';
 import { MapView } from '../map';
 import { Minimap } from '../minimap';
@@ -73,6 +74,7 @@ export function RegionMapPane({
   activeSite,
   incidents,
   activeIncident,
+  flows = [],
   onCamera,
   onIncident,
   children,
@@ -81,6 +83,8 @@ export function RegionMapPane({
   visible: boolean;
   region: string | null;
   states: Map<number, CameraState>;
+  /** Attention spreading along the roads right now, drawn as pulses. */
+  flows?: AttentionFlow[];
   activeSite: string | null;
   incidents: Incident[];
   activeIncident: string | null;
@@ -131,6 +135,10 @@ export function RegionMapPane({
   useEffect(() => {
     view.current?.setIncidents(incidents);
   }, [incidents]);
+
+  useEffect(() => {
+    view.current?.setFlows(flows);
+  }, [flows]);
 
   useEffect(() => {
     view.current?.setActiveIncident(activeIncident);

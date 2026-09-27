@@ -1,6 +1,8 @@
 import { capture, release } from './ptz';
 import { getRoads, ROAD_CLASSES, type Camera, type CameraState, type EdgeKind, type Graph, type Incident, type RoadClass, type Site } from './api';
 import { latOf, lonOf, type LatLon } from '@rt511/shared';
+import { measure, pointAt, roadPath, type AttentionFlow, type FlowReason, type Link } from './flows';
+import { prefersReducedMotion } from './motion';
 
 /** Road colours and stroke weights, in screen pixels, taken from the standalone `graph_<region>.html` map so the two read the same: a dim blue-slate background that the camera graph sits on top of rather than competes with. Weight is held in screen pixels so a motorway stays a motorway at every zoom. */
 const ROAD_STYLE: Record<RoadClass, { color: string; width: number }> = {
@@ -26,6 +28,10 @@ const EDGE_STYLE: Record<EdgeKind, { width: number; color: string; alpha: number
 };
 
 const EDGE_KINDS: EdgeKind[] = ['street', 'ramp', 'freeway', 'nearby'];
+/** The colour of attention by what set it moving, as RGB for mixing with an alpha: the incident red the map already uses, the wall's amber for stopped traffic, and a cool blue for unusual movement. */
+const FLOW_COLOUR: Record<FlowReason, string> = { incident: '255, 107, 94', still: '232, 184, 110', movement: '190, 235, 255' };
+/** How fast a pulse travels along the road on screen. */
+const FLOW_SPEED_PX = 70;
 
 /** A site is coloured by what it sits on, as in the standalone map, and warms towards amber as its camera gets busy. */
 const NODE_FREEWAY = [77, 163, 255] as const;
@@ -91,6 +97,10 @@ interface RegionLayer {
   /** Edge geometry per site, so selecting a node can restroke just its own edges on top of the bulk paths. */
   incident: Map<string, IncidentEdge[]>;
   roads: Map<RoadClass, Path2D>;
+  /** Every road link from each site, in both directions, for finding the road between two cameras. */
+  links: Map<string, Link[]>;
+  /** Which site each camera stands at. */
+  siteOf: Map<number, string>;
   roadsLoaded: boolean;
   /** Everything drawn, roads included. Panning is clamped to this. */
   bounds: Bounds;
@@ -141,6 +151,13 @@ export class MapView {
   private frame = 0;
   private resizeFrame = 0;
   private readonly observer: ResizeObserver;
+  /** A second canvas over the map for attention spreading along the roads. It is cleared and redrawn every frame while there is something to show, which the map itself, thousands of cached road paths, could not afford. */
+  private readonly fx: HTMLCanvasElement;
+  private readonly fxCtx: CanvasRenderingContext2D;
+  private readonly flowNote: HTMLElement;
+  private flows: { layer: string; points: LatLon[]; reason: FlowReason; strength: number }[] = [];
+  private fxFrame = 0;
+  private readonly still = prefersReducedMotion();
 
   constructor(
     graph: Graph,
@@ -176,7 +193,16 @@ export class MapView {
     this.credit = document.createElement('div');
     this.credit.className = 'map-credit';
 
-    this.host.append(this.canvas, this.legend, this.note, this.tip);
+    this.fx = document.createElement('canvas');
+    this.fx.className = 'map-fx';
+    const fxCtx = this.fx.getContext('2d');
+    if (!fxCtx) throw new Error('canvas 2d context is unavailable');
+    this.fxCtx = fxCtx;
+    this.flowNote = document.createElement('div');
+    this.flowNote.className = 'map-flow-note';
+    this.flowNote.hidden = true;
+    this.flowNote.innerHTML = '<b>Attention spreading.</b> A camera that sees something makes the cameras along its road worth watching: <i class="is-incident"></i> an incident, <i class="is-still"></i> stopped traffic, <i class="is-movement"></i> unusual movement.';
+    this.host.append(this.canvas, this.fx, this.legend, this.note, this.tip, this.flowNote);
     this.root.append(this.host, this.credit);
 
     this.build(graph);
@@ -207,6 +233,8 @@ export class MapView {
     this.observer.disconnect();
     if (this.frame !== 0) cancelAnimationFrame(this.frame);
     if (this.resizeFrame !== 0) cancelAnimationFrame(this.resizeFrame);
+    if (this.fxFrame !== 0) cancelAnimationFrame(this.fxFrame);
+    this.fxFrame = 0;
     this.frame = 0;
     this.resizeFrame = 0;
     this.pending++;
@@ -241,6 +269,8 @@ export class MapView {
         edges: new Map(),
         incident: new Map(),
         roads: new Map(),
+        links: new Map(),
+        siteOf: new Map(),
         roadsLoaded: false,
         bounds: { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },
         siteBounds: { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },
@@ -251,6 +281,7 @@ export class MapView {
         const y = -site.lat;
         const label = camerasBySite.get(site.id)?.[0]?.location ?? site.id;
         layer.sites.push({ site, x, y, label, live: [] });
+        for (const camera of site.cameras) layer.siteOf.set(camera, site.id);
         grow(layer.bounds, x, y);
         grow(layer.siteBounds, x, y);
       }
@@ -269,6 +300,8 @@ export class MapView {
       const incident: IncidentEdge = { kind: edge.kind, points: edge.geometry };
       pushInto(layer.incident, edge.src, incident);
       pushInto(layer.incident, edge.dst, incident);
+      pushInto(layer.links, edge.src, { to: edge.dst, points: edge.geometry });
+      pushInto(layer.links, edge.dst, { to: edge.src, points: [...edge.geometry].reverse() });
     }
   }
 
@@ -364,6 +397,10 @@ export class MapView {
     this.canvas.height = Math.round(rect.height * dpr);
     this.canvas.style.width = `${rect.width}px`;
     this.canvas.style.height = `${rect.height}px`;
+    this.fx.width = this.canvas.width;
+    this.fx.height = this.canvas.height;
+    // A map that was hidden while flows arrived starts moving again once it has a size.
+    this.animate();
     if (this.current?.view?.fitted) this.fit(true);
     else if (this.current && this.current.view === null) this.fit();
     this.invalidate();
@@ -649,6 +686,101 @@ export class MapView {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.drawNodes(ctx, layer, view);
     this.drawIncidents(ctx, layer, view);
+    // Without motion the flows are drawn still, and redrawn with the map so they follow a pan.
+    if (this.still) this.drawFlows(0);
+  }
+
+  /** The attention spreading between cameras right now. Each flow is resolved to the road between its two cameras once, here; a flow whose cameras are not joined by road within a few hops is left out rather than drawn across the map. */
+  setFlows(flows: AttentionFlow[]): void {
+    const drawn: typeof this.flows = [];
+    for (const flow of flows) {
+      for (const layer of this.layers.values()) {
+        const from = layer.siteOf.get(flow.from);
+        const to = layer.siteOf.get(flow.to);
+        if (!from || !to) continue;
+        const points = roadPath(layer.links, from, to);
+        if (points) drawn.push({ layer: layer.key, points, reason: flow.reason, strength: flow.strength });
+        break;
+      }
+    }
+    this.flows = drawn;
+    this.flowNote.hidden = drawn.length === 0;
+    if (this.still) this.drawFlows(0);
+    else this.animate();
+  }
+
+  /** Runs the frame loop while there is a flow to show on a map that is on screen, and lets it stop otherwise, so an idle or hidden map costs nothing. */
+  private animate(): void {
+    if (this.still || this.fxFrame !== 0) return;
+    const step = (t: number): void => {
+      this.fxFrame = 0;
+      const shown = this.flows.length > 0 && this.width > 0 && this.root.isConnected && this.root.offsetParent !== null && document.visibilityState === 'visible';
+      this.drawFlows(shown ? t : -1);
+      if (shown) this.fxFrame = requestAnimationFrame(step);
+    };
+    this.fxFrame = requestAnimationFrame(step);
+  }
+
+  /** Pulses travelling from the camera the attention comes from to the one it reaches, three to a road, over a faint trace of the road itself, and a ring opening at the far end. `t` below zero only clears. */
+  private drawFlows(t: number): void {
+    const ctx = this.fxCtx;
+    const dpr = this.fx.width / Math.max(1, this.width);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, this.fx.width, this.fx.height);
+    const layer = this.current;
+    if (t < 0 || !layer?.view || this.flows.length === 0) return;
+    const view = layer.view;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const seconds = t / 1000;
+    for (const flow of this.flows) {
+      if (flow.layer !== layer.key) continue;
+      const line = measure(flow.points.map((point) => this.toScreen(view, lonOf(point) * layer.kx, -latOf(point))));
+      if (line.length < 4) continue;
+      const colour = FLOW_COLOUR[flow.reason];
+      const bright = 0.55 + 0.45 * Math.min(1, Math.max(0, flow.strength));
+      // The road the attention travels, as a faint glow.
+      ctx.strokeStyle = `rgba(${colour}, ${0.14 * bright})`;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      line.xs.forEach((x, i) => (i === 0 ? ctx.moveTo(x, line.ys[i]!) : ctx.lineTo(x, line.ys[i]!)));
+      ctx.stroke();
+      const pulses = this.still ? 1 : 3;
+      for (let k = 0; k < pulses; k++) {
+        // Pulses keep a steady speed on screen, so a long road takes longer to cross than a short one, the way a queue would.
+        const travelled = this.still ? line.length * 0.6 : ((seconds * FLOW_SPEED_PX) / line.length + k / pulses) % 1;
+        const distance = this.still ? travelled : travelled * line.length;
+        // A comet: a soft halo and a white-hot core at the head, and a short tail of shrinking points behind it along the road.
+        for (let tail = 6; tail >= 1; tail--) {
+          const [x, y] = pointAt(line, distance - tail * 4);
+          ctx.fillStyle = `rgba(${colour}, ${bright * 0.5 * (1 - tail / 7)})`;
+          ctx.beginPath();
+          ctx.arc(x, y, 2.6 - tail * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        const [hx, hy] = pointAt(line, distance);
+        const halo = ctx.createRadialGradient(hx, hy, 0, hx, hy, 10);
+        halo.addColorStop(0, `rgba(${colour}, ${0.75 * bright})`);
+        halo.addColorStop(1, `rgba(${colour}, 0)`);
+        ctx.fillStyle = halo;
+        ctx.beginPath();
+        ctx.arc(hx, hy, 10, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = `rgba(255, 255, 255, ${bright})`;
+        ctx.beginPath();
+        ctx.arc(hx, hy, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // A ring opening where the attention lands, once every couple of seconds.
+      const [ex, ey] = pointAt(line, line.length);
+      const phase = this.still ? 0.35 : (seconds / 1.8 + line.length / 997) % 1;
+      ctx.strokeStyle = `rgba(${colour}, ${bright * (1 - phase)})`;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(ex, ey, 7 + phase * 16, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   /** Incidents as a ring with a cross, in a colour nothing else on this map uses. Deliberately not a bigger, brighter camera node: it is a different kind of thing and should not be mistaken for a busy camera. */
