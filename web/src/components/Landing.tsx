@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { latOfLonLat, lonOfLonLat, solarElevation, type LonLat, type NationalResponse, type NationalSource } from '@rt511/shared';
 import { AlbersUsa, groupForState, groupForStates } from '../albers';
 import { prefersReducedMotion } from '../motion';
+import { period } from '../format';
 
 /** The front page: every camera in the country as a point of light, coloured by where the sun is on it right now, and a single way in. Clicking anywhere on the picture opens the map. The sources and their terms are one quiet click away, and the disclaimer is in the footer as on every page. */
 export function Landing({
@@ -368,11 +369,7 @@ function refresh(source: NationalSource): string {
   const poll = source.poll_period_s;
   if (poll === undefined) return '';
   const focus = source.focus_period_s ?? null;
-  return focus !== null ? `every ${seconds(focus)} when open, ${seconds(poll)} on the wall` : `every ${seconds(poll)}`;
-}
-
-function seconds(value: number): string {
-  return value < 60 ? `${String(Math.round(value))} s` : `${String(Math.round(value / 60))} min`;
+  return focus !== null ? `every ${period(focus)} when open, ${period(poll)} on the wall` : `every ${period(poll)}`;
 }
 
 function host(url: string): string {

@@ -8,7 +8,7 @@
 # Variables pass straight through, e.g. `make start ARGS="--regions oakland-ca"` or `make detect DEVICE=cpu`.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup install sync start serve dev up build check test test-server test-python figures \
+.PHONY: help setup install sync start serve dev up build check test test-server test-web test-python figures \
 	detect detect-cpu sources regions index metros city catalog graph counts add-city
 
 # Extra arguments for the server, e.g. ARGS="--regions oakland-ca,des-moines-ia --cameras freeway".
@@ -75,10 +75,13 @@ check: ## type-check and lint the TypeScript, then lint the Python and check its
 	$(RUFF) check src tests
 	$(RUFF) format --check src tests
 
-test: test-server test-python ## every test suite
+test: test-server test-web test-python ## every test suite
 
 test-server:
 	pnpm --filter @rt511/server test
+
+test-web:
+	pnpm --filter rt511-web test
 
 test-python:
 	uv run python -m unittest discover -s tests

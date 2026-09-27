@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactElement } from 'react';
 import { HoverCard } from './HoverCard';
+import { period } from '../format';
 import type { AttentionAxes } from '@rt511/shared';
 
 // These anchors mirror server TUNING alongside the sampler equation so live explanations work even when the Scores pane has never been opened.
@@ -296,7 +297,7 @@ export function LiveMotion({ video, axes, active, still = null }: { video: HTMLV
   }, [stillSrc, spanS]);
 
   const span = spanS >= 120 ? `${String(Math.round(spanS / 60))} minutes` : `${String(spanS)} seconds`;
-  const every = still ? (still.periodS < 60 ? `${String(still.periodS)} s` : `${String(Math.round(still.periodS / 60))} min`) : '';
+  const every = still ? period(still.periodS) : '';
   return (
     <div className="hero-motion">
       <div><HoverCard content={() => <>

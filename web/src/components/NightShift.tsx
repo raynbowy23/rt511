@@ -25,7 +25,7 @@ const NOUNS: Record<string, [string, string]> = {
   motorcycle: ['motorcycle', 'motorcycles'],
 };
 
-function vehicles(count: CountResponse): string {
+export function vehicles(count: CountResponse): string {
   const parts = Object.entries(count.by_class ?? {})
     .filter(([, n]) => n > 0)
     .sort((a, b) => b[1] - a[1])

@@ -7,6 +7,7 @@ import type { AttentionAxes } from '@rt511/shared';
 import { LiveMotion } from './LiveMotion';
 import { NightShift } from './NightShift';
 import { Crossfade } from './Crossfade';
+import { period } from '../format';
 
 /** The promoted camera: the one video element in the application, the ring buffer behind it as an instant replay, and digital pan, tilt and zoom over both.
  *
@@ -193,7 +194,7 @@ export function CameraPanel({
   const snapshot = !streaming && mode === 'Snapshots only' && snapshotEvery !== null;
   const tuning = camera !== null && visible && live && ((camera.has_video && !streaming && mode === 'Loading') || frames.length === 0);
   // Two looks that cannot be confused at a glance: a red LIVE pill for a stream, a grey framed SNAPSHOT with its refresh for a still.
-  const badge = !live ? 'Replay' : streaming ? 'Live' : snapshot ? `Snapshot · ${every(snapshotEvery)}` : mode;
+  const badge = !live ? 'Replay' : streaming ? 'Live' : snapshot ? `Snapshot · ${period(snapshotEvery)}` : mode;
   const badgeKey = !live ? 'replay' : streaming ? 'live' : snapshot ? 'snapshot' : mode.toLowerCase().replace(/\s+/g, '-');
   const shownTs = live && focusPeriod !== null && focusTs !== null ? Math.max(focusTs, frame?.ts ?? 0) : frame?.ts;
   const stamp = shownTs !== undefined
@@ -374,9 +375,4 @@ export function CameraPanel({
       </div>
     </section>
   );
-}
-
-/** A refresh period as a person would say it: seconds under a minute, whole minutes from there. */
-function every(seconds: number): string {
-  return seconds < 60 ? `${String(Math.round(seconds))} s` : `${String(Math.round(seconds / 60))} min`;
 }
