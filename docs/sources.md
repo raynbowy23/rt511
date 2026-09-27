@@ -32,6 +32,8 @@ What the code has to know about them:
 - **The tri-state portal has no per-camera image.** A snapshot document holds every camera in a state, so the server fetches it at most once per poll period, shares it across every camera in that state, and backs off for a minute after a failure. Every snapshot in a document carries the document's own timestamp, not the picture's, so freshness is decided by comparing bytes. Some Vermont pictures carry the VTrans mark inside the image; it is shown as published, since cropping it would alter the data.
 - **Nothing here needs a borrowed Referer.** The client sends only the project's User-Agent to these hosts, and California's and Iowa's streams, the only video among these sources, allow any origin, so a browser plays them directly.
 
+Each source also names the IANA `time_zone` most of its cameras keep, which the night shift uses to show a camera's own local time. A city on the edge of a zone, such as one in western Kentucky, can name its own `time_zone` in `data/regions.json`, and that wins.
+
 ## Local sources
 
 Some agencies give a developer key freely but ask for written consent before any public use of their cameras. A source like that can still be read on your own machine once you have a key, without the repository claiming it. Put its entry in `data/local/sources.json`, in the same shape as `data/sources.json` and under a key of its own, and add cities on it with `make add-city` as usual. The city, its catalog and its counts are then written under `data/local/`, which git ignores, and the national index skips the source, so nothing drawn from it can be committed. A local source may not reuse a published source's key; both the pipeline and the server refuse to start if it does.

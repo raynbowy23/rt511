@@ -3,6 +3,7 @@
  * Both sides import these, which is the point of the port: the shapes are declared once rather than described in Python and re-declared in TypeScript. Coordinate order is part of the contract and is carried in the type, because `[lat, lon]` and `[lon, lat]` are both pairs of numbers and a swap renders a plausible rotated map instead of failing. */
 export { asLatLon, asLonLat, latLon, lonLat, latOf, lonOf, latOfLonLat, lonOfLonLat, toLatLon, toLonLat } from './coords.js';
 export { solarElevation } from './sun.js';
+export { SCORE } from './score.js';
 export const ROAD_CLASSES = [
     'unclassified',
     'tertiary_link',

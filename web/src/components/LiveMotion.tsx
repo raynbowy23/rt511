@@ -1,12 +1,10 @@
 import { useEffect, useRef, type ReactElement } from 'react';
 import { HoverCard } from './HoverCard';
 import { period } from '../format';
-import type { AttentionAxes } from '@rt511/shared';
+import { SCORE, type AttentionAxes } from '@rt511/shared';
 
-// These anchors mirror server TUNING alongside the sampler equation so live explanations work even when the Scores pane has never been opened.
-const ANOMALY_AT_BASELINE = 0.5;
-const SCALE_AMPLIFIER_MIN = 0.5;
-const SCALE_AMPLIFIER_MAX = 1.5;
+// The same constants the server scores with, from the shared package, so the live line and the wall cannot drift apart.
+const { ANOMALY_AT_BASELINE, SCALE_AMPLIFIER_MIN, SCALE_AMPLIFIER_MAX } = SCORE;
 const WIDTH = 64;
 const HEIGHT = 48;
 const WINDOW = 60;

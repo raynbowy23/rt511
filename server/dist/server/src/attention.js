@@ -5,6 +5,7 @@
  * So the score here is built from three axes that are kept apart and reported apart. `anomaly` is the old measure with a better baseline: what this camera does at this hour of this day, shrunk towards the rolling median until the hour has enough samples to speak for itself. `spectacle` is how much the camera matters at all, from published traffic counts where a state publishes them and from road capacity or class elsewhere. `incidentFloor` is the state patrol saying something is happening here, which puts a floor under the camera that decays as the incident ages.
  *
  * The frozen-camera question is not answered. It is only recorded: AMBIGUOUS_ZERO marks a frame that changed by nothing in an hour that usually moves. Nothing acts on it, because acting on it either way would be a guess, and the flag exists to find out how often the guess would have to be made. */
+import { SCORE } from '../../shared/src/index.js';
 import { CAMERA_RADIUS_KM, distanceKm } from './cad.js';
 import { loadAadt, round } from './config.js';
 import { CORRIDOR } from './corridor.js';
@@ -15,7 +16,7 @@ export const TUNING = {
     /** Effective sample size of the rolling median in the baseline blend. An hour-of-week cell needs five polls of its own before it carries as much weight as the median it is displacing: five minutes for a camera on screen, closer to half an hour for one in a watched city that nobody is looking at. */
     SHRINKAGE_K: 5,
     /** Frame difference equal to the baseline scores this, so an ordinary camera doing an ordinary thing sits in the middle of the range and twice the baseline saturates. Inherited from `activity` and kept identical on purpose: it is what makes the two agree exactly before any hourly history exists. */
-    ANOMALY_AT_BASELINE: 0.5,
+    ANOMALY_AT_BASELINE: SCORE.ANOMALY_AT_BASELINE,
     /** The two axes weigh the same. Anomaly alone is today's behaviour, spectacle alone would rank a quiet interstate above a busy side street forever, and there is no measurement yet that says either deserves more. */
     WEIGHT_ANOMALY: 0.5,
     WEIGHT_SPECTACLE: 0.5,
@@ -28,8 +29,8 @@ export const TUNING = {
      * Two reasons for the move. The prior was previously applied to spectacle and the weighted sum then applied spectacle at half weight, so its real effect on the score was an amplifier over 0.5 to 1.0 that no constant in this file stated. And with the prior inside one axis, that axis was no longer a measure of movement, which made the two axes harder to read apart in the log than the design intends.
      *
      * The range is deliberately narrow and its lower end is well above zero. The prior describes how much traffic a road carries, which is a reason to prefer one camera over another when both are doing something, and never a reason to hide a residential street where something is plainly happening. */
-    SCALE_AMPLIFIER_MIN: 0.5,
-    SCALE_AMPLIFIER_MAX: 1.5,
+    SCALE_AMPLIFIER_MIN: SCORE.SCALE_AMPLIFIER_MIN,
+    SCALE_AMPLIFIER_MAX: SCORE.SCALE_AMPLIFIER_MAX,
     /** Traffic counts are mapped through log10(1 + aadt) and then onto 0..1 between these two. A thousand vehicles a day is a street nobody would watch and two hundred thousand is an urban interstate; the five published files this project has joined run from 650 to 253,000, so both ends of the scale are reachable and neither is crowded. */
     AADT_LOG_MIN: Math.log10(1 + 1000),
     AADT_LOG_MAX: Math.log10(1 + 200_000),

@@ -11,12 +11,18 @@ const PACE_DIVISOR = 8;
 /** A trip needs at least this many cameras to be worth driving. */
 const MIN_STOPS = 3;
 
-const ROUTE_RE = /\b(I|US|SR|CA|IA|KY|OH|OR|ME|NH|VT)[\s-]*(\d+)/i;
+/** Every state's two-letter postal code, which is also its state-route prefix on signs and in feeds ("IA 5", "OH-161"). A fact about the country rather than about this project's sources, so a newly added state's routes are read without touching this file. */
+const STATES = 'AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY';
+/** Interstate, US and generic state routes, in any case. */
+const NATIONAL_RE = /\b(I|US|SR)[\s-]*(\d+)/i;
+/** State-prefixed routes in capitals only, as feeds and signs write them, so ordinary words such as "in", "or" and "ok" are never read as Indiana, Oregon or Oklahoma. */
+const STATE_RE = new RegExp(`\\b(${STATES})[\\s-]*(\\d+)`);
 
 /** The route a road name names, as a label: "I 35", "I-35/80" and "IA 5 @ MM 3" become "I-35" and "IA-5". State routes keep their state's prefix so the label reads the way the signs do. Null for a street with no route number. */
 export function routeOf(text: string | null | undefined): string | null {
-  const match = ROUTE_RE.exec(text ?? '');
-  return match ? `${match[1]!.toUpperCase()}-${Number(match[2])}` : null;
+  // Whichever route comes first in the name, as a single pattern would find it.
+  const found = [NATIONAL_RE.exec(text ?? ''), STATE_RE.exec(text ?? '')].filter((match): match is RegExpExecArray => match !== null).sort((a, b) => a.index - b.index)[0];
+  return found ? `${found[1]!.toUpperCase()}-${Number(found[2])}` : null;
 }
 
 export interface TripStop {

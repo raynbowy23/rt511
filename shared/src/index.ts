@@ -5,6 +5,7 @@
 export type { LatLon, LonLat } from './coords.js';
 export { asLatLon, asLonLat, latLon, lonLat, latOf, lonOf, latOfLonLat, lonOfLonLat, toLatLon, toLonLat } from './coords.js';
 export { solarElevation } from './sun.js';
+export { SCORE } from './score.js';
 
 import type { LatLon, LonLat } from './coords.js';
 
@@ -108,6 +109,8 @@ export interface RegionMeta {
   /** Credit for the published traffic counts joined to this region, where there are any. */
   counts_attribution?: string | undefined;
   counts_terms_url?: string | undefined;
+  /** The IANA time zone the city keeps, for a camera's own local time. */
+  time_zone?: string | null | undefined;
   bbox?: BBox | undefined;
 }
 

@@ -11,8 +11,6 @@ const CELL_PX = 6;
 /** Past this much zoom the cells are finer than the cameras are spaced, so individual positions are drawn instead. */
 const DOTS_FROM = 7;
 const PULSE_MS = 2600;
-/** The full name of each state a city's name ends with, for the list's headings. A state missing here is shown by its two letters. */
-const STATE_NAMES: Record<string, string> = { CA: 'California', IA: 'Iowa', KY: 'Kentucky', ME: 'Maine', NH: 'New Hampshire', OH: 'Ohio', OR: 'Oregon', VT: 'Vermont', WI: 'Wisconsin' };
 /** How long the flight into a city takes. Long enough to read as travel, short enough not to be waited on. */
 const ZOOM_MS = 900;
 
@@ -266,7 +264,11 @@ export class NationalView {
     this.list.appendChild(summary);
 
     // Grouped by state, states and cities in alphabetical order, so thirty cities read as a handful of states rather than one long column.
-    const stateOf = (marker: Marker): string => STATE_NAMES[marker.region.name.split(', ').pop() ?? ''] ?? marker.region.name.split(', ').pop() ?? '';
+    // The state's name comes from the outlines this map already draws, keyed by the two letters a city's name ends with.
+    const stateOf = (marker: Marker): string => {
+      const code = marker.region.name.split(', ').pop() ?? '';
+      return this.data.states[code]?.name ?? code;
+    };
     const ordered = [...this.markers].sort((a, b) => stateOf(a).localeCompare(stateOf(b)) || a.region.name.localeCompare(b.region.name));
     let heading = '';
     for (const marker of ordered) {

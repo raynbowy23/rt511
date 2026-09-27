@@ -24,6 +24,7 @@ const source = (over: Partial<Source> = {}): Source => ({
   max_requests_per_s: null,
   focus_period_s: null,
   local: false,
+  time_zone: null,
   feed: { url: 'https://nec-por.example/api/c2c' },
   ...over,
 });

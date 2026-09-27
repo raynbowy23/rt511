@@ -72,7 +72,7 @@ export function createApp(options) {
         // The project is built on these services' public data, so every view points back to the official source.
         // Published traffic counts carry a licence of their own, and a credit like CC BY is only met when it is visible, so the region's count attribution travels with its camera attribution.
         const counts = loadAadt(root, region.key);
-        Object.assign(graph.meta, { source: region.source, source_name: source.name, site_url: source.base_url, states: [...source.states], attribution: source.attribution, license: source.license, terms_url: source.terms_url, notice: source.notice, counts_attribution: counts?.attribution ?? '', counts_terms_url: counts?.terms_url ?? '' });
+        Object.assign(graph.meta, { source: region.source, source_name: source.name, site_url: source.base_url, states: [...source.states], attribution: source.attribution, license: source.license, terms_url: source.terms_url, notice: source.notice, counts_attribution: counts?.attribution ?? '', counts_terms_url: counts?.terms_url ?? '', time_zone: region.time_zone ?? source.time_zone });
         graphs.set(region.key, graph);
         selected = selected.concat(selectCameras(loadCatalog(catalogPath(root, region.key)), graph, spec));
     }
@@ -845,6 +845,7 @@ function mergeGraphs(graphs) {
                 notice: g.meta.notice,
                 counts_attribution: g.meta.counts_attribution,
                 counts_terms_url: g.meta.counts_terms_url,
+                time_zone: g.meta.time_zone,
                 bbox: g.meta.bbox,
             })),
             sites: graphs.reduce((total, g) => total + (g.meta.sites ?? 0), 0),

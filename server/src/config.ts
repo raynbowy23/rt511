@@ -32,6 +32,8 @@ export interface Source {
   focus_period_s: number | null;
   /** True for a source from data/local/sources.json rather than the published table. */
   local: boolean;
+  /** The IANA time zone most of the source's cameras keep, for showing a camera's own local time. A city on the edge of a zone names its own in regions.json. */
+  time_zone: string | null;
   /** For a bulk source, the state networks its snapshot documents are fetched by, keyed by state. */
   feed: Record<string, unknown>;
 }
@@ -50,6 +52,8 @@ export interface RegionRecord {
   center: [number, number] | null;
   radius_km: number | null;
   limit: number | null;
+  /** The city's own time zone where it differs from its source's. */
+  time_zone: string | null;
 }
 
 export interface CatalogCamera {
@@ -152,6 +156,7 @@ export function loadSources(root: string): SourceTable {
       max_requests_per_s: typeof rec.max_requests_per_s === 'number' && rec.max_requests_per_s > 0 ? rec.max_requests_per_s : null,
       focus_period_s: typeof rec.focus_period_s === 'number' && rec.focus_period_s > 0 ? rec.focus_period_s : null,
       local: key in local,
+      time_zone: typeof rec.time_zone === 'string' && rec.time_zone ? rec.time_zone : null,
       feed: typeof rec.feed === 'object' && rec.feed !== null ? (rec.feed as Record<string, unknown>) : {},
     };
   }
@@ -176,6 +181,7 @@ export function loadRegions(root: string): Map<string, RegionRecord> {
       center: centre === null ? null : [num(centre[0], `${where}.center[0]`), num(centre[1], `${where}.center[1]`)],
       radius_km: nullableNum(rec.radius_km, `${where}.radius_km`),
       limit: nullableNum(rec.limit, `${where}.limit`),
+      time_zone: typeof rec.time_zone === 'string' && rec.time_zone ? rec.time_zone : null,
     });
   }
   return regions;

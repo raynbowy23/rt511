@@ -3,6 +3,7 @@
  * Each 511 site regenerates a snapshot on demand once its cached copy has expired, and stamps Last-Modified with the time of the request that regenerated it. A poll that lands even slightly early makes the edge re-cache the stale image for another period, so the next poll is scheduled at the newest Last-Modified plus the source's poll period plus a safety margin, never on a fixed clock. The regenerated image is frequently byte-identical to the previous one because the picture behind it changes more slowly than the cache expires, so a frame is appended only when the bytes change. Cameras start at staggered offsets to spread the load. */
 import sharp from 'sharp';
 import { RADAR } from './radar.js';
+import { SCORE } from '../../shared/src/index.js';
 import { round } from './config.js';
 const THUMB_W = 64;
 const THUMB_H = 48;
@@ -136,7 +137,7 @@ export class CameraSlot {
             baseline = fallbackBaseline;
         else
             return null;
-        return round(Math.min(warmupCap(this.diffs.length), (0.5 * frame.diff) / Math.max(baseline, ACTIVITY_FLOOR)), 3);
+        return round(Math.min(warmupCap(this.diffs.length), (SCORE.ANOMALY_AT_BASELINE * frame.diff) / Math.max(baseline, ACTIVITY_FLOOR)), 3);
     }
     summary(fallbackBaseline, periodS, scored) {
         const frame = this.latest;

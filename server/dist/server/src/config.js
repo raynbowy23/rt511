@@ -85,6 +85,7 @@ export function loadSources(root) {
             max_requests_per_s: typeof rec.max_requests_per_s === 'number' && rec.max_requests_per_s > 0 ? rec.max_requests_per_s : null,
             focus_period_s: typeof rec.focus_period_s === 'number' && rec.focus_period_s > 0 ? rec.focus_period_s : null,
             local: key in local,
+            time_zone: typeof rec.time_zone === 'string' && rec.time_zone ? rec.time_zone : null,
             feed: typeof rec.feed === 'object' && rec.feed !== null ? rec.feed : {},
         };
     }
@@ -108,6 +109,7 @@ export function loadRegions(root) {
             center: centre === null ? null : [num(centre[0], `${where}.center[0]`), num(centre[1], `${where}.center[1]`)],
             radius_km: nullableNum(rec.radius_km, `${where}.radius_km`),
             limit: nullableNum(rec.limit, `${where}.limit`),
+            time_zone: typeof rec.time_zone === 'string' && rec.time_zone ? rec.time_zone : null,
         });
     }
     return regions;

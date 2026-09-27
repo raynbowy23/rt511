@@ -239,7 +239,7 @@ export function CameraPanel({
           <span className="hero-mode">{badge}</span>
         </div>
         <div className="hero-zoom" ref={zoom} />
-        <NightShift camera={camera} />
+        <NightShift camera={camera} timeZone={source?.time_zone ?? null} />
         {overlay}
       </div>
       <div className="hero-panel">

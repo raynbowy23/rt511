@@ -4,7 +4,7 @@
 
 import sharp from 'sharp';
 import { RADAR } from './radar.js';
-import type { AttentionAxes, CameraState as WireCameraState } from '../../shared/src/index.js';
+import { SCORE, type AttentionAxes, type CameraState as WireCameraState } from '../../shared/src/index.js';
 import type { Client } from './client.js';
 import { round, type CatalogCamera } from './config.js';
 
@@ -156,7 +156,7 @@ export class CameraSlot {
     if (this.diffs.length >= ACTIVITY_MIN_SAMPLES) baseline = median(this.diffs);
     else if (fallbackBaseline !== null) baseline = fallbackBaseline;
     else return null;
-    return round(Math.min(warmupCap(this.diffs.length), (0.5 * frame.diff) / Math.max(baseline, ACTIVITY_FLOOR)), 3);
+    return round(Math.min(warmupCap(this.diffs.length), (SCORE.ANOMALY_AT_BASELINE * frame.diff) / Math.max(baseline, ACTIVITY_FLOOR)), 3);
   }
 
   summary(fallbackBaseline: number | null, periodS: number, scored: Scored | null): WireCameraState {
