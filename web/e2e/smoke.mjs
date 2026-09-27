@@ -29,6 +29,11 @@ for (const name of ['national_index.json', 'us_states.json']) copyFileSync(join(
 mkdirSync(join(root, 'web'), { recursive: true });
 symlinkSync(join(REPO, 'web/dist'), join(root, 'web/dist'), 'dir');
 
+let serverLog = '';
+// Anything unexpected ends the run as a failure with the server's log, rather than a bare stack trace that leaves the reason unrecorded.
+process.on('unhandledRejection', (error) => fail(`unexpected error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`));
+process.on('uncaughtException', (error) => fail(`unexpected error: ${error.stack ?? error.message}`));
+
 const children = [];
 const cleanups = [];
 process.on('exit', () => {
@@ -41,7 +46,6 @@ const server = spawn(process.execPath, [serverEntry, '--root', root, '--port', S
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 children.push(server);
-let serverLog = '';
 server.stdout.on('data', (chunk) => (serverLog += chunk));
 server.stderr.on('data', (chunk) => (serverLog += chunk));
 await until(async () => (await fetch(`${BASE}/api/regions`).catch(() => null))?.ok, 'the server to answer', 30_000);
