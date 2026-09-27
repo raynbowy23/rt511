@@ -1,0 +1,209 @@
+{
+ "region": "davenport-ia",
+ "source": "iowadot",
+ "attribution": "Traffic counts courtesy of the Iowa Department of Transportation (Traffic Log Book AADT, CC BY 4.0)",
+ "terms_url": "https://www.arcgis.com/home/item.html?id=0263e8e5f6ee47ba8efdef8ca6c79afe",
+ "segments": 144,
+ "cameras": {
+  "37970": {
+   "aadt": 4680,
+   "year": null,
+   "county": null,
+   "truck_pct": 32.2,
+   "distance_m": 108.6,
+   "aligned": true
+  },
+  "891537": {
+   "aadt": 31800,
+   "year": null,
+   "county": null,
+   "truck_pct": 30.0,
+   "distance_m": 74.3,
+   "aligned": true
+  },
+  "1502386": {
+   "aadt": 31800,
+   "year": null,
+   "county": null,
+   "truck_pct": 30.0,
+   "distance_m": 10.5,
+   "aligned": true
+  },
+  "1650015": {
+   "aadt": 4680,
+   "year": null,
+   "county": null,
+   "truck_pct": 32.2,
+   "distance_m": 108.6,
+   "aligned": true
+  },
+  "2355160": {
+   "aadt": 31800,
+   "year": null,
+   "county": null,
+   "truck_pct": 30.0,
+   "distance_m": 74.3,
+   "aligned": true
+  },
+  "2598666": {
+   "aadt": 4680,
+   "year": null,
+   "county": null,
+   "truck_pct": 32.2,
+   "distance_m": 108.6,
+   "aligned": true
+  },
+  "2605748": {
+   "aadt": 4680,
+   "year": null,
+   "county": null,
+   "truck_pct": 32.2,
+   "distance_m": 108.6,
+   "aligned": true
+  },
+  "2872725": {
+   "aadt": 72000,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.2,
+   "distance_m": 111.7,
+   "aligned": true
+  },
+  "2936161": {
+   "aadt": 4680,
+   "year": null,
+   "county": null,
+   "truck_pct": 32.2,
+   "distance_m": 108.6,
+   "aligned": true
+  },
+  "3509492": {
+   "aadt": 72000,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.2,
+   "distance_m": 102.8,
+   "aligned": true
+  },
+  "3788784": {
+   "aadt": 72000,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.2,
+   "distance_m": 106.9,
+   "aligned": true
+  },
+  "3867884": {
+   "aadt": 32300,
+   "year": null,
+   "county": null,
+   "truck_pct": 2.3,
+   "distance_m": 16.4,
+   "aligned": true
+  },
+  "5341664": {
+   "aadt": 72000,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.2,
+   "distance_m": 60.9,
+   "aligned": true
+  },
+  "5903837": {
+   "aadt": 24400,
+   "year": null,
+   "county": null,
+   "truck_pct": 22.3,
+   "distance_m": 13.8,
+   "aligned": true
+  },
+  "5964160": {
+   "aadt": 36200,
+   "year": null,
+   "county": null,
+   "truck_pct": 34.0,
+   "distance_m": 19.7,
+   "aligned": true
+  },
+  "6006583": {
+   "aadt": 50500,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.0,
+   "distance_m": 51.2,
+   "aligned": true
+  },
+  "6863351": {
+   "aadt": 4680,
+   "year": null,
+   "county": null,
+   "truck_pct": 32.2,
+   "distance_m": 108.6,
+   "aligned": true
+  },
+  "7108777": {
+   "aadt": 31800,
+   "year": null,
+   "county": null,
+   "truck_pct": 30.0,
+   "distance_m": 49.6,
+   "aligned": true
+  },
+  "7204815": {
+   "aadt": 31800,
+   "year": null,
+   "county": null,
+   "truck_pct": 30.0,
+   "distance_m": 74.3,
+   "aligned": true
+  },
+  "7300835": {
+   "aadt": 50500,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.0,
+   "distance_m": 28.4,
+   "aligned": true
+  },
+  "7821968": {
+   "aadt": 31800,
+   "year": null,
+   "county": null,
+   "truck_pct": 30.0,
+   "distance_m": 49.6,
+   "aligned": true
+  },
+  "8878412": {
+   "aadt": 59700,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.3,
+   "distance_m": 52.0,
+   "aligned": true
+  },
+  "9352567": {
+   "aadt": 4680,
+   "year": null,
+   "county": null,
+   "truck_pct": 32.2,
+   "distance_m": 108.6,
+   "aligned": true
+  },
+  "9733539": {
+   "aadt": 4680,
+   "year": null,
+   "county": null,
+   "truck_pct": 32.2,
+   "distance_m": 108.6,
+   "aligned": true
+  },
+  "9741370": {
+   "aadt": 31800,
+   "year": null,
+   "county": null,
+   "truck_pct": 30.0,
+   "distance_m": 49.6,
+   "aligned": true
+  }
+ }
+}

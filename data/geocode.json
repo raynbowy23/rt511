@@ -1,10 +1,24 @@
 {
+ "akron, oh": {
+  "lat": 41.083064,
+  "lon": -81.518485,
+  "name": "Akron, OH",
+  "query": "Akron, OH",
+  "state": "OH"
+ },
  "burlington, vt": {
   "lat": 44.4761601,
   "lon": -73.212906,
   "name": "Burlington, VT",
   "query": "Burlington, VT",
   "state": "VT"
+ },
+ "cedar rapids, ia": {
+  "lat": 41.9758872,
+  "lon": -91.6704053,
+  "name": "Cedar Rapids, IA",
+  "query": "Cedar Rapids, IA",
+  "state": "IA"
  },
  "cincinnati, oh": {
   "lat": 39.1012809,
@@ -27,12 +41,54 @@
   "query": "Columbus, OH",
   "state": "OH"
  },
+ "council bluffs, ia": {
+  "lat": 41.258841,
+  "lon": -95.8519484,
+  "name": "Council Bluffs, IA",
+  "query": "Council Bluffs, IA",
+  "state": "IA"
+ },
+ "davenport, ia": {
+  "lat": 41.5224692,
+  "lon": -90.5756401,
+  "name": "Davenport, IA",
+  "query": "Davenport, IA",
+  "state": "IA"
+ },
+ "dayton, oh": {
+  "lat": 39.7589478,
+  "lon": -84.1916069,
+  "name": "Dayton, OH",
+  "query": "Dayton, OH",
+  "state": "OH"
+ },
  "des moines, ia": {
   "lat": 41.5868654,
   "lon": -93.6249494,
   "name": "Des Moines, IA",
   "query": "Des Moines, IA",
   "state": "IA"
+ },
+ "dubuque, ia": {
+  "lat": 42.5006243,
+  "lon": -90.6647985,
+  "name": "Dubuque, IA",
+  "query": "Dubuque, IA",
+  "state": "IA"
+ },
+ "eugene, or": {
+  "lat": 44.0505054,
+  "lon": -123.0950506,
+  "name": "Eugene, OR",
+  "query": "Eugene, OR",
+  "state": "OR"
+ },
+ "fontana, ca": {
+  "lat": 34.0922947,
+  "lon": -117.43433,
+  "name": "Fontana, CA",
+  "query": "Fontana, CA",
+  "state": "CA"
  },
  "lexington, ky": {
   "lat": 38.0464066,
@@ -55,11 +111,32 @@
   "query": "Louisville, KY",
   "state": "KY"
  },
+ "manchester, nh": {
+  "lat": 42.9956397,
+  "lon": -71.4547891,
+  "name": "Manchester, NH",
+  "query": "Manchester, NH",
+  "state": "NH"
+ },
+ "menifee, ca": {
+  "lat": 33.6863987,
+  "lon": -117.1778599,
+  "name": "Menifee, CA",
+  "query": "Menifee, CA",
+  "state": "CA"
+ },
  "oakland, ca": {
   "lat": 37.8044557,
   "lon": -122.271356,
   "name": "Oakland, CA",
   "query": "Oakland, CA",
+  "state": "CA"
+ },
+ "oceanside, ca": {
+  "lat": 33.1958696,
+  "lon": -117.379483,
+  "name": "Oceanside, CA",
+  "query": "Oceanside, CA",
   "state": "CA"
  },
  "portland, me": {
@@ -76,11 +153,67 @@
   "query": "Portland, OR",
   "state": "OR"
  },
+ "portsmouth, nh": {
+  "lat": 43.0751306,
+  "lon": -70.7601826,
+  "name": "Portsmouth, NH",
+  "query": "Portsmouth, NH",
+  "state": "NH"
+ },
+ "sacramento, ca": {
+  "lat": 38.5810606,
+  "lon": -121.493895,
+  "name": "Sacramento, CA",
+  "query": "Sacramento, CA",
+  "state": "CA"
+ },
  "san diego, ca": {
   "lat": 32.7157062,
   "lon": -117.1638284,
   "name": "San Diego, CA",
   "query": "San Diego, CA",
   "state": "CA"
+ },
+ "san jose, ca": {
+  "lat": 37.3361663,
+  "lon": -121.890591,
+  "name": "San Jose, CA",
+  "query": "San Jose, CA",
+  "state": "CA"
+ },
+ "santa ana, ca": {
+  "lat": 33.7494951,
+  "lon": -117.873221,
+  "name": "Santa Ana, CA",
+  "query": "Santa Ana, CA",
+  "state": "CA"
+ },
+ "sioux city, ia": {
+  "lat": 42.4966815,
+  "lon": -96.4058782,
+  "name": "Sioux City, IA",
+  "query": "Sioux City, IA",
+  "state": "IA"
+ },
+ "stockton, ca": {
+  "lat": 37.9577016,
+  "lon": -121.290779,
+  "name": "Stockton, CA",
+  "query": "Stockton, CA",
+  "state": "CA"
+ },
+ "toledo, oh": {
+  "lat": 41.6529143,
+  "lon": -83.5378173,
+  "name": "Toledo, OH",
+  "query": "Toledo, OH",
+  "state": "OH"
+ },
+ "waterloo, ia": {
+  "lat": 42.498275,
+  "lon": -92.3328743,
+  "name": "Waterloo, IA",
+  "query": "Waterloo, IA",
+  "state": "IA"
  }
 }

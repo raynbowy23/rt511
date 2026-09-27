@@ -1,14 +1,14 @@
 import type { CatalogCamera } from './config.js';
 
-/** Sparse national sampling costs 18 regions times 10 anchors divided by 600 seconds, or 0.3 requests per second before bounded corridor promotion. */
+/** Sparse national sampling costs ten anchors per city divided by 600 seconds, about 0.017 requests a second per city before bounded corridor promotion: 0.3 a second for eighteen cities, half a request a second for thirty. */
 export const RADAR = {
-  /** Ten anchors per metro make 180 cameras nationally, so one frame each per 600 seconds costs 0.3 requests per second. */
+  /** Ten anchors per city, each fetched once per RADAR_PERIOD_S, cost about 0.017 requests a second per city: half a request a second across thirty cities, spread over every agency they draw on. */
   RADAR_PER_REGION: 10,
-  /** Ten minutes between frames keeps 18 times 10 anchors at 0.3 requests per second, including retries and unchanged images. */
+  /** Ten minutes between frames is what keeps that budget at about 0.017 requests a second per city, including retries and unchanged images. It is also why the board takes ten to twenty minutes to fill after a start: a camera needs two frames before it has a score. */
   RADAR_PERIOD_S: 600,
-  /** Hourly rotation changes which cameras spend the same 0.3 requests per second budget without adding a warmup poll. */
+  /** Hourly rotation changes which cameras spend the same budget without adding a warmup poll. */
   RADAR_ROTATE_S: 3600,
-  /** Recomputing local selections every thirty seconds adds no DOT requests to the 0.3 requests per second frame budget. */
+  /** Recomputing local selections every thirty seconds adds no DOT requests to the frame budget. */
   RADAR_TICK_S: 30,
 } as const;
 

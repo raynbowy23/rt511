@@ -9,7 +9,7 @@ It reads only agencies whose written terms allow a third-party viewer to show th
 You need Node with pnpm, and Python 3.12 or newer with [uv](https://docs.astral.sh/uv/).
 
 ```
-make setup     # dependencies, then a road graph for each of the twelve included cities (a few minutes)
+make setup     # dependencies, then a road graph for each of the 31 included cities (about half an hour, since the OpenStreetMap server is asked politely; run it again if it stops, built cities are kept)
 make start     # builds the wall and serves it
 ```
 

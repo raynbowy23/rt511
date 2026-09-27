@@ -1,0 +1,337 @@
+{
+ "region": "waterloo-ia",
+ "source": "iowadot",
+ "attribution": "Traffic counts courtesy of the Iowa Department of Transportation (Traffic Log Book AADT, CC BY 4.0)",
+ "terms_url": "https://www.arcgis.com/home/item.html?id=0263e8e5f6ee47ba8efdef8ca6c79afe",
+ "segments": 133,
+ "cameras": {
+  "38419": {
+   "aadt": 7700,
+   "year": null,
+   "county": null,
+   "truck_pct": 24.9,
+   "distance_m": 79.9,
+   "aligned": true
+  },
+  "199649": {
+   "aadt": 16000,
+   "year": null,
+   "county": null,
+   "truck_pct": 24.2,
+   "distance_m": 42.5,
+   "aligned": true
+  },
+  "235629": {
+   "aadt": 11700,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.3,
+   "distance_m": 4.5,
+   "aligned": true
+  },
+  "473903": {
+   "aadt": 6100,
+   "year": null,
+   "county": null,
+   "truck_pct": 8.4,
+   "distance_m": 27.4,
+   "aligned": true
+  },
+  "674170": {
+   "aadt": 9200,
+   "year": null,
+   "county": null,
+   "truck_pct": 13.0,
+   "distance_m": 11.8,
+   "aligned": true
+  },
+  "1024624": {
+   "aadt": 9000,
+   "year": null,
+   "county": null,
+   "truck_pct": 14.9,
+   "distance_m": 1.0,
+   "aligned": true
+  },
+  "1233490": {
+   "aadt": 8600,
+   "year": null,
+   "county": null,
+   "truck_pct": 5.9,
+   "distance_m": 3.2,
+   "aligned": true
+  },
+  "1375687": {
+   "aadt": 5500,
+   "year": null,
+   "county": null,
+   "truck_pct": 5.4,
+   "distance_m": 1.1,
+   "aligned": true
+  },
+  "1721553": {
+   "aadt": 9000,
+   "year": null,
+   "county": null,
+   "truck_pct": 14.9,
+   "distance_m": 1.0,
+   "aligned": true
+  },
+  "1912387": {
+   "aadt": 10400,
+   "year": null,
+   "county": null,
+   "truck_pct": 12.8,
+   "distance_m": 44.6,
+   "aligned": true
+  },
+  "1938934": {
+   "aadt": 6100,
+   "year": null,
+   "county": null,
+   "truck_pct": 5.7,
+   "distance_m": 2.9,
+   "aligned": true
+  },
+  "1951281": {
+   "aadt": 10200,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.6,
+   "distance_m": 2.0,
+   "aligned": true
+  },
+  "2339909": {
+   "aadt": 28400,
+   "year": null,
+   "county": null,
+   "truck_pct": 10.4,
+   "distance_m": 41.4,
+   "aligned": true
+  },
+  "2689990": {
+   "aadt": 25600,
+   "year": null,
+   "county": null,
+   "truck_pct": 15.7,
+   "distance_m": 46.2,
+   "aligned": true
+  },
+  "2867735": {
+   "aadt": 11000,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.6,
+   "distance_m": 18.4,
+   "aligned": true
+  },
+  "3631095": {
+   "aadt": 11000,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.6,
+   "distance_m": 18.4,
+   "aligned": true
+  },
+  "4337140": {
+   "aadt": 30400,
+   "year": null,
+   "county": null,
+   "truck_pct": 13.7,
+   "distance_m": 7.4,
+   "aligned": true
+  },
+  "5073860": {
+   "aadt": 34400,
+   "year": null,
+   "county": null,
+   "truck_pct": 18.1,
+   "distance_m": 135.1,
+   "aligned": true
+  },
+  "5131959": {
+   "aadt": 11000,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.6,
+   "distance_m": 6.8,
+   "aligned": true
+  },
+  "5156993": {
+   "aadt": 17000,
+   "year": null,
+   "county": null,
+   "truck_pct": 20.9,
+   "distance_m": 11.2,
+   "aligned": true
+  },
+  "5167287": {
+   "aadt": 30500,
+   "year": null,
+   "county": null,
+   "truck_pct": 19.1,
+   "distance_m": 36.4,
+   "aligned": true
+  },
+  "5328044": {
+   "aadt": 9000,
+   "year": null,
+   "county": null,
+   "truck_pct": 14.9,
+   "distance_m": 26.3,
+   "aligned": true
+  },
+  "5363590": {
+   "aadt": 10200,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.6,
+   "distance_m": 1.6,
+   "aligned": true
+  },
+  "5368669": {
+   "aadt": 26700,
+   "year": null,
+   "county": null,
+   "truck_pct": 14.9,
+   "distance_m": 10.2,
+   "aligned": true
+  },
+  "5442192": {
+   "aadt": 11000,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.6,
+   "distance_m": 7.0,
+   "aligned": true
+  },
+  "5571950": {
+   "aadt": 29900,
+   "year": null,
+   "county": null,
+   "truck_pct": 10.2,
+   "distance_m": 12.4,
+   "aligned": true
+  },
+  "5754093": {
+   "aadt": 9000,
+   "year": null,
+   "county": null,
+   "truck_pct": 14.9,
+   "distance_m": 1.0,
+   "aligned": true
+  },
+  "6130230": {
+   "aadt": 31100,
+   "year": null,
+   "county": null,
+   "truck_pct": 9.3,
+   "distance_m": 11.2,
+   "aligned": true
+  },
+  "6600826": {
+   "aadt": 13800,
+   "year": null,
+   "county": null,
+   "truck_pct": 25.7,
+   "distance_m": 9.0,
+   "aligned": true
+  },
+  "6811327": {
+   "aadt": 26600,
+   "year": null,
+   "county": null,
+   "truck_pct": 10.6,
+   "distance_m": 74.6,
+   "aligned": true
+  },
+  "6812081": {
+   "aadt": 11000,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.6,
+   "distance_m": 11.2,
+   "aligned": true
+  },
+  "6993267": {
+   "aadt": 8600,
+   "year": null,
+   "county": null,
+   "truck_pct": 5.9,
+   "distance_m": 3.3,
+   "aligned": true
+  },
+  "7517835": {
+   "aadt": 9000,
+   "year": null,
+   "county": null,
+   "truck_pct": 14.9,
+   "distance_m": 1.0,
+   "aligned": true
+  },
+  "7612059": {
+   "aadt": 11000,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.6,
+   "distance_m": 6.7,
+   "aligned": true
+  },
+  "8035530": {
+   "aadt": 7800,
+   "year": null,
+   "county": null,
+   "truck_pct": 5.3,
+   "distance_m": 1.1,
+   "aligned": true
+  },
+  "8437647": {
+   "aadt": 34400,
+   "year": null,
+   "county": null,
+   "truck_pct": 18.1,
+   "distance_m": 1.9,
+   "aligned": true
+  },
+  "8844820": {
+   "aadt": 26700,
+   "year": null,
+   "county": null,
+   "truck_pct": 14.9,
+   "distance_m": 9.8,
+   "aligned": true
+  },
+  "9080700": {
+   "aadt": 9000,
+   "year": null,
+   "county": null,
+   "truck_pct": 14.9,
+   "distance_m": 1.0,
+   "aligned": true
+  },
+  "9089642": {
+   "aadt": 17000,
+   "year": null,
+   "county": null,
+   "truck_pct": 20.9,
+   "distance_m": 11.0,
+   "aligned": true
+  },
+  "9186964": {
+   "aadt": 11000,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.6,
+   "distance_m": 11.3,
+   "aligned": true
+  },
+  "9276019": {
+   "aadt": 11000,
+   "year": null,
+   "county": null,
+   "truck_pct": 4.6,
+   "distance_m": 7.2,
+   "aligned": true
+  }
+ }
+}

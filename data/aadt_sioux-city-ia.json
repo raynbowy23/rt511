@@ -1,0 +1,225 @@
+{
+ "region": "sioux-city-ia",
+ "source": "iowadot",
+ "attribution": "Traffic counts courtesy of the Iowa Department of Transportation (Traffic Log Book AADT, CC BY 4.0)",
+ "terms_url": "https://www.arcgis.com/home/item.html?id=0263e8e5f6ee47ba8efdef8ca6c79afe",
+ "segments": 79,
+ "cameras": {
+  "227775": {
+   "aadt": 25600,
+   "year": null,
+   "county": null,
+   "truck_pct": 20.4,
+   "distance_m": 77.2,
+   "aligned": true
+  },
+  "949683": {
+   "aadt": 18400,
+   "year": null,
+   "county": null,
+   "truck_pct": 14.3,
+   "distance_m": 33.7,
+   "aligned": true
+  },
+  "2509211": {
+   "aadt": 33200,
+   "year": null,
+   "county": null,
+   "truck_pct": 10.9,
+   "distance_m": 19.2,
+   "aligned": true
+  },
+  "3357177": {
+   "aadt": 20300,
+   "year": null,
+   "county": null,
+   "truck_pct": 2.4,
+   "distance_m": 12.7,
+   "aligned": true
+  },
+  "3364724": {
+   "aadt": 23300,
+   "year": null,
+   "county": null,
+   "truck_pct": 2.1,
+   "distance_m": 52.6,
+   "aligned": true
+  },
+  "4355673": {
+   "aadt": 14400,
+   "year": null,
+   "county": null,
+   "truck_pct": 3.5,
+   "distance_m": 19.9,
+   "aligned": true
+  },
+  "4700517": {
+   "aadt": 29100,
+   "year": null,
+   "county": null,
+   "truck_pct": 15.2,
+   "distance_m": 30.2,
+   "aligned": true
+  },
+  "4758730": {
+   "aadt": 17700,
+   "year": null,
+   "county": null,
+   "truck_pct": 27.1,
+   "distance_m": 133.9,
+   "aligned": true
+  },
+  "4968628": {
+   "aadt": 29500,
+   "year": null,
+   "county": null,
+   "truck_pct": 11.5,
+   "distance_m": 10.2,
+   "aligned": true
+  },
+  "5313110": {
+   "aadt": 15600,
+   "year": null,
+   "county": null,
+   "truck_pct": 7.1,
+   "distance_m": 11.1,
+   "aligned": true
+  },
+  "5744755": {
+   "aadt": 18900,
+   "year": null,
+   "county": null,
+   "truck_pct": 26.1,
+   "distance_m": 43.0,
+   "aligned": true
+  },
+  "5746031": {
+   "aadt": 2970,
+   "year": null,
+   "county": null,
+   "truck_pct": 13.5,
+   "distance_m": 39.3,
+   "aligned": true
+  },
+  "6005018": {
+   "aadt": 13200,
+   "year": null,
+   "county": null,
+   "truck_pct": 11.4,
+   "distance_m": 4.9,
+   "aligned": true
+  },
+  "6281024": {
+   "aadt": 15200,
+   "year": null,
+   "county": null,
+   "truck_pct": 7.3,
+   "distance_m": 11.3,
+   "aligned": true
+  },
+  "6986850": {
+   "aadt": 32300,
+   "year": null,
+   "county": null,
+   "truck_pct": 12.0,
+   "distance_m": 51.7,
+   "aligned": true
+  },
+  "7609686": {
+   "aadt": 22500,
+   "year": null,
+   "county": null,
+   "truck_pct": 2.1,
+   "distance_m": 104.1,
+   "aligned": false
+  },
+  "7661841": {
+   "aadt": 29100,
+   "year": null,
+   "county": null,
+   "truck_pct": 15.2,
+   "distance_m": 5.3,
+   "aligned": true
+  },
+  "7691692": {
+   "aadt": 31300,
+   "year": null,
+   "county": null,
+   "truck_pct": 11.6,
+   "distance_m": 23.8,
+   "aligned": true
+  },
+  "7878097": {
+   "aadt": 32300,
+   "year": null,
+   "county": null,
+   "truck_pct": 12.0,
+   "distance_m": 48.1,
+   "aligned": true
+  },
+  "7889004": {
+   "aadt": 33200,
+   "year": null,
+   "county": null,
+   "truck_pct": 10.9,
+   "distance_m": 24.6,
+   "aligned": true
+  },
+  "8124249": {
+   "aadt": 18900,
+   "year": null,
+   "county": null,
+   "truck_pct": 26.1,
+   "distance_m": 26.7,
+   "aligned": true
+  },
+  "8451999": {
+   "aadt": 22500,
+   "year": null,
+   "county": null,
+   "truck_pct": 2.1,
+   "distance_m": 23.6,
+   "aligned": true
+  },
+  "8658814": {
+   "aadt": 29100,
+   "year": null,
+   "county": null,
+   "truck_pct": 15.2,
+   "distance_m": 30.3,
+   "aligned": true
+  },
+  "8933400": {
+   "aadt": 26500,
+   "year": null,
+   "county": null,
+   "truck_pct": 10.6,
+   "distance_m": 35.5,
+   "aligned": true
+  },
+  "9244862": {
+   "aadt": 29100,
+   "year": null,
+   "county": null,
+   "truck_pct": 15.2,
+   "distance_m": 32.9,
+   "aligned": true
+  },
+  "9711465": {
+   "aadt": 29100,
+   "year": null,
+   "county": null,
+   "truck_pct": 15.2,
+   "distance_m": 11.0,
+   "aligned": true
+  },
+  "9990747": {
+   "aadt": 29100,
+   "year": null,
+   "county": null,
+   "truck_pct": 15.2,
+   "distance_m": 15.7,
+   "aligned": true
+  }
+ }
+}

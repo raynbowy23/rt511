@@ -1,5 +1,22 @@
 [
  {
+  "key": "akron-oh",
+  "name": "Akron, OH",
+  "source": "ohgo",
+  "bbox": [
+   40.9474,
+   -81.6985,
+   41.2187,
+   -81.3385
+  ],
+  "center": [
+   41.083064,
+   -81.518485
+  ],
+  "radius_km": 15.0,
+  "limit": 70
+ },
+ {
   "key": "burlington-vt",
   "name": "Burlington, VT",
   "source": "necompass",
@@ -15,6 +32,23 @@
   ],
   "radius_km": 15.0,
   "limit": 80
+ },
+ {
+  "key": "cedar-rapids-ia",
+  "name": "Cedar Rapids, IA",
+  "source": "iowadot",
+  "bbox": [
+   41.795,
+   -91.9137,
+   42.1568,
+   -91.4271
+  ],
+  "center": [
+   41.975887,
+   -91.670405
+  ],
+  "radius_km": 20.0,
+  "limit": 130
  },
  {
   "key": "cincinnati-oh",
@@ -68,21 +102,123 @@
   "limit": 80
  },
  {
+  "key": "council-bluffs-ia",
+  "name": "Council Bluffs, IA",
+  "source": "iowadot",
+  "bbox": [
+   41.1232,
+   -96.0324,
+   41.3945,
+   -95.6715
+  ],
+  "center": [
+   41.258841,
+   -95.851948
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
+  "key": "davenport-ia",
+  "name": "Davenport, IA",
+  "source": "iowadot",
+  "bbox": [
+   41.3868,
+   -90.7568,
+   41.6581,
+   -90.3945
+  ],
+  "center": [
+   41.522469,
+   -90.57564
+  ],
+  "radius_km": 15.0,
+  "limit": 50
+ },
+ {
+  "key": "dayton-oh",
+  "name": "Dayton, OH",
+  "source": "ohgo",
+  "bbox": [
+   39.6233,
+   -84.3681,
+   39.8946,
+   -84.0151
+  ],
+  "center": [
+   39.758948,
+   -84.191607
+  ],
+  "radius_km": 15.0,
+  "limit": 75
+ },
+ {
   "key": "des-moines-ia",
   "name": "Des Moines, IA",
   "source": "iowadot",
   "bbox": [
-   41.4512,
-   -93.8063,
-   41.7225,
-   -93.4436
+   41.406,
+   -93.8668,
+   41.7677,
+   -93.3831
   ],
   "center": [
    41.586865,
    -93.624949
   ],
+  "radius_km": 20.0,
+  "limit": 160
+ },
+ {
+  "key": "dubuque-ia",
+  "name": "Dubuque, IA",
+  "source": "iowadot",
+  "bbox": [
+   42.365,
+   -90.8488,
+   42.6363,
+   -90.4808
+  ],
+  "center": [
+   42.500624,
+   -90.664799
+  ],
   "radius_km": 15.0,
-  "limit": 80
+  "limit": 50
+ },
+ {
+  "key": "eugene-or",
+  "name": "Eugene, OR",
+  "source": "tripcheck",
+  "bbox": [
+   43.9148,
+   -123.2838,
+   44.1862,
+   -122.9063
+  ],
+  "center": [
+   44.050505,
+   -123.095051
+  ],
+  "radius_km": 15.0,
+  "limit": 50
+ },
+ {
+  "key": "fontana-ca",
+  "name": "Fontana, CA",
+  "source": "caltrans",
+  "bbox": [
+   33.9114,
+   -117.6527,
+   34.2732,
+   -117.2159
+  ],
+  "center": [
+   34.092295,
+   -117.43433
+  ],
+  "radius_km": 20.0,
+  "limit": 150
  },
  {
   "key": "lexington-ky",
@@ -136,6 +272,40 @@
   "limit": 80
  },
  {
+  "key": "manchester-nh",
+  "name": "Manchester, NH",
+  "source": "necompass",
+  "bbox": [
+   42.8148,
+   -71.7021,
+   43.1765,
+   -71.2075
+  ],
+  "center": [
+   42.99564,
+   -71.454789
+  ],
+  "radius_km": 20.0,
+  "limit": 60
+ },
+ {
+  "key": "menifee-ca",
+  "name": "Menifee, CA",
+  "source": "caltrans",
+  "bbox": [
+   33.5507,
+   -117.3409,
+   33.8221,
+   -117.0148
+  ],
+  "center": [
+   33.686399,
+   -117.17786
+  ],
+  "radius_km": 15.0,
+  "limit": 80
+ },
+ {
   "key": "oakland-ca",
   "name": "Oakland, CA",
   "source": "caltrans",
@@ -151,6 +321,23 @@
   ],
   "radius_km": 15.0,
   "limit": 80
+ },
+ {
+  "key": "oceanside-ca",
+  "name": "Oceanside, CA",
+  "source": "caltrans",
+  "bbox": [
+   33.0602,
+   -117.5416,
+   33.3315,
+   -117.2174
+  ],
+  "center": [
+   33.19587,
+   -117.379483
+  ],
+  "radius_km": 15.0,
+  "limit": 70
  },
  {
   "key": "portland-me",
@@ -187,6 +374,40 @@
   "limit": 80
  },
  {
+  "key": "portsmouth-nh",
+  "name": "Portsmouth, NH",
+  "source": "necompass",
+  "bbox": [
+   42.9395,
+   -70.9459,
+   43.2108,
+   -70.5745
+  ],
+  "center": [
+   43.075131,
+   -70.760183
+  ],
+  "radius_km": 15.0,
+  "limit": 85
+ },
+ {
+  "key": "sacramento-ca",
+  "name": "Sacramento, CA",
+  "source": "caltrans",
+  "bbox": [
+   38.4454,
+   -121.6674,
+   38.7167,
+   -121.3204
+  ],
+  "center": [
+   38.581061,
+   -121.493895
+  ],
+  "radius_km": 15.0,
+  "limit": 150
+ },
+ {
   "key": "san-diego-ca",
   "name": "San Diego, CA",
   "source": "caltrans",
@@ -202,5 +423,107 @@
   ],
   "radius_km": 15.0,
   "limit": 80
+ },
+ {
+  "key": "san-jose-ca",
+  "name": "San Jose, CA",
+  "source": "caltrans",
+  "bbox": [
+   37.2005,
+   -122.0612,
+   37.4718,
+   -121.72
+  ],
+  "center": [
+   37.336166,
+   -121.890591
+  ],
+  "radius_km": 15.0,
+  "limit": 150
+ },
+ {
+  "key": "santa-ana-ca",
+  "name": "Santa Ana, CA",
+  "source": "caltrans",
+  "bbox": [
+   33.5686,
+   -118.0908,
+   33.9304,
+   -117.6557
+  ],
+  "center": [
+   33.749495,
+   -117.873221
+  ],
+  "radius_km": 20.0,
+  "limit": 150
+ },
+ {
+  "key": "sioux-city-ia",
+  "name": "Sioux City, IA",
+  "source": "iowadot",
+  "bbox": [
+   42.361,
+   -96.5899,
+   42.6323,
+   -96.2219
+  ],
+  "center": [
+   42.496682,
+   -96.405878
+  ],
+  "radius_km": 15.0,
+  "limit": 50
+ },
+ {
+  "key": "stockton-ca",
+  "name": "Stockton, CA",
+  "source": "caltrans",
+  "bbox": [
+   37.822,
+   -121.4628,
+   38.0934,
+   -121.1187
+  ],
+  "center": [
+   37.957702,
+   -121.290779
+  ],
+  "radius_km": 15.0,
+  "limit": 50
+ },
+ {
+  "key": "toledo-oh",
+  "name": "Toledo, OH",
+  "source": "ohgo",
+  "bbox": [
+   41.5173,
+   -83.7194,
+   41.7886,
+   -83.3563
+  ],
+  "center": [
+   41.652914,
+   -83.537817
+  ],
+  "radius_km": 15.0,
+  "limit": 50
+ },
+ {
+  "key": "waterloo-ia",
+  "name": "Waterloo, IA",
+  "source": "iowadot",
+  "bbox": [
+   42.3626,
+   -92.5169,
+   42.6339,
+   -92.1489
+  ],
+  "center": [
+   42.498275,
+   -92.332874
+  ],
+  "radius_km": 15.0,
+  "limit": 60
  }
 ]
