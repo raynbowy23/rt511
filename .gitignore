@@ -7,8 +7,8 @@ data/osm_*.json
 data/local/
 node_modules/
 web/dist/
-server/dist/**/*.test.js
-server/dist/**/*.test.js.map
+# Built by make start, make build and the server's test script; never committed.
+server/dist/
 .pnpm-store/
 .env
 .env.*

@@ -48,7 +48,8 @@ sync: ## Python dependencies only, detector included (plain `uv sync` would remo
 start: ## build, then serve on 8511
 	pnpm start $(ARGS)
 
-serve: ## serve without rebuilding
+serve: ## serve the last build without rebuilding (make build first on a fresh clone)
+	@test -f server/dist/server/src/index.js || { echo 'no server build yet: run make build, or make start to build and serve'; exit 1; }
 	pnpm serve $(ARGS)
 
 dev: ## Vite with hot reload on 5173 and the API on 8511

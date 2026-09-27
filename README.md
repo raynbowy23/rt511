@@ -50,7 +50,7 @@ Every request identifies the project and links to this repository in its User-Ag
 | Directory | Language | Role |
 | --- | --- | --- |
 | `src/rt511/` | Python | Offline pipeline. Finds cameras, matches them to roads, builds graphs. You run it by hand. |
-| `server/` | TypeScript | The web service. Serves the API and proxies video. |
+| `server/` | TypeScript | The web service. Serves the API, the snapshots it holds in memory and the built wall. Video never passes through it. |
 | `web/` | React | The wall itself. |
 | `shared/` | TypeScript | Types shared by the server and the wall. |
 
