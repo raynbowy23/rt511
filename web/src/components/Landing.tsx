@@ -53,8 +53,8 @@ export function Landing({
 
 /** Colours for the three kinds of light, and the sun elevation that separates them. Civil twilight, six degrees either side of the horizon, is the band that reads as sunset. */
 const LIGHT = {
-  day: [243, 226, 178],
-  dusk: [236, 138, 72],
+  day: [248, 212, 138],
+  dusk: [242, 118, 58],
   night: [120, 150, 236],
   DUSK_DEG: 6,
 } as const;
@@ -188,7 +188,7 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
         const g = contexts[layerOf[i]!];
         if (!g) continue;
         // Low enough that a city of hundreds of cameras glows rather than burning out to white, since the lights add up where they overlap.
-        g.globalAlpha = kind === 'night' ? 0.42 : kind === 'dusk' ? 0.72 : 0.5;
+        g.globalAlpha = kind === 'night' ? 0.42 : kind === 'dusk' ? 0.72 : 0.36;
         g.drawImage(sprites[kind], point.x * scale + offsetX - size / 2, point.y * scale + offsetY - size / 2, size, size);
       }
     };

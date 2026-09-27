@@ -276,7 +276,16 @@ export function CameraPanel({
             ))}
           </div>
         )}
-        <LiveMotion key={camera?.id ?? 'none'} video={video} axes={axes} active={visible && camera !== null && live && streaming} />
+        {/* The live line needs pictures faster than the wall's own minute: a stream, or an agency that refreshes its snapshots every few seconds. A camera with neither has nothing to draw it from, so it is left out rather than left waiting. */}
+        {camera && (camera.has_video || focusPeriod !== null) && (
+          <LiveMotion
+            key={camera.id}
+            video={video}
+            axes={axes}
+            active={visible && live && streaming}
+            still={!streaming && focusPeriod !== null && focusTs !== null && visible && live ? { src: liveUrl(camera.id, focusTs), periodS: focusPeriod } : null}
+          />
+        )}
         <dl className="hero-facts">
           <dt>Camera</dt>
           <dd>#{camera?.id ?? ''}</dd>

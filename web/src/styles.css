@@ -1184,6 +1184,11 @@ body.is-expanded {
   padding-right: calc(var(--arb-w) + 20px);
 }
 
+/* The closed Scores tab sits on the right edge, about thirty pixels wide, so the stage keeps a lane clear of it rather than letting it cover the city list or the wall's top-right tiles. */
+.stage:not(.has-arbiter) {
+  padding-right: 52px;
+}
+
 .stage[data-level='map'].has-camera {
   grid-template-columns: minmax(0, 1fr) 10px var(--dock-w, 460px);
 }
@@ -1347,6 +1352,17 @@ body.is-expanded {
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+}
+
+.national-state {
+  margin: 14px 0 0;
+  padding: 0 2px 6px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
 }
 
 .national-summary {
@@ -3086,11 +3102,11 @@ body[data-view='home'] .stage {
 }
 
 .landing-legend .is-day {
-  background: rgb(243, 226, 178);
+  background: rgb(248, 212, 138);
 }
 
 .landing-legend .is-dusk {
-  background: rgb(236, 138, 72);
+  background: rgb(242, 118, 58);
 }
 
 .landing-legend .is-night {

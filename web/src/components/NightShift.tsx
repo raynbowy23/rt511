@@ -12,6 +12,7 @@ const ZONES: Record<string, string> = {
   vt: 'America/New_York',
   nh: 'America/New_York',
   me: 'America/New_York',
+  wi: 'America/Chicago',
 };
 
 /** How often the open camera is asked about. The server counts each frame once, so asking more often than frames arrive costs nothing but a lookup. */
