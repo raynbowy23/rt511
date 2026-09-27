@@ -8,7 +8,7 @@
 # Variables pass straight through, e.g. `make start ARGS="--regions oakland-ca"` or `make detect DEVICE=cpu`.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup install sync start serve dev up build check test test-server test-web test-python smoke figures \
+.PHONY: help setup install sync start serve dev up build check test test-server test-web test-python smoke release figures \
 	detect detect-cpu sources regions index metros city catalog graph counts add-city
 
 # Extra arguments for the server, e.g. ARGS="--regions oakland-ca,des-moines-ia --cameras freeway".
@@ -72,8 +72,8 @@ build: ## build the server and the wall
 check: ## type-check and lint the TypeScript, then lint the Python and check its formatting
 	pnpm check
 	pnpm lint
-	$(RUFF) check src tests
-	$(RUFF) format --check src tests
+	$(RUFF) check src tests scripts
+	$(RUFF) format --check src tests scripts
 
 test: test-server test-web test-python ## every test suite
 
@@ -88,6 +88,10 @@ test-web:
 
 test-python:
 	uv run python -m unittest discover -s tests
+
+release: ## bump every version, write the changelog, run the gates, commit and tag: VERSION=0.3.0 (never pushes)
+	@test -n "$(VERSION)" || { echo 'usage: make release VERSION=x.y.z'; exit 1; }
+	uv run --no-project python scripts/release.py $(VERSION)
 
 figures: ## redraw docs/figures from the built constants, after a tuning change
 	pnpm --filter @rt511/server run build
