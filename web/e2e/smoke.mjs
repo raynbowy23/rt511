@@ -38,8 +38,34 @@ const children = [];
 const cleanups = [];
 process.on('exit', () => {
   for (const child of children) child.kill();
-  for (const cleanup of cleanups) cleanup();
+  // A last resort for a run that ended early: a scratch folder left in /tmp is not worth failing over.
+  for (const cleanup of cleanups) {
+    try {
+      cleanup();
+    } catch {
+      // Ignored on purpose.
+    }
+  }
 });
+
+/** Stops Chrome and the server and waits for them to exit before their scratch folders are removed. Removing Chrome's profile while it is still shutting down fails with ENOTEMPTY or EACCES, which is what made the odd run fail after every step had passed. */
+async function shutdown() {
+  await Promise.all(
+    children.map(
+      (child) =>
+        new Promise((resolveExit) => {
+          if (child.exitCode !== null || child.signalCode !== null) return resolveExit();
+          const timer = setTimeout(resolveExit, 5000);
+          child.once('exit', () => {
+            clearTimeout(timer);
+            resolveExit();
+          });
+          child.kill();
+        }),
+    ),
+  );
+  children.length = 0;
+}
 
 const server = spawn(process.execPath, [serverEntry, '--root', root, '--port', String(PORT)], {
   env: { ...process.env, JEV_API: '', RT511_DETECTOR_URL: 'http://127.0.0.1:9' },
@@ -51,7 +77,7 @@ server.stderr.on('data', (chunk) => (serverLog += chunk));
 await until(async () => (await fetch(`${BASE}/api/regions`).catch(() => null))?.ok, 'the server to answer', 30_000);
 
 const profile = mkdtempSync(join(tmpdir(), 'rt511-smoke-chrome-'));
-cleanups.push(() => rmSync(profile, { recursive: true, force: true }));
+cleanups.push(() => rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }));
 const chrome = spawn(findChrome(), ['--headless=new', `--remote-debugging-port=${DEBUG_PORT}`, `--user-data-dir=${profile}`, '--window-size=1400,900', '--no-first-run', '--no-default-browser-check', '--disable-gpu', ...(process.env.CI ? ['--no-sandbox'] : []), 'about:blank'], { stdio: 'ignore' });
 children.push(chrome);
 
@@ -96,6 +122,7 @@ await step('the diary opens and says how to use it', async () => {
 
 if (errors.length > 0) fail(`the page reported ${errors.length} error(s):\n  ${errors.join('\n  ')}`);
 console.log('smoke: every step passed with no page errors');
+await shutdown();
 process.exit(0);
 
 // ---------------------------------------------------------------------------
