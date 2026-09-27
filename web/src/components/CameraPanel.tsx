@@ -27,6 +27,7 @@ export function CameraPanel({
   incidents,
   visible,
   onClose,
+  onBack,
   onExpanded,
   overlay = null,
 }: {
@@ -42,6 +43,8 @@ export function CameraPanel({
   visible: boolean;
   onClose: () => void;
   onExpanded: (expanded: boolean) => void;
+  /** Leaves the camera and the city for the country map of states. */
+  onBack?: () => void;
   /** Drawn over the picture, such as a road trip's progress. */
   overlay?: ReactNode;
 }): ReactElement {
@@ -243,6 +246,11 @@ export function CameraPanel({
         {overlay}
       </div>
       <div className="hero-panel">
+        {onBack && (
+          <button type="button" className="hero-back" onClick={onBack} title="Back to the map of every state">
+            <span aria-hidden="true">←</span> All states
+          </button>
+        )}
         <div className="hero-titles">
           <div className="hero-road">{camera ? (camera.direction ? `${camera.roadway} · ${camera.direction}` : camera.roadway) : ''}</div>
           <h1 className="hero-where">{camera?.location ?? ''}</h1>

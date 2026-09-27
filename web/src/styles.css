@@ -540,6 +540,40 @@ button.crumb:hover {
   background: var(--bg-raise);
 }
 
+.hero-back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 -6px;
+  padding: 6px 12px 6px 10px;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 200ms ease, border-color 200ms ease, transform 200ms ease;
+}
+
+.hero-back span {
+  font-size: 13px;
+  letter-spacing: 0;
+  transition: transform 200ms ease;
+}
+
+.hero-back:hover {
+  color: var(--fg);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.hero-back:hover span {
+  transform: translateX(-3px);
+}
+
 .hero-road {
   color: var(--muted);
 }

@@ -720,6 +720,11 @@ export function App(): ReactElement {
           incidents={nearbyIncidents}
           visible={cameraOpen}
           onClose={closeCamera}
+          onBack={() => {
+            tour.stop();
+            stopTrip();
+            goNational();
+          }}
           onExpanded={setExpanded}
           overlay={trip ? <TripHud trip={trip.trip} index={trip.index} onStop={stopTrip} /> : relay ? <RelayHud pick={relay} now={relayNow} onStop={stopRelay} /> : null}
         />

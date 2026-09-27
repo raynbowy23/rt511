@@ -127,6 +127,15 @@ await step('the diary opens and says how to use it', async () => {
   await expect("!!document.querySelector('.diary .diary-hint')");
 });
 
+await step('the All states arrow on a camera goes back to the country map', async () => {
+  await open('/#region=des-moines-ia&view=wall');
+  await expect("document.querySelectorAll('.tile').length > 0");
+  await evaluate("document.querySelector('.tile').click()");
+  await expect("!!document.querySelector('.hero:not([hidden]) .hero-back')");
+  await evaluate("document.querySelector('.hero-back').click()");
+  await expect("document.body.dataset.view === 'national' && !!document.querySelector('.hero[hidden]')");
+});
+
 if (errors.length > 0) fail(`the page reported ${errors.length} error(s):\n  ${errors.join('\n  ')}`);
 console.log('smoke: every step passed with no page errors');
 await shutdown();
