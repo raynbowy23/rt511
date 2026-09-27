@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, test } from 'node:test';
-import { catalogPath, loadRegions, loadSources } from './config.js';
+import { catalogPath, loadRegions, loadSources, sourceBlocks } from './config.js';
 
 const roots: string[] = [];
 after(() => {
@@ -53,4 +53,11 @@ test('a local city\'s catalog is read from data/local, and a published city\'s f
   writeFileSync(join(path, 'data', 'local', 'cameras_city-b.json'), '[]');
   assert.equal(catalogPath(path, 'city-b'), join(path, 'data', 'local', 'cameras_city-b.json'));
   assert.equal(catalogPath(path, 'city-a'), join(path, 'data', 'cameras_city-a.json'));
+});
+
+test('a local source is numbered after every published one, so published camera ids never move', () => {
+  const plain = loadSources(root(null)).sources;
+  const withLocal = loadSources(root({ sources: { aaa: source('Sorts first') } })).sources;
+  assert.equal(sourceBlocks(withLocal).get('published'), sourceBlocks(plain).get('published'));
+  assert.equal(sourceBlocks(withLocal).get('aaa'), 1);
 });

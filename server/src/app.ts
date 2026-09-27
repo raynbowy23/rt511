@@ -11,6 +11,7 @@ import { CadFeed, loadCadSources, type CameraPositions } from './cad.js';
 import { Client } from './client.js';
 import {
   catalogPath,
+  sourceBlocks,
   round,
   centroid,
   graphPath,
@@ -116,8 +117,8 @@ export function createApp(options: AppOptions): App {
     selected = selected.concat(selectCameras(loadCatalog(catalogPath(root, region.key)), graph, spec));
   }
 
-  // Camera ids are unique only within one 511 site, so serving several states at once needs a global id. The site's position in a sorted list gives each one a disjoint block, which keeps the ids integers and stable across runs.
-  const ordinal = new Map<string, number>([...Object.keys(sources)].sort().map((key, i) => [key, i]));
+  // Camera ids are unique only within one 511 site, so serving several states at once needs a global id. Each site gets a disjoint block, which keeps the ids integers and stable across runs, and a local source cannot move a published one.
+  const ordinal = sourceBlocks(sources);
   const byId = new Map<number, CatalogCamera>();
   for (const camera of selected) {
     const block = ordinal.get(camera.source);

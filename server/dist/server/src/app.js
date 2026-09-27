@@ -7,7 +7,7 @@ import { AttentionEngine, buildScalePriors, driver, summarizeRegions, TUNING } f
 import { CORRIDOR, buildQueueIndex, promotionTrigger, selectPromotions } from './corridor.js';
 import { CadFeed, loadCadSources } from './cad.js';
 import { Client } from './client.js';
-import { catalogPath, round, centroid, graphPath, loadAadt, loadCatalog, loadGraph, loadNationalIndex, loadRegions, loadSources, loadStates, roadBackground, } from './config.js';
+import { catalogPath, sourceBlocks, round, centroid, graphPath, loadAadt, loadCatalog, loadGraph, loadNationalIndex, loadRegions, loadSources, loadStates, roadBackground, } from './config.js';
 import { HttpError, Router, send } from './http.js';
 import { DETECTOR, Detector, createDetect } from './detector.js';
 import { Focus } from './focus.js';
@@ -76,8 +76,8 @@ export function createApp(options) {
         graphs.set(region.key, graph);
         selected = selected.concat(selectCameras(loadCatalog(catalogPath(root, region.key)), graph, spec));
     }
-    // Camera ids are unique only within one 511 site, so serving several states at once needs a global id. The site's position in a sorted list gives each one a disjoint block, which keeps the ids integers and stable across runs.
-    const ordinal = new Map([...Object.keys(sources)].sort().map((key, i) => [key, i]));
+    // Camera ids are unique only within one 511 site, so serving several states at once needs a global id. Each site gets a disjoint block, which keeps the ids integers and stable across runs, and a local source cannot move a published one.
+    const ordinal = sourceBlocks(sources);
     const byId = new Map();
     for (const camera of selected) {
         const block = ordinal.get(camera.source);

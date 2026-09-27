@@ -30,6 +30,8 @@ export interface Source {
   max_requests_per_s: number | null;
   /** How often the one camera open in the panel is fetched, where the agency's pictures refresh faster than the wall's poll period. Null keeps the open camera on the ordinary period, which is right wherever the picture itself changes no faster than that. */
   focus_period_s: number | null;
+  /** True for a source from data/local/sources.json rather than the published table. */
+  local: boolean;
   /** For a bulk source, the state networks its snapshot documents are fetched by, keyed by state. */
   feed: Record<string, unknown>;
 }
@@ -149,6 +151,7 @@ export function loadSources(root: string): SourceTable {
       notice: typeof rec.notice === 'string' ? rec.notice : '',
       max_requests_per_s: typeof rec.max_requests_per_s === 'number' && rec.max_requests_per_s > 0 ? rec.max_requests_per_s : null,
       focus_period_s: typeof rec.focus_period_s === 'number' && rec.focus_period_s > 0 ? rec.focus_period_s : null,
+      local: key in local,
       feed: typeof rec.feed === 'object' && rec.feed !== null ? (rec.feed as Record<string, unknown>) : {},
     };
   }
@@ -189,6 +192,13 @@ export function centroid(region: RegionRecord): [number, number] {
 function dataFile(root: string, name: string): string {
   const local = join(root, 'data', 'local', name);
   return existsSync(local) ? local : join(root, 'data', name);
+}
+
+/** Each source's block in the global camera id space: the published sources in alphabetical order, then local ones after them. A camera's global id is its block times ten million plus its native id, so a published camera keeps its id whatever local sources a machine adds, and saved links and diary entries keep pointing at it. */
+export function sourceBlocks(sources: Record<string, Source>): Map<string, number> {
+  const keys = Object.keys(sources);
+  const ordered = [...keys.filter((key) => !sources[key]?.local).sort(), ...keys.filter((key) => sources[key]?.local).sort()];
+  return new Map(ordered.map((key, i) => [key, i]));
 }
 
 export function catalogPath(root: string, key: string): string {
