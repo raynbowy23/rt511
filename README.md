@@ -1,6 +1,6 @@
 # rt511
 
-A traffic camera wall built from state transportation agencies' published camera feeds. It opens on a map of the United States showing where cameras are, you pick a city, and you get that city's cameras laid out on its road network. Click one to watch it live.
+A traffic camera wall built from state transportation agencies' published camera feeds. It opens on a picture of every camera in the country, each lit by the sun that is on it right now. Step in to the map, pick a city, and you get that city's cameras laid out on its road network and ranked on a wall. Click one to watch it: a red LIVE badge where the agency streams video, a grey SNAPSHOT with its refresh where it publishes stills.
 
 It reads only agencies whose written terms allow a third-party viewer to show their cameras, through the feeds they publish for that purpose: California, Iowa, Kentucky, Ohio, Oregon, Maine, New Hampshire and Vermont, 7,641 cameras in all. See [Camera sources](#camera-sources) and [Disclaimer](#disclaimer).
 
@@ -192,6 +192,8 @@ States that are not listed either publish no terms permitting a third-party view
 Road geometry is © OpenStreetMap contributors under the ODbL. State boundaries come from Natural Earth and are public domain. There's deliberately no tile layer anywhere: the volunteer-run OpenStreetMap tile servers aren't meant to be an app's background, so roads are drawn as vectors from the cached extract instead.
 
 Each person runs their own copy on their own machine. Nothing is hosted, and no camera data passes through anyone else.
+
+If you have your own arrangement with an agency that is not listed, for instance a developer key whose terms need the agency's written consent before any public use, you can run it on your machine without it ever reaching a commit: see [Local sources](docs/sources.md#local-sources).
 
 ## License
 
