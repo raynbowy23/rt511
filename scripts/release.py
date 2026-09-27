@@ -4,6 +4,8 @@
 
 The version lives in seven places, and they drift when bumped by hand: the four package.json files, pyproject.toml, the rt511 entry in uv.lock, and the User-Agent in data/sources.json that every agency sees. This changes all of them together. uv.lock is edited on the one line rather than regenerated, because `uv lock` also rewrites unrelated platform markers.
 
+A hand-written summary in docs/releases/<version>.md, if present, opens the changelog entry and serves as the GitHub release notes.
+
 It refuses to run on anything but a clean main that matches its upstream, refuses a version that does not move forward, and commits nothing unless `make check`, `make test` and `make smoke` pass. It never pushes; it prints the command.
 """
 
@@ -51,11 +53,18 @@ def bump(version: str) -> None:
 def changelog(version: str, previous_tag: str) -> None:
     """Prepends this release's entry: its date and the subject of every commit since the last release, which in this repository are written to be read."""
     subjects = run("git", "log", "--reverse", "--format=%s", f"{previous_tag}..HEAD", capture=True).splitlines()
-    entry = f"## {version} ({datetime.date.today().isoformat()})\n\n" + "".join(f"- {subject}\n" for subject in subjects) + "\n"
+    # A short summary written by hand, if there is one, reads before the full list.
+    notes = ROOT / "docs" / "releases" / f"{version}.md"
+    summary = notes.read_text().strip() + "\n\nEvery change:\n\n" if notes.exists() else ""
+    entry = f"## {version} ({datetime.date.today().isoformat()})\n\n" + summary + "".join(f"- {subject}\n" for subject in subjects) + "\n"
     path = ROOT / "CHANGELOG.md"
     head = "# Changelog\n\nEach release lists the commits it carries, in the order they landed.\n\n"
     body = path.read_text().removeprefix(head) if path.exists() else ""
     path.write_text(head + entry + body)
+
+
+def notes_exist(version: str) -> bool:
+    return (ROOT / "docs" / "releases" / f"{version}.md").exists()
 
 
 def main() -> None:
@@ -90,6 +99,8 @@ def main() -> None:
     run("git", "commit", "-q", "-m", f"Call it {version}")
     run("git", "tag", "-a", f"v{version}", "-m", f"rt511 {version}")
     print(f"release: v{version} committed and tagged. Publish with:\n  git push origin main v{version}")
+    if notes_exist(version):
+        print(f"  gh release create v{version} --title 'rt511 {version}' --notes-file docs/releases/{version}.md")
 
 
 if __name__ == "__main__":
