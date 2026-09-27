@@ -80,7 +80,7 @@ export function ScoresPane({ open, onOpen, region, onRegion, onCamera }: {
     <button type="button" className="arb-tab" onClick={() => onOpen(!open)} aria-expanded={open}><span className="arb-tab-text">SCORES</span></button>
     {open && <div className="arb-body">
       <header className="arb-head"><h2>Scores</h2></header>
-      {!!data?.graph_promoted?.length && <p className="arb-caption"><HoverCard content={<p>When one camera shows an incident, stopped traffic or unusual movement, cameras around it on the road graph are fetched every minute instead of every five, for five minutes after the change was last seen.</p>}>{data.graph_promoted.length} cameras watched closely because a neighbour changed</HoverCard></p>}
+      {!!data?.graph_promoted?.length && <p className="arb-caption"><HoverCard content={<p>When one camera shows an incident, stopped traffic or unusual movement, cameras around it on the road graph are fetched with the cameras on screen rather than with the rest of the city, for five minutes after the change was last seen.</p>}>{data.graph_promoted.length} cameras watched closely because a neighbour changed</HoverCard></p>}
       <div className="score-toggle" aria-label="Score view">{(['cities', 'cameras'] as const).map((choice) => <button key={choice} type="button" aria-pressed={view === choice} onClick={() => {
         setView(choice);
         try { localStorage.setItem('rt511.scores.view', choice); } catch { /* Storage is optional for the view choice. */ }

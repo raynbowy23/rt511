@@ -35,13 +35,13 @@ The files on disk are all text, and none of them is a picture: the source table,
 
 ## What it costs to run
 
-Each camera is polled no faster than its agency refreshes it: every five minutes for Caltrans, which publishes that interval, and every minute elsewhere until a source's rate has been measured. Cameras nobody is looking at slow down further. The poller waits on each image's `Last-Modified` rather than ticking on a fixed clock, and only keeps a frame if the bytes changed.
+The aim is that one person watching rt511 costs an agency about what one person watching its own 511 site does. Each server asks each agency for at most one on-screen picture every 5 seconds and one off-screen picture every 10 seconds, however big the wall: a wall of ten cameras refreshes each tile every minute, a wall of forty every three minutes or so, and cameras off screen every ten minutes or longer. No camera is asked more often than its agency refreshes it, every five minutes for Caltrans, which publishes that interval, and every minute elsewhere. Every request is conditional, so an unchanged picture costs a "not modified" reply of a few hundred bytes, and a picture that has stopped updating is asked about once a period, not sooner. A browser tab nobody can see asks for nothing, and a city nobody has open is not polled at all.
 
 The camera open in the panel can go faster. Where an agency's pictures refresh quicker than the wall polls, that one camera is fetched at the agency's own rate for as long as the panel stays open: every 5 seconds in Ohio, which ODOT publishes, and every 15 seconds in Kentucky, which is what its pictures measured. The panel crossfades from one picture to the next, and the badge says how often a new one arrives, as in "Snapshot · 5 s" in grey. A camera with video gets a red "Live" pill instead, on the panel and on its wall tile, so the two can be told apart at a glance. These pictures are kept apart from the replay and the scoring, which stay on the ordinary poll, and only the newest is held.
 
 | | |
 | --- | --- |
-| Snapshot requests | one per camera per refresh period, only for cities someone has open |
+| Snapshot requests | at most one every 5 s on screen and one every 10 s off screen per agency, plus the one camera open in the panel at the agency's own rate, only for cities someone has open |
 | Video | none from the server. The browser loads an agency's open stream only while you have that camera open |
 | Disk written | none, apart from text logs under `out/` |
 

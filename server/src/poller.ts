@@ -11,7 +11,6 @@ import { round, type CatalogCamera } from './config.js';
 const THUMB_W = 64;
 const THUMB_H = 48;
 export const MARGIN_S = 4;
-const RETRY_S = 20;
 const MIN_DELAY_S = 10;
 const UNAVAILABLE_S = 300;
 export const ACTIVITY_MIN_SAMPLES = 3;
@@ -28,8 +27,16 @@ export const DEFAULT_RING = 10;
 /** Frames kept per camera for the replay scrub. Each one is the snapshot as the site sent it, tens to a couple of hundred kilobytes, so this number multiplies by however many cameras are polled: ten frames across 669 cameras is roughly half a gigabyte at the top end. Ten gives about ten minutes of replay, since a picture changes about once a minute. Raise it with --ring if you have the memory and want longer history. */
 export const DIFF_HISTORY = 24;
 
-/** A camera in a watched city that nobody can see still needs the occasional frame, because the map colours its nodes by activity and a stale activity score is a lie. Five minutes keeps that honest at a twelfth of the cost. */
-export const SLOW_PERIOD_S = 300;
+/** A camera in a watched city that nobody can see still needs the occasional frame, because the map colours its nodes by activity and a stale activity score is a lie. Ten minutes keeps that honest at a tenth of the cost. */
+export const SLOW_PERIOD_S = 600;
+
+/** What one server asks of one agency, whatever the size of the wall: at most one on-screen picture every ON_SCREEN_S, and one off-screen picture every OFF_SCREEN_S. A wall of forty cameras then refreshes each tile every three minutes or so, and a wall of ten every minute, so the load on the agency stays about what one person watching its own 511 site puts on it. The camera open in the panel is outside the budget and keeps its source's own rate, as the agency's site would show it. */
+export const BUDGET = {
+  ON_SCREEN_S: 5,
+  OFF_SCREEN_S: 10,
+  /** How long a count of cameras per tier is reused before it is taken again. Counting is a pass over every camera and periods are asked for constantly. */
+  RECOUNT_MS: 5000,
+} as const;
 /** Visibility is a claim with a shelf life. The wall restates it every ten seconds; if it stops, either the viewer left the wall or the tab is asleep, and everything falls back to the slow tier on its own. */
 export const VISIBLE_TTL_S = 30;
 /** How far a quiet camera's period may stretch, as a multiple of its source's own period. Four minutes on a sixty second source is the point where the picture is old enough to be worth refreshing whatever the scene is doing. */
@@ -62,6 +69,23 @@ export type PollResult = 'fresh' | 'unchanged' | 'not_modified' | 'unavailable';
 /** A pixel counts as white when every channel is bright and the three are close together: snow, not a sunlit red truck or a yellow sky. */
 const WHITE_MIN = 0.72 * 255;
 const WHITE_SPREAD = 0.12 * 255;
+
+/** Seconds until a camera's next poll, never sooner than its source's refresh period allows on average.
+ *
+ * A fresh Last-Modified says when the agency last made a picture, so the next one is due a period later, and the poll is timed to land just after it: one request per new picture. That is the case this was written for, a site that regenerates an image when asked.
+ *
+ * A Last-Modified already more than a period old says the camera is not updating on that schedule right now; the image servers most sources use keep the same time on an unchanged picture for minutes. Timing to it would put the next poll in the past and fall back to the ten-second floor, asking six times a minute about a picture that has not moved, which is what a live run measured at up to four times the intended rate. So it waits a full period, as it does after a 304, which carries no time at all. A camera with no feed backs off for five minutes. */
+export function nextPollDelay(result: PollResult, lastModified: string | null, period: number, now: number): number {
+  if (result === 'unavailable') return UNAVAILABLE_S;
+  const full = period + MARGIN_S;
+  if (result === 'not_modified' || !lastModified) return full;
+  const stamp = Date.parse(lastModified);
+  if (!Number.isFinite(stamp)) return full;
+  const target = stamp / 1000 + full - now;
+  // Only a picture made within the last period is a schedule worth timing to.
+  if (target < MIN_DELAY_S) return full;
+  return Math.min(full, target);
+}
 
 export async function analyze(data: Buffer, prevThumb: Float32Array | null): Promise<{ thumb: Float32Array; brightness: number; contrast: number; white: number; diff: number | null }> {
   const { data: raw } = await sharp(data)
@@ -305,11 +329,39 @@ export class Poller {
   /** The period this camera is actually being polled at: its source's own period when it is on screen, the slow period when it is not, and stretched further while nothing is happening in front of it. The wall judges staleness against this number, so it has to be the real one rather than the source default. */
   periodFor(slot: CameraSlot, tier: Tier = this.tierOf(slot)): number {
     const base = this.clients.get(slot.camera.source)?.source.poll_period_s ?? 60;
-    // A prioritised camera is exempt from the stretch as well as from the slow period. The stretch exists to stop a quiet road being polled for nothing, and a camera with a crash reported on it that is showing no movement is the one case where the stillness is the thing worth seeing.
-    if (this.prioritised(slot.uid)) return base;
+    // The camera open in the panel is what the viewer is looking at, so it keeps its source's own rate, outside the budget.
+    if (this.inPanel(slot.uid)) return base;
     if (tier === 'radar') return RADAR.RADAR_PERIOD_S;
-    const floor = tier === 'fast' ? base : SLOW_PERIOD_S;
+    const counts = this.budgetCounts();
+    const source = slot.camera.source;
+    // A camera held up by an incident or a neighbour's alarm is exempt from the stretch, since its stillness may be the thing worth seeing, but it shares the on-screen budget like any tile.
+    if (this.prioritised(slot.uid)) return Math.max(base, (counts.fast.get(source) ?? 1) * BUDGET.ON_SCREEN_S);
+    const floor = tier === 'fast' ? Math.max(base, (counts.fast.get(source) ?? 1) * BUDGET.ON_SCREEN_S) : Math.max(SLOW_PERIOD_S, (counts.slow.get(source) ?? 1) * BUDGET.OFF_SCREEN_S);
     return Math.max(floor, base * slot.stretch);
+  }
+
+  private counted: { at: number; fast: Map<string, number>; slow: Map<string, number> } = { at: 0, fast: new Map(), slow: new Map() };
+
+  /** On-screen and off-screen cameras per source right now, for the budget, taken at most every few seconds. */
+  private budgetCounts(): { fast: Map<string, number>; slow: Map<string, number> } {
+    const now = Date.now();
+    if (now - this.counted.at < BUDGET.RECOUNT_MS) return this.counted;
+    const fast = new Map<string, number>();
+    const slow = new Map<string, number>();
+    for (const slot of this.cameras.values()) {
+      if (this.inPanel(slot.uid)) continue;
+      const tier = this.tierOf(slot);
+      const into = tier === 'fast' ? fast : tier === 'slow' ? slow : null;
+      if (into) into.set(slot.camera.source, (into.get(slot.camera.source) ?? 0) + 1);
+    }
+    this.counted = { at: now, fast, slow };
+    return this.counted;
+  }
+
+  /** True for a camera a viewer has open in the panel right now. */
+  private inPanel(uid: number): boolean {
+    const claim = this.priority.get(`panel:${String(uid)}`);
+    return claim !== undefined && Date.now() / 1000 < claim.expires;
   }
 
   /** True once this region's cameras are being polled. */
@@ -362,7 +414,7 @@ export class Poller {
         this.schedule(slot, (period * i) / slots.length);
       });
       // The rate is no longer simply the camera count over the period: only the cameras on screen run at that period, and the rest tick over slowly, so what this run actually costs is printed every minute instead.
-      console.log(`watching ${slots.length} cameras from ${key}: ${period.toFixed(0)}s on screen, ${SLOW_PERIOD_S}s otherwise`);
+      console.log(`watching ${slots.length} cameras from ${key}: at most one picture every ${String(BUDGET.ON_SCREEN_S)}s on screen and every ${String(BUDGET.OFF_SCREEN_S)}s off it, each camera no faster than every ${period.toFixed(0)}s`);
     }
   }
 
@@ -432,19 +484,7 @@ export class Poller {
 
   /** Seconds until this camera's next poll. Whenever the server handed us a Last-Modified, fresh bytes or not, the next regeneration is that time plus the poll period, so wait until then plus a margin. A 304 carries no new timestamp, so retry sparsely. A placeholder means the camera has no feed right now, so back off. */
   private nextDelay(slot: CameraSlot, result: PollResult, period: number): number {
-    if (result === 'unavailable') return UNAVAILABLE_S;
-
-    // A 304 carries no new Last-Modified, so the one we hold is already stale and deriving a target from it would compute a time in the past and clamp to the floor, polling this camera six times a minute forever. Wait a fixed retry instead.
-    if (result === 'not_modified') return RETRY_S;
-
-    if (slot.last_modified_seen) {
-      const stamp = Date.parse(slot.last_modified_seen);
-      if (Number.isFinite(stamp)) {
-        const target = stamp / 1000 + period + MARGIN_S - Date.now() / 1000;
-        return Math.min(period + MARGIN_S, Math.max(MIN_DELAY_S, target));
-      }
-    }
-    return period + MARGIN_S;
+    return nextPollDelay(result, slot.last_modified_seen, period, Date.now() / 1000);
   }
 
   async pollOnce(slot: CameraSlot): Promise<PollResult> {

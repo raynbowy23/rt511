@@ -8,7 +8,7 @@ import type { CatalogCamera } from './config.js';
 import { CORRIDOR, promotionTrigger, selectPromotions, type HeldTrigger } from './corridor.js';
 import { Router, type Ctx } from './http.js';
 import type { Neighbour } from './jev.js';
-import { Poller, SLOW_PERIOD_S, VISIBLE_TTL_S } from './poller.js';
+import { Poller, SLOW_PERIOD_S, VISIBLE_TTL_S, BUDGET } from './poller.js';
 import { testRoot } from './testroot.js';
 
 const camera = (id: number): CatalogCamera => ({ id, region: 'test', source: 'test', image_path: '', roadway: 'I 10', direction: null, location: `camera ${id}`, lat: 30, lon: -84, video_url: null, video_auth: false, link_id: null, source_system: 'test', mile_marker: null });
@@ -131,7 +131,9 @@ test('scores report applied graph promotions read-only and watch zero clears onl
   await handlers.get('/api/jev')!({ ...ctx, query: new URLSearchParams('watch=0') });
   assert.deepEqual(priority.mock.calls[1]!.arguments, ['pane', []]);
   assert.deepEqual(scores().graph_promoted, promoted);
-  assert.equal(app.poller.periodFor(app.poller.cameras.get(promoted[0]!.uid)!), 60);
+  // A promoted camera is polled on the on-screen tier, which since the per-agency budget means no faster than its source's period and no faster than the budget allows across every on-screen camera of that source. It used to be the source's 60 seconds flat; with thirty promoted cameras the budget stretches that, which is the point of the budget.
+  const onScreen = app.poller.tierCounts().fast;
+  assert.equal(app.poller.periodFor(app.poller.cameras.get(promoted[0]!.uid)!), Math.max(60, onScreen * BUDGET.ON_SCREEN_S));
   for (const state of summaries) state.axes = axes();
   t.mock.timers.setTime(1_299_000);
   handlers.get('/api/cameras')!(ctx);

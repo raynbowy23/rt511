@@ -273,6 +273,8 @@ export function App(): ReactElement {
     if (!boot || level === 'board' || level === 'home') return;
     let cancelled = false;
     const run = async (): Promise<void> => {
+      // A tab nobody can see asks for nothing, so the server lets the city's cameras slow down and, once the viewer has been gone a couple of minutes, stop.
+      if (document.hidden) return;
       // Naming the city keeps its cameras polled on a server that was started without one. At the country level nothing is named, so nothing is polled.
       // The cameras on screen go with the poll: the server polls those at the source's own rate and lets the rest of the city tick over slowly. At the country level nothing is named and nothing is polled.
       const state = await getCameras(level === 'national' ? null : region, level === 'wall' ? visibleCameras.current : []);
