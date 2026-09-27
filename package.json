@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.2.0",
   "license": "MIT",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=22"
+  },
   "type": "module",
   "scripts": {
     "start": "pnpm build && node server/dist/server/src/index.js",

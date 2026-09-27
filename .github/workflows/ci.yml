@@ -1,0 +1,29 @@
+# The same gates `make check` and `make test` run locally, on every push to main and every pull request, from a clean checkout. It proves the repository works for someone who is not the author: no local data, no built graphs, no keys.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: pnpm install --frozen-lockfile
+      - name: Type-check and lint
+        run: make check
+      - name: Tests
+        run: make test
