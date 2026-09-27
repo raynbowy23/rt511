@@ -21,6 +21,8 @@ export function TopBar({
   onToggleTour,
   diaryOpen = false,
   onDiary,
+  whichOpen = false,
+  onWhich,
   tripOn = false,
   onRoadTrip,
   relayOn = false,
@@ -38,6 +40,9 @@ export function TopBar({
   onToggleTour: () => void;
   diaryOpen?: boolean;
   onDiary?: () => void;
+  whichOpen?: boolean;
+  /** "Which would you watch?", in a city. */
+  onWhich?: () => void;
   tripOn?: boolean;
   onRoadTrip?: () => void;
   relayOn?: boolean;
@@ -113,6 +118,11 @@ export function TopBar({
           )}
           {onRelay && <Mode on={relayOn} label="Sun relay" title="Follow the sunset, or the sunrise, from city to city" onClick={onRelay} />}
         </div>
+        {inCity && onWhich && (
+          <button type="button" className={`control which-toggle${whichOpen ? ' is-on' : ''}`} aria-pressed={whichOpen} title="Which would you watch? Pick between two cameras, and the wall learns your attention" onClick={onWhich}>
+            Which?
+          </button>
+        )}
         {onDiary && (
           <button type="button" className={`control diary-toggle${diaryOpen ? ' is-on' : ''}`} aria-pressed={diaryOpen} title="What the wall noticed, day by day" onClick={onDiary}>
             <BookIcon />

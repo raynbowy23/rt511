@@ -151,6 +151,7 @@ const Tile = memo(function Tile({
 
 export function Wall({
   highlights,
+  rankedByYou = null,
   cameras,
   captions,
   states,
@@ -163,6 +164,8 @@ export function Wall({
   onVisibleCameras,
 }: {
   highlights?: ReactNode;
+  /** When the wall is ranked by the person's own attention, how many choices that attention was learned from. */
+  rankedByYou?: number | null;
   /** Scroll the active camera's tile into view when it changes. Off during a road trip, where the camera panel above the wall is what is being watched. */
   followActive?: boolean;
   cameras: Camera[];
@@ -266,7 +269,13 @@ export function Wall({
     <main className="pane pane-wall wall-host" hidden={!visible}>
       {highlights}
       <p className="wall-how">
-        Ranked by how unusual each camera's movement is against its own normal for this hour, scaled by how big the road is. An incident or stopped traffic nearby holds a camera up. Bigger tiles score higher, and the thin line along the top of each picture fills until its next one arrives.
+        {rankedByYou !== null ? (
+          <>
+            <b>Ranked by your own attention</b>, learned from your {rankedByYou} choices in Which?. The number on each tile is still the wall's own score, so you can see where you and the equation part ways.
+          </>
+        ) : (
+          <>Ranked by how unusual each camera's movement is against its own normal for this hour, scaled by how big the road is. An incident or stopped traffic nearby holds a camera up. Bigger tiles score higher, and the thin line along the top of each picture fills until its next one arrives.</>
+        )}
       </p>
       <div className="wall" ref={grid}>
         {cameras.map((camera) => (

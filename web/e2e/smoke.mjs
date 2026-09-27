@@ -115,6 +115,13 @@ await step('a tile opens its camera', async () => {
   await expect("!!document.querySelector('.hero:not([hidden]) .hero-mode')?.textContent");
 });
 
+await step('Which? opens over the wall and closes with Escape', async () => {
+  await evaluate("[...document.querySelectorAll('button')].find((b) => b.textContent.trim() === 'Which?').click()");
+  await expect("!!document.querySelector('.duel .duel-panel')");
+  await evaluate("window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))");
+  await expect("!document.querySelector('.duel')");
+});
+
 await step('the diary opens and says how to use it', async () => {
   await evaluate("[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Diary')).click()");
   await expect("!!document.querySelector('.diary .diary-hint')");

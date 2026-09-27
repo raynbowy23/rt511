@@ -3283,3 +3283,308 @@ body[data-view='home'] .arbiter {
 body[data-view='home'] .stage.has-arbiter {
   padding-right: 20px;
 }
+
+/* Which would you watch? ------------------------------------------------------
+   Over the stage, between the top bar and the footer: the pair on the left, what the person weighs on the right. */
+
+.duel {
+  position: fixed;
+  top: var(--topbar-h);
+  right: 0;
+  bottom: var(--footer-h, 72px);
+  left: 0;
+  /* Above the minimap (46) and the Scores pane, below the footer's credits only where they open upward. */
+  z-index: 47;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  background: color-mix(in srgb, var(--bg) 94%, transparent);
+  backdrop-filter: blur(14px);
+  animation: view-in 420ms cubic-bezier(0.22, 0.7, 0.2, 1) both;
+}
+
+.duel-stage {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 28px 32px;
+  overflow: auto;
+}
+
+.duel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 18px;
+  margin-bottom: 20px;
+}
+
+.duel-head h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.duel-head p {
+  margin: 0;
+  flex: 1;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.duel-close,
+.duel-actions button {
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.duel-close:hover,
+.duel-actions button:hover:not(:disabled) {
+  color: var(--fg);
+}
+
+.duel-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.duel-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
+.duel-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  font: inherit;
+  color: var(--fg);
+  text-align: left;
+  background: #000;
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 260ms ease, border-color 260ms ease, opacity 400ms ease, box-shadow 260ms ease;
+}
+
+.duel-card:hover:not(:disabled) {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.duel-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background: #000;
+}
+
+.duel-where {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+  font-size: 13px;
+  background: var(--bg-raise);
+}
+
+.duel-where small {
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.duel-card.is-chosen {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.duel-card.is-passed {
+  opacity: 0.45;
+}
+
+.duel-card:disabled {
+  cursor: default;
+}
+
+/* The wall's score, shown once the person has chosen. */
+.duel-reveal {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  padding: 6px 10px;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--fg) 75%, transparent);
+  background: rgba(4, 5, 6, 0.75);
+  border-radius: 3px;
+  animation: view-in 300ms ease both;
+}
+
+.duel-reveal b {
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--fg);
+}
+
+.duel-reveal em {
+  font-style: normal;
+  color: var(--accent);
+}
+
+.duel-empty,
+.duel-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.duel-empty {
+  max-width: 40em;
+  font-size: 14px;
+}
+
+.duel-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 28px 24px;
+  overflow: auto;
+  border-left: 1px solid var(--line);
+}
+
+.duel-panel h3,
+.duel-panel h4 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.duel-count {
+  margin: 0;
+  font-size: 13px;
+}
+
+.duel-weights {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.duel-weights li {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+/* A bar either side of a centre line: right for what draws the person's eye, left for what turns it away. */
+.duel-bar {
+  position: relative;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 1px;
+}
+
+.duel-bar::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 50%;
+  width: 1px;
+  background: var(--line-strong);
+}
+
+.duel-bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 1px;
+  transition: width 500ms ease;
+}
+
+.duel-bar i.is-up {
+  left: 50%;
+  background: var(--accent);
+}
+
+.duel-bar i.is-down {
+  right: 50%;
+  background: rgb(120, 150, 236);
+}
+
+.duel-against ol {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--fg) 80%, transparent);
+}
+
+.duel-toggle {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.duel-toggle.is-disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.duel-toggle small {
+  color: var(--muted);
+}
+
+.duel-actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .duel {
+    grid-template-columns: minmax(0, 1fr);
+    overflow: auto;
+  }
+
+  .duel-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .duel-panel {
+    border-left: none;
+    border-top: 1px solid var(--line);
+  }
+}

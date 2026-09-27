@@ -5,6 +5,7 @@ import {
   getIncidents,
   getNational,
   getRegions,
+  type Camera,
   type CameraState,
   type Graph,
   type NationalResponse,
@@ -25,6 +26,9 @@ import { Board } from './components/Board';
 import { Wall } from './components/Wall';
 import { Highlights } from './components/Highlights';
 import { Diary } from './components/Diary';
+import { Duel } from './components/Duel';
+import { usePreferences } from './hooks/usePreferences';
+import { features, score, type Candidate } from './preference';
 import { RelayHud, RoadTripPicker, TripHud } from './components/RoadTrip';
 import { planTrips, RoadTrip, type Trip } from './roadtrip';
 import { pickRelay, type RelayCity, type RelayPick } from './sunrelay';
@@ -249,6 +253,10 @@ export function App(): ReactElement {
   }, [relayCity, promote]);
 
   const [diaryOpen, setDiaryOpen] = useState(false);
+  /** "Which would you watch?", the person's own attention learned from their choices, and whether the wall is ranked by it. */
+  const [duelOpen, setDuelOpen] = useState(false);
+  const preferences = usePreferences();
+  const [rankByYou, setRankByYou] = useState(() => readFlag(RANK_KEY));
   const closeDiary = useCallback(() => setDiaryOpen(false), []);
 
   const goNational = useCallback(() => {
@@ -441,7 +449,25 @@ export function App(): ReactElement {
     return out;
   }, [topology, poll.states, region]);
 
-  const ranks = useWallRanking(wallCameras, statesById, RERANK_MS);
+  // The person's own ranking, once they have made enough choices for it to mean something.
+  const personal = rankByYou && preferences.votes.length >= 10;
+  const personalScore = useMemo(
+    () => (personal ? (camera: Camera, state: CameraState) => (state.axes ? score(preferences.weights, features(state.axes, camera, state.brightness, Date.now() / 1000)) : null) : null),
+    [personal, preferences.weights],
+  );
+  const ranks = useWallRanking(wallCameras, statesById, RERANK_MS, personalScore);
+
+  // The pool "Which would you watch?" draws from: this city's cameras with a score and a recent picture to show.
+  const duelCandidates = useMemo((): Candidate[] => {
+    if (!topology || !region) return [];
+    const now = Date.now() / 1000;
+    const city = boot?.regions.find((r) => r.region === region)?.region_name ?? region;
+    return poll.states.flatMap((state) => {
+      const camera = topology.cameras.get(state.id);
+      if (!camera || camera.region !== region || state.attention === null || !state.axes || state.frames === 0 || state.last_ts === null || now - state.last_ts > 3 * state.period_s) return [];
+      return [{ id: state.id, region, city, location: camera.location, attention: state.attention, x: features(state.axes, camera, state.brightness, now) }];
+    });
+  }, [topology, region, poll.states, boot]);
 
   const scope = level === 'home' || level === 'national' || level === 'board' || region === null ? poll.states : poll.states.filter((state) => state.region === region);
   const withFrames = scope.filter((state) => state.frames > 0).length;
@@ -577,8 +603,25 @@ export function App(): ReactElement {
         }}
         diaryOpen={diaryOpen}
         onDiary={() => setDiaryOpen((open) => !open)}
+        whichOpen={duelOpen}
+        onWhich={() => setDuelOpen((open) => !open)}
       />
       {tripPicker && <RoadTripPicker trips={trips} onPick={startTrip} onClose={() => setTripPicker(false)} />}
+      {duelOpen && (effectiveLevel === 'map' || effectiveLevel === 'wall') && (
+        <Duel
+          candidates={duelCandidates}
+          votes={preferences.votes}
+          weights={preferences.weights}
+          rankByYou={rankByYou}
+          onVote={preferences.add}
+          onReset={preferences.reset}
+          onRankByYou={(on) => {
+            setRankByYou(on);
+            writeFlag(RANK_KEY, on);
+          }}
+          onClose={() => setDuelOpen(false)}
+        />
+      )}
       {diaryOpen && (
         <Diary
           regionName={(key) => boot.regions.find((meta) => meta.region === key)?.region_name ?? key}
@@ -648,6 +691,7 @@ export function App(): ReactElement {
         {effectiveLevel === 'board' && topology && <Board cameras={topology.cameras} activeId={cameraId} onSelect={openCamera} onData={(states, ok) => setPoll((current) => ({ states, ok, intervalS: 600, tick: current.tick + 1 }))} />}
         <Wall
           highlights={effectiveLevel === 'wall' ? <Highlights key={region} region={region ?? undefined} onSelect={openCamera} /> : null}
+          rankedByYou={personal ? preferences.votes.length : null}
           cameras={wallCameras}
           states={statesById}
           ranks={ranks}
@@ -685,6 +729,23 @@ export function App(): ReactElement {
 const DISCLAIMER_FALLBACK = 'rt511 is an independent project, not affiliated with or endorsed by any transportation agency. Camera images belong to the agencies credited and are shown as published, without warranty. Do not use while driving.';
 
 const ARBITER_KEY = 'rt511.arbiter';
+const RANK_KEY = 'rt511.rankByYou';
+
+function readFlag(key: string): boolean {
+  try {
+    return window.localStorage.getItem(key) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeFlag(key: string, on: boolean): void {
+  try {
+    window.localStorage.setItem(key, on ? '1' : '0');
+  } catch {
+    // Storage is a convenience for this flag; without it the choice lasts the visit.
+  }
+}
 
 function readArbiterOpen(): boolean {
   try {
