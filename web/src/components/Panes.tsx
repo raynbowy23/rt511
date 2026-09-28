@@ -157,12 +157,15 @@ export function MinimapPane({
   visible,
   region,
   activeSite,
+  compact = false,
   onOpen,
 }: {
   graph: Graph;
   visible: boolean;
   region: string | null;
   activeSite: string | null;
+  /** Folded down to its label, for while a camera is open and the panel needs the corner. It unfolds on hover. */
+  compact?: boolean;
   /** Opens the full city map. The minimap is a thumbnail of it, so clicking the thumbnail is the obvious way there. */
   onOpen?: () => void;
 }): ReactElement {
@@ -205,5 +208,5 @@ export function MinimapPane({
         },
       }
     : {};
-  return <div className="minimap-host" ref={host} hidden={!visible} {...open} />;
+  return <div className={`minimap-host${compact ? ' is-compact' : ''}`} ref={host} hidden={!visible} {...open} />;
 }

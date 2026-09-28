@@ -10,13 +10,12 @@ const GRAIN_H = 120;
 /** A burst of analogue snow over the whole screen whenever `channel` changes, the way a control-room monitor switched between cameras. It never takes a click, never runs on the first render, and never runs for a viewer who asked for less motion. */
 export function ChannelStatic({ channel }: { channel: string }): ReactElement {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const first = useRef(true);
+  /** The channel last shown. Compared rather than counted, so a development double render of the first view is not taken for a change. */
+  const shown = useRef(channel);
 
   useEffect(() => {
-    if (first.current) {
-      first.current = false;
-      return;
-    }
+    if (shown.current === channel) return;
+    shown.current = channel;
     const element = canvas.current;
     const context = element?.getContext('2d');
     if (!element || !context || prefersReducedMotion()) return;

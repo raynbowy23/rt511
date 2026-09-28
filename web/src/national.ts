@@ -126,7 +126,7 @@ export class NationalView {
     this.list = document.createElement('aside');
     this.list.className = 'national-list';
 
-    // Zooming into an ocean, or into the empty band beside the insets, leaves a viewer looking at nothing with no obvious way back. Double-click re-fits, but nothing on screen says so.
+    // Zooming into the empty table between the slabs leaves a viewer looking at nothing with no obvious way back. Double-click re-fits, but nothing on screen says so.
     const fitButton = document.createElement('button');
     fitButton.type = 'button';
     fitButton.className = 'map-region national-fit';

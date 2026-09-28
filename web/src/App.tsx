@@ -776,7 +776,7 @@ export function App(): ReactElement {
           }
         }}
       />
-      <MinimapPane graph={boot.graph} visible={effectiveLevel === 'wall'} region={region} activeSite={activeSite} onOpen={() => setLevel('map')} />
+      <MinimapPane graph={boot.graph} visible={effectiveLevel === 'wall'} region={region} activeSite={activeSite} compact={cameraOpen} onOpen={() => setLevel('map')} />
       <Footer context={footerContext} credits={credits} source={citySource} disclaimer={boot.disclaimer} />
     </>
   );

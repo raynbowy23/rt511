@@ -196,7 +196,7 @@ export function CameraPanel({
   const snapshotEvery = focusPeriod ?? pollPeriod;
   const snapshot = !streaming && mode === 'Snapshots only' && snapshotEvery !== null;
   const tuning = camera !== null && visible && live && ((camera.has_video && !streaming && mode === 'Loading') || frames.length === 0);
-  // Two looks that cannot be confused at a glance: a red LIVE pill for a stream, a grey framed SNAPSHOT with its refresh for a still.
+  // Two looks that cannot be confused at a glance: a red LIVE pill for a stream, a dim framed SNAPSHOT with its refresh for a still.
   const badge = !live ? 'Replay' : streaming ? 'Live' : snapshot ? `Snapshot · ${period(snapshotEvery)}` : mode;
   const badgeKey = !live ? 'replay' : streaming ? 'live' : snapshot ? 'snapshot' : mode.toLowerCase().replace(/\s+/g, '-');
   const shownTs = live && focusPeriod !== null && focusTs !== null ? Math.max(focusTs, frame?.ts ?? 0) : frame?.ts;

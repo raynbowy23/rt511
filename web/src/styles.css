@@ -381,7 +381,8 @@ button.crumb:hover {
   scroll-margin-top: calc(var(--topbar-h) + 16px);
   grid-template-columns: minmax(0, 1fr) 300px;
   gap: 1px;
-  background: var(--line);
+  /* Black behind the picture, so a picture narrower than its column is letterboxed the way a monitor would show it. The line between picture and details is the one pixel of gap over the details' own edge. */
+  background: #000;
   border: 1px solid var(--line);
   border-radius: 3px;
   overflow: hidden;
@@ -590,7 +591,7 @@ button.crumb:hover {
   }
 }
 
-/* A snapshot: grey, with a hollow frame where the live dot would be, a still picture rather than a stream. */
+/* A snapshot: dim phosphor, with a hollow frame where the live dot would be, a still picture rather than a stream. */
 .hero[data-mode='snapshot'] .hero-badge {
   color: color-mix(in srgb, var(--fg) 78%, transparent);
   background: rgba(0, 0, 0, 0.6);
@@ -905,7 +906,7 @@ body.is-touring .wall {
   transform: translateY(-50%);
 }
 
-/* The same pair as the camera panel: red with a dot for a stream, grey with a hollow frame for a still. */
+/* The same pair as the camera panel: red with a dot for a stream, dim phosphor with a hollow frame for a still. */
 .tile-kind.is-live {
   color: #fff;
   font-weight: 600;
@@ -2172,6 +2173,16 @@ body[data-view='wall'] .stage {
   backdrop-filter: blur(10px);
   border: 1px solid var(--line);
   border-radius: 3px;
+}
+
+/* While a camera is open the panel needs the corner, so the map folds down to its label and unfolds on hover or focus. */
+.minimap-host.is-compact .minimap svg {
+  display: none;
+}
+
+.minimap-host.is-compact:hover .minimap svg,
+.minimap-host.is-compact:focus-visible .minimap svg {
+  display: block;
 }
 
 .minimap svg {

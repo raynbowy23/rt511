@@ -1,6 +1,6 @@
-/** An Albers USA style composite projection: a conic equal-area for the lower 48, with Alaska and Hawaii projected separately and placed as insets under the south-west corner.
+/** An Albers USA style composite projection: a conic equal-area for the lower 48, with Alaska and Hawaii projected in conics of their own and placed under the south-west corner.
  *
- * The insets are the traditional answer to Alaska. Projecting it in the same conic as the lower 48 either swallows the map in empty ocean or smears Alaska across the top, and this view exists to show where cameras are, not to be a reference atlas. The inset is framed and labelled so nothing pretends it is to scale. */
+ * Projecting Alaska in the same conic as the lower 48 either swallows the map in empty ocean or smears it across the top. The views now lift each covered state out on its own (see `slabs.ts`), so only a state's own shape matters here, and the placement of the insets is simply where Alaska and Hawaii would sit on a composite map. */
 
 import { latOfLonLat, lonOfLonLat, type LonLat } from '@rt511/shared';
 
@@ -44,9 +44,6 @@ interface Placement {
 
 export class AlbersUsa {
   private readonly placements: Record<ProjGroup, Placement>;
-  readonly bounds: Box;
-  /** Frames to draw around the insets, in map units. */
-  readonly insets: { group: ProjGroup; label: string; box: Box }[];
 
   /** Placement is derived from the geometry actually supplied, so the insets sit correctly whatever outlines the backend sends. */
   constructor(points: Record<ProjGroup, LonLat[]>) {
@@ -71,16 +68,6 @@ export class AlbersUsa {
       alaska: place('alaska', ALASKA, 0.3, 0.0, 0.03),
       hawaii: place('hawaii', HAWAII, 0.1, 0.38, 0.06),
     };
-
-    this.insets = (['alaska', 'hawaii'] as ProjGroup[])
-      .filter((group) => points[group].length > 0)
-      .map((group) => ({
-        group,
-        label: group === 'alaska' ? 'Alaska · inset, not to scale' : 'Hawaii · inset',
-        box: pad(this.extentOf(group, points[group]), height * 0.012),
-      }));
-
-    this.bounds = merge([conusBox, ...this.insets.map((inset) => inset.box)]);
   }
 
   project(lon: number, lat: number, group: ProjGroup): [number, number] {
@@ -88,30 +75,12 @@ export class AlbersUsa {
     const [x, y] = placement.conic(lon, lat);
     return [x * placement.scale + placement.dx, y * placement.scale + placement.dy];
   }
-
-  private extentOf(group: ProjGroup, points: LonLat[]): Box {
-    const box: Box = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
-    for (const point of points) {
-      const [x, y] = this.project(lonOfLonLat(point), latOfLonLat(point), group);
-      box.minX = Math.min(box.minX, x);
-      box.minY = Math.min(box.minY, y);
-      box.maxX = Math.max(box.maxX, x);
-      box.maxY = Math.max(box.maxY, y);
-    }
-    return box;
-  }
 }
 
 /** Which sub-projection a state belongs to. */
 export function groupForState(code: string): ProjGroup {
   if (code === 'AK') return 'alaska';
   if (code === 'HI') return 'hawaii';
-  return 'conus';
-}
-
-/** Which sub-projection a source's cameras belong to. A source covering several states only ever covers contiguous ones, so the single-state check is enough to catch Alaska and Hawaii. */
-export function groupForStates(states: string[]): ProjGroup {
-  if (states.length === 1 && states[0] !== undefined) return groupForState(states[0]);
   return 'conus';
 }
 
@@ -125,19 +94,4 @@ function extent(proj: Conic, points: LonLat[]): Box {
     box.maxY = Math.max(box.maxY, y);
   }
   return box;
-}
-
-function pad(box: Box, amount: number): Box {
-  return { minX: box.minX - amount, minY: box.minY - amount, maxX: box.maxX + amount, maxY: box.maxY + amount };
-}
-
-function merge(boxes: Box[]): Box {
-  const out: Box = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
-  for (const box of boxes) {
-    out.minX = Math.min(out.minX, box.minX);
-    out.minY = Math.min(out.minY, box.minY);
-    out.maxX = Math.max(out.maxX, box.maxX);
-    out.maxY = Math.max(out.maxY, box.maxY);
-  }
-  return out;
 }
