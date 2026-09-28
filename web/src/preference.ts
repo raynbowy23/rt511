@@ -154,9 +154,14 @@ const DISAGREE_LOOK = 0.25;
 /** The share of evaluation pairs drawn from the disagreements, when there are any. The rest are uniform, which is what an overall figure is read from. */
 const DISAGREE_SHARE = 0.5;
 
+/** Whether two cameras' looks can be compared at all. The rubric is relative to the cameras judged together, so a level only means something beside another level from the same look, which every answer from one call shares the time of. */
+export function sameLook(a: Candidate, b: Candidate): boolean {
+  return !!a.look && !!b.look && a.look.at === b.look.at;
+}
+
 /** Whether the equation and the second look put two cameras in opposite orders, each by more than a near tie. */
 export function disagree(a: Candidate, b: Candidate): boolean {
-  if (!a.look || !b.look || a.equation === undefined || b.equation === undefined) return false;
+  if (!a.look || !b.look || !sameLook(a, b) || a.equation === undefined || b.equation === undefined) return false;
   const byEquation = a.equation - b.equation;
   const byLook = a.look.level - b.look.level;
   return Math.abs(byEquation) > DISAGREE_EQUATION && Math.abs(byLook) > DISAGREE_LOOK && byEquation * byLook < 0;
@@ -187,21 +192,20 @@ export interface RankerAgreement {
   total: number;
 }
 
-/** How often each ranking picked the camera the person chose, over evaluation choices only, and only where that ranking told the two apart. The person's own model is left out here, because it was trained on these same choices; the analysis script scores it on held-out choices instead. */
-export function evaluation(votes: Vote[]): { choices: number; disagreements: number; equation: RankerAgreement; look: RankerAgreement } {
+/** How often each ranking picked the camera the person chose, over evaluation choices only. The two are scored on exactly the same choices, those where the equation told the cameras apart and both cameras had levels from the same look that differed, so neither ranking is flattered by an easier set of pairs. The person's own model is left out, because it was trained on these same choices; the analysis script scores it on held-out choices instead. */
+export function evaluation(votes: Vote[]): { choices: number; disagreements: number; paired: number; equation: RankerAgreement; look: RankerAgreement } {
   const evaluated = votes.filter((vote) => vote.mode === 'evaluate');
   const equation = { agree: 0, total: 0 };
   const look = { agree: 0, total: 0 };
   for (const vote of evaluated) {
+    const { a, b } = vote;
+    if (a.equation === undefined || b.equation === undefined || Math.abs(a.equation - b.equation) <= 1e-6) continue;
+    if (!a.look || !b.look || !sameLook(a, b) || Math.abs(a.look.level - b.look.level) <= 1e-6) continue;
     const pickedA = vote.pick === 'a';
-    if (vote.a.equation !== undefined && vote.b.equation !== undefined && Math.abs(vote.a.equation - vote.b.equation) > 1e-6) {
-      equation.total++;
-      if (pickedA === vote.a.equation > vote.b.equation) equation.agree++;
-    }
-    if (vote.a.look && vote.b.look && Math.abs(vote.a.look.level - vote.b.look.level) > 1e-6) {
-      look.total++;
-      if (pickedA === vote.a.look.level > vote.b.look.level) look.agree++;
-    }
+    equation.total++;
+    look.total++;
+    if (pickedA === a.equation > b.equation) equation.agree++;
+    if (pickedA === a.look.level > b.look.level) look.agree++;
   }
-  return { choices: evaluated.length, disagreements: evaluated.filter((vote) => vote.stratum === 'disagree').length, equation, look };
+  return { choices: evaluated.length, disagreements: evaluated.filter((vote) => vote.stratum === 'disagree').length, paired: equation.total, equation, look };
 }

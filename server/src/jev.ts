@@ -489,8 +489,9 @@ export class JevArbiter {
       const at = Date.now() / 1000;
       for (const [uid, verdict] of verdicts) this.reviews.set(uid, { ...verdict, at });
       // The shadow record: both rankings of the same cameras at the same moment, whether or not the look was confident enough to move the wall. This is what the look is evaluated from, rather than from the bounded factor the wall applies.
-      const equationOrder = [...leaders].sort((a, b) => b.equation - a.equation).map((candidate) => candidate.camera.uid);
-      const lookOrder = [...verdicts].sort((a, b) => b[1].level - a[1].level).map(([uid]) => uid);
+      // Ties in either ranking are broken by camera id, which favours neither, so a tie never counts as the two agreeing.
+      const equationOrder = [...leaders].sort((a, b) => b.equation - a.equation || a.camera.uid - b.camera.uid).map((candidate) => candidate.camera.uid);
+      const lookOrder = [...verdicts].sort((a, b) => b[1].level - a[1].level || a[0] - b[0]).map(([uid]) => uid);
       if (this.failing) console.log('jev recovered');
       this.failing = false;
       this.log.write(
@@ -890,7 +891,7 @@ export function buildReviewState(cityName: string, leaders: ReviewCandidate[], n
   };
 }
 
-/** Kendall's tau between two orderings of the same items, 1 for the same order and -1 for the reverse. Null with fewer than two items in common. Ties cannot occur, because both arguments are orders. */
+/** Kendall's tau between two orderings of the same items, 1 for the same order and -1 for the reverse. Null with fewer than two items in common. Both arguments are orders, so a tie in the underlying scores has already been broken by whoever made them. */
 export function kendallTau(first: number[], second: number[]): number | null {
   const common = first.filter((uid) => second.includes(uid));
   if (common.length < 2) return null;

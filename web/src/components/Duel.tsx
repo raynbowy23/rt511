@@ -35,6 +35,10 @@ export function Duel({
 }): ReactElement {
   const recent = useRef<number[]>([]);
   const [pair, setPair] = useState<[Candidate, Candidate] | null>(null);
+  /** When the pair was drawn. The pictures are asked for as of this moment, so a poll landing mid-decision does not swap in a newer frame than the one the recorded features describe. */
+  const [pairAt, setPairAt] = useState(() => Date.now() / 1000);
+  /** The pause after a choice. Cleared whenever the pair changes some other way, or the pause would replace a pair the person is already looking at. */
+  const pause = useRef(0);
   const [stratum, setStratum] = useState<Stratum | null>(null);
   const [reveal, setReveal] = useState<'a' | 'b' | null>(null);
   const [mode, setModeState] = useState<DuelMode>(readMode);
@@ -44,11 +48,13 @@ export function Duel({
   latest.current = { candidates, weights, count: votes.length, mode };
 
   const advance = useCallback(() => {
+    window.clearTimeout(pause.current);
     const { candidates: pool, weights: w, count, mode: current } = latest.current;
     const drawn = current === 'evaluate' ? nextEvalPair(pool, new Set(recent.current)) : null;
     const next = current === 'evaluate' ? (drawn?.pair ?? null) : nextPair(pool, w, count, new Set(recent.current));
     if (next) recent.current = [...recent.current, next[0].id, next[1].id].slice(-RECENT * 2);
     setPair(next);
+    setPairAt(Date.now() / 1000);
     setStratum(drawn?.stratum ?? null);
     setReveal(null);
   }, []);
@@ -64,6 +70,8 @@ export function Duel({
     advance();
   };
 
+  useEffect(() => () => window.clearTimeout(pause.current), []);
+
   // The first pair, and a new one if the pool was empty and has filled since.
   const hasPool = candidates.length >= 2;
   useEffect(() => {
@@ -76,7 +84,7 @@ export function Duel({
       const [a, b] = pair;
       onVote({ ts: Date.now() / 1000, a, b, pick, mode, stratum: mode === 'evaluate' ? stratum : null });
       setReveal(pick);
-      window.setTimeout(advance, mode === 'evaluate' ? EVALUATE_PAUSE_MS : REVEAL_MS);
+      pause.current = window.setTimeout(advance, mode === 'evaluate' ? EVALUATE_PAUSE_MS : REVEAL_MS);
     },
     [pair, reveal, onVote, advance, mode, stratum],
   );
@@ -97,9 +105,11 @@ export function Duel({
     return () => window.removeEventListener('keydown', onKey, { capture: true });
   }, [choose, advance, onClose, reveal]);
 
+  const blind = mode === 'evaluate';
+  const hasLook = candidates.some((candidate) => candidate.look);
   const agreed = agreement(votes);
   const evaluated = evaluation(votes);
-  const percent = ({ agree, total }: { agree: number; total: number }): string => (total === 0 ? 'none yet' : `${String(Math.round((100 * agree) / total))}% of ${String(total)}`);
+  const percent = ({ agree, total }: { agree: number; total: number }): string => (total === 0 ? 'none yet' : `${String(Math.round((100 * agree) / total))}%`);
   const against = disagreements(votes);
   const top = Math.max(1e-9, ...weights.map((w) => Math.abs(w)));
   const ordered = FACTORS.map((factor, i) => ({ factor, w: weights[i] ?? 0 })).sort((x, y) => Math.abs(y.w) - Math.abs(x.w));
@@ -130,7 +140,7 @@ export function Duel({
               const wallPrefers = camera.attention > other.attention;
               return (
                 <button key={`${side}-${camera.id}`} type="button" className={`duel-card${reveal ? (chosen ? ' is-chosen' : ' is-passed') : ''}`} onClick={() => choose(side)} disabled={reveal !== null}>
-                  <img src={snapUrl(camera.id, -1, Date.now() / 1000)} alt="" draggable={false} />
+                  <img src={snapUrl(camera.id, -1, pairAt)} alt="" draggable={false} />
                   <span className="duel-where">
                     {camera.location}
                     <small>{camera.city}</small>
@@ -154,24 +164,35 @@ export function Duel({
         <h3>Your attention</h3>
         <p className="duel-count">
           {votes.length} {votes.length === 1 ? 'choice' : 'choices'}
-          {agreed && (
+          {agreed && !blind && (
             <>
               {' · '}you and the wall agree on <b>{Math.round((100 * agreed.agree) / agreed.total)}%</b>
             </>
           )}
         </p>
-        {evaluated.choices > 0 && (
+        {blind ? (
           <div className="duel-evaluation">
             <h4>Evaluation</h4>
             <p>
               {evaluated.choices} blind {evaluated.choices === 1 ? 'choice' : 'choices'}, {evaluated.disagreements} where the two rankings split.
             </p>
-            <p>
-              The equation picked your camera in <b>{percent(evaluated.equation)}</b>. The second look picked it in <b>{percent(evaluated.look)}</b>.
-            </p>
+            <p>Results stay hidden while you choose, so none can steer the next choice. They show in Learn mode.</p>
+            {!hasLook && <p>No second look is running, since it needs a Jev key, so these choices can compare the equation with your own attention but not with the look.</p>}
           </div>
+        ) : (
+          evaluated.choices > 0 && (
+            <div className="duel-evaluation">
+              <h4>Evaluation</h4>
+              <p>
+                {evaluated.choices} blind {evaluated.choices === 1 ? 'choice' : 'choices'}, {evaluated.disagreements} where the two rankings split.
+              </p>
+              <p>
+                On the {evaluated.paired} both rankings could decide, the equation picked your camera in <b>{percent(evaluated.equation)}</b> and the second look in <b>{percent(evaluated.look)}</b>.
+              </p>
+            </div>
+          )
         )}
-        {votes.length < SHOW_WEIGHTS_AFTER ? (
+        {blind ? null : votes.length < SHOW_WEIGHTS_AFTER ? (
           <p className="duel-note">A few more choices and what you weigh starts to show here.</p>
         ) : (
           <>
@@ -188,7 +209,7 @@ export function Duel({
             </ul>
           </>
         )}
-        {against.length > 0 && (
+        {against.length > 0 && !blind && (
           <div className="duel-against">
             <h4>Where you and the wall disagree most</h4>
             <ol>

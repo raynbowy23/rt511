@@ -98,13 +98,15 @@ describe('nextPair', () => {
 });
 
 describe('evaluation pairs', () => {
-  const cam = (id: number, equation: number, level: number | null): Candidate => ({ id, region: 'r', city: 'c', location: `cam ${String(id)}`, attention: equation, equation, look: level === null ? null : { level, levels: 4, confidence: 0.8, at: 0 }, x: [] });
+  const cam = (id: number, equation: number, level: number | null, at = 0): Candidate => ({ id, region: 'r', city: 'c', location: `cam ${String(id)}`, attention: equation, equation, look: level === null ? null : { level, levels: 4, confidence: 0.8, at }, x: [] });
 
   it('knows when the equation and the second look order two cameras differently', () => {
     expect(disagree(cam(1, 0.8, 0.5), cam(2, 0.4, 2.5))).toBe(true);
     expect(disagree(cam(1, 0.8, 2.5), cam(2, 0.4, 0.5))).toBe(false);
     expect(disagree(cam(1, 0.8, 2.5), cam(2, 0.79, 0.5))).toBe(false);
     expect(disagree(cam(1, 0.8, null), cam(2, 0.4, 2.5))).toBe(false);
+    // Levels from two different looks are on two different scales, so they say nothing about each other.
+    expect(disagree(cam(1, 0.8, 0.5, 100), cam(2, 0.4, 2.5, 220))).toBe(false);
   });
 
   it('draws from the disagreements when asked to, and uniformly otherwise', () => {
@@ -124,8 +126,12 @@ describe('evaluation pairs', () => {
       vote(cam(1, 0.8, 2.5), cam(2, 0.4, 0.5), 'a'),
       vote(cam(1, 0.5, null), cam(2, 0.5, 1), 'a'),
       vote(cam(1, 0.9, 3), cam(2, 0.1, 0), 'b', 'learn'),
+      // Decided by the equation but not comparable for the look, so left out of both: the two are scored on the same choices.
+      vote(cam(1, 0.9, null), cam(2, 0.1, 1), 'a'),
+      vote(cam(1, 0.9, 3, 100), cam(2, 0.1, 1, 220), 'a'),
     ]);
-    expect(result.choices).toBe(3);
+    expect(result.choices).toBe(5);
+    expect(result.paired).toBe(2);
     expect(result.equation).toEqual({ agree: 1, total: 2 });
     expect(result.look).toEqual({ agree: 2, total: 2 });
   });

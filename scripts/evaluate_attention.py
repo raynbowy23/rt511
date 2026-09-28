@@ -4,7 +4,7 @@ Reads one or more exports from "Which would you watch?" (the Export button) and,
 
     uv run python scripts/evaluate_attention.py rt511-attention-2026-09-28.json [more.json] [--logs out]
 
-For each ranker it reports how often the ranker picked the camera the person chose, over the choices where that ranker told the two cameras apart, with a 95% bootstrap interval, overall and for each stratum. The person's own model is scored on held-out choices only: each evaluation choice is predicted by a model fitted on every other choice. Nothing here is written anywhere; it prints.
+For each ranker it reports how often the ranker picked the camera the person chose, with a 95% bootstrap interval, overall and for each stratum. Every ranker is scored on the same choices, those both the equation and the look could decide, so neither is flattered by an easier set of pairs. A second look is only compared with another from the same look, because its rubric judges cameras relative to the others looked at together. The person's own model is scored on held-out choices only, by ten-fold cross-validation over the evaluation choices, fitted each time on every other choice. Nothing here is written anywhere; it prints.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from collections.abc import Callable
 
 BOOTSTRAP = 2000
 SEED = 511
+FOLDS = 10
 # The same fit as web/src/preference.ts, so the held-out model is the one the wall uses.
 L2 = 0.02
 RATE = 0.5
@@ -64,7 +65,8 @@ def movement(vote: Vote) -> float | None:
 def look(confident_only: bool) -> Ranker:
     def rank(vote: Vote) -> float | None:
         a, b = vote["a"].get("look"), vote["b"].get("look")
-        if not a or not b:
+        # Levels from two different looks sit on two different relative scales.
+        if not a or not b or a.get("at") != b.get("at"):
             return None
         if confident_only and min(a["confidence"], b["confidence"]) < ACT_CONFIDENCE:
             return None
@@ -91,15 +93,21 @@ def fit(votes: list[Vote]) -> list[float]:
     return w
 
 
-def held_out_person(all_votes: list[Vote]) -> Ranker:
-    """The person's own model, each evaluation choice predicted by a fit on every other choice."""
-    cache: dict[int, list[float]] = {}
+def held_out_person(all_votes: list[Vote], evaluated: list[Vote]) -> Ranker:
+    """The person's own model, each evaluation choice predicted by a fit that never saw it: ten folds over the evaluation choices, each fitted on every choice outside its fold, Learn choices included."""
+    rng = random.Random(SEED)
+    order = list(range(len(evaluated)))
+    rng.shuffle(order)
+    fold_of = {id(evaluated[i]): k % FOLDS for k, i in enumerate(order)}
+    weights: dict[int, list[float]] = {}
+    for fold in range(min(FOLDS, len(evaluated))):
+        weights[fold] = fit([vote for vote in all_votes if fold_of.get(id(vote)) != fold])
 
     def rank(vote: Vote) -> float | None:
-        key = id(vote)
-        if key not in cache:
-            cache[key] = fit([other for other in all_votes if other is not vote])
-        w = cache[key]
+        fold = fold_of.get(id(vote))
+        if fold is None:
+            return None
+        w = weights[fold]
         return difference(sum(wi * x for wi, x in zip(w, vote["a"]["x"], strict=False)), sum(wi * x for wi, x in zip(w, vote["b"]["x"], strict=False)))
 
     return rank
@@ -124,10 +132,14 @@ def interval(values: list[int], rng: random.Random) -> tuple[float, float] | Non
 
 
 def report(title: str, votes: list[Vote], rankers: dict[str, Ranker]) -> None:
+    """Every ranker on the same choices, those where both the equation and the look could decide, as the panel in the app counts them. A ranker that decides fewer of those, such as the confident-only look, shows how many it had. Without a Jev key the look decides nothing, and the rest are compared on the equation's choices instead."""
     print(f"\n{title}: {len(votes)} choices")
+    anchors = [rankers[name] for name in ("equation", "second look") if name in rankers and any(rankers[name](vote) is not None for vote in votes)]
+    common = [vote for vote in votes if all(anchor(vote) is not None for anchor in anchors)]
+    print(f"  compared on the {len(common)} choices both the equation and the look could decide")
     rng = random.Random(SEED)
     for name, ranker in rankers.items():
-        decided = hits(votes, ranker)
+        decided = hits(common, ranker)
         if not decided:
             print(f"  {name:<28} no choices it could decide")
             continue
@@ -175,7 +187,7 @@ def main() -> None:
             "second look": look(confident_only=False),
             "second look, confident": look(confident_only=True),
             "movement alone": movement,
-            "your model, held out": held_out_person(votes),
+            "your model, held out": held_out_person(votes, evaluated),
         }
         report("All evaluation choices", evaluated, rankers)
         for stratum in ("random", "disagree"):
