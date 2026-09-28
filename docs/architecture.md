@@ -3,8 +3,9 @@
 Three programs and a contract between them.
 
 ```
-  agency feeds (3)          OpenStreetMap            Nominatim
-  caltrans, iowadot, kytc   Overpass + Natural Earth   geocoding
+  agency feeds (5)          OpenStreetMap            Nominatim
+  caltrans, iowadot, ohgo,  Overpass + Natural Earth   geocoding
+  tripcheck, necompass
         │                          │                      │
         └──────────┬───────────────┴──────────────────────┘
                    │  run by hand, occasionally

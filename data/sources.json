@@ -78,50 +78,6 @@
     "exclude_roadway": " TO "
    }
   },
-  "kytc": {
-   "kind": "arcgis",
-   "name": "Kentucky Transportation Cabinet",
-   "base_url": "https://goky.ky.gov",
-   "states": [
-    "KY"
-   ],
-   "time_zone": "America/New_York",
-   "snapshot_content_type": "image/jpeg",
-   "video_auth": false,
-   "has_video": false,
-   "poll_period_s": 60.0,
-   "focus_period_s": 15.0,
-   "token_url": null,
-   "attribution": "Camera imagery courtesy of the Kentucky Transportation Cabinet",
-   "license": "Creative Commons Zero (CC0), public domain, as published by KYTC",
-   "terms_url": "https://www.arcgis.com/home/item.html?id=54ca2c585b1b4b4dab1e5024f9b9e532",
-   "feed": {
-    "layer": "https://services2.arcgis.com/CcI36Pduqd0OR4W9/arcgis/rest/services/trafficCamerasCur_Prd/FeatureServer/0",
-    "fields": {
-     "image": "snapshot",
-     "location": "description",
-     "roadway": "highway",
-     "mile_marker": "milemarker"
-    },
-    "image_prefixes": [
-     "https://www.trimarc.org/images/milestone/"
-    ]
-   },
-   "notes": "KYTC's statewide cameras, served through its TRIMARC system under images/milestone/. The layer also lists a few Indiana TrafficWise cameras and old TRIMARC snapshot paths; KYTC's CC0 statement cannot cover another agency's images and the old paths are dead, so only the milestone prefix is kept. KYTC publishes no refresh interval; sampled on 2026-09-24 the pictures changed every 13 to 22 seconds, so the one camera open in the panel is fetched every 15 seconds, conditionally.",
-   "counts": {
-    "layer": "https://services2.arcgis.com/CcI36Pduqd0OR4W9/arcgis/rest/services/Traffic_Section_Middle_Third/FeatureServer/0",
-    "fields": {
-     "aadt": "LASTCNT",
-     "year": "LASTCNTYR",
-     "county": "CNTY_NAME",
-     "route_prefix": "RT_PREFIX",
-     "route_number": "RT_NUMBER"
-    },
-    "attribution": "Traffic counts courtesy of the Kentucky Transportation Cabinet (Traffic Section Middle Third, CC0)",
-    "terms_url": "https://www.arcgis.com/home/item.html?id=177305f1132c44eb94ce5e38fb866586",
-    "where": "RT_SECTION = 0"
-   }
-  },
   "ohgo": {
    "kind": "ohgo",
    "name": "OHGO",

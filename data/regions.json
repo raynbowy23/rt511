@@ -221,23 +221,6 @@
   "limit": 150
  },
  {
-  "key": "lexington-ky",
-  "name": "Lexington, KY",
-  "source": "kytc",
-  "bbox": [
-   37.9108,
-   -84.6693,
-   38.1821,
-   -84.3248
-  ],
-  "center": [
-   38.046407,
-   -84.497039
-  ],
-  "radius_km": 15.0,
-  "limit": 80
- },
- {
   "key": "los-angeles-ca",
   "name": "Los Angeles, CA",
   "source": "caltrans",
@@ -250,23 +233,6 @@
   "center": [
    34.053691,
    -118.242766
-  ],
-  "radius_km": 15.0,
-  "limit": 80
- },
- {
-  "key": "louisville-ky",
-  "name": "Louisville, KY",
-  "source": "kytc",
-  "bbox": [
-   38.1186,
-   -85.9322,
-   38.3899,
-   -85.5867
-  ],
-  "center": [
-   38.254238,
-   -85.759407
   ],
   "radius_km": 15.0,
   "limit": 80

@@ -124,7 +124,7 @@ graph: ## build a region's camera site graph: REGION=des-moines-ia
 	@test -n "$(REGION)" || { echo 'usage: make graph REGION=des-moines-ia'; exit 1; }
 	uv run rt511 build --region $(REGION)
 
-counts: ## join published traffic counts, Iowa and Kentucky: REGION=des-moines-ia
+counts: ## join published traffic counts, where the agency publishes them (Iowa): REGION=des-moines-ia
 	@test -n "$(REGION)" || { echo 'usage: make counts REGION=des-moines-ia'; exit 1; }
 	uv run rt511 counts --region $(REGION)
 

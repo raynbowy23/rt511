@@ -136,7 +136,7 @@ The candidate set comes from walking the directed graph backwards against the tr
 | Frame difference, brightness | live |
 | Camera graph, corridor topology | live, 12 cities across 8 states |
 | Incident feed | live for Ohio (OHGO), dated by first sighting because OHGO publishes no report time |
-| Published traffic counts for the scale prior | live for Iowa (CC BY) and Kentucky (CC0), mainline segments on the camera's own route only; capacity and road class elsewhere |
+| Published traffic counts for the scale prior | live for Iowa (CC BY), mainline segments on the camera's own route only; capacity and road class elsewhere |
 | Three-axis scorer, shrinkage baseline, floor with decay | live in `server/src/attention.ts` |
 | `AMBIGUOUS_ZERO` flag | live, measured and arbitrated |
 | Decision logging | live, `out/attention-<date>.jsonl` |

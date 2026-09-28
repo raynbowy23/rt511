@@ -4,7 +4,7 @@ A traffic camera wall built from state transportation agencies' published camera
 
 ![The front page: every camera in the country as a point of light, coloured by the sun on it](docs/images/front-page.jpg)
 
-It reads only agencies whose written terms allow a third-party viewer to show their cameras, through the feeds they publish for that purpose: California, Iowa, Kentucky, Ohio, Oregon, Maine, New Hampshire and Vermont, 7,641 cameras in all. See [Camera sources](#camera-sources) and [Disclaimer](#disclaimer).
+It reads only agencies whose written terms allow a third-party viewer to show their cameras, through the feeds they publish for that purpose: California, Iowa, Ohio, Oregon, Maine, New Hampshire and Vermont, 7,394 cameras in all. See [Camera sources](#camera-sources) and [Disclaimer](#disclaimer).
 
 | The country map | A city's wall |
 | --- | --- |
@@ -17,7 +17,7 @@ The wall above is a synthetic city: its pictures are drawn by the repository's m
 You need Node 22 or newer with pnpm, and Python 3.12 or newer with [uv](https://docs.astral.sh/uv/).
 
 ```
-make setup     # dependencies, then a road graph for each of the 31 included cities (about half an hour, since the OpenStreetMap server is asked politely; run it again if it stops, built cities are kept)
+make setup     # dependencies, then a road graph for each of the 29 included cities (about half an hour, since the OpenStreetMap server is asked politely; run it again if it stops, built cities are kept)
 make start     # builds the wall and serves it
 ```
 
@@ -37,7 +37,7 @@ The files on disk are all text, and none of them is a picture: the source table,
 
 The aim is that one person watching rt511 costs an agency about what one person watching its own 511 site does. Each server asks each agency for at most one on-screen picture every 5 seconds and one off-screen picture every 10 seconds, however big the wall: a wall of ten cameras refreshes each tile every minute, a wall of forty every three minutes or so, and cameras off screen every ten minutes or longer. No camera is asked more often than its agency refreshes it, every five minutes for Caltrans, which publishes that interval, and every minute elsewhere. Every request is conditional, so an unchanged picture costs a "not modified" reply of a few hundred bytes, and a picture that has stopped updating is asked about once a period, not sooner. A browser tab nobody can see asks for nothing, and a city nobody has open is not polled at all.
 
-The camera open in the panel can go faster. Where an agency's pictures refresh quicker than the wall polls, that one camera is fetched at the agency's own rate for as long as the panel stays open: every 5 seconds in Ohio, which ODOT publishes, and every 15 seconds in Kentucky, which is what its pictures measured. The panel crossfades from one picture to the next, and the badge says how often a new one arrives, as in "Snapshot · 5 s" in grey. A camera with video gets a red "Live" pill instead, on the panel and on its wall tile, so the two can be told apart at a glance. These pictures are kept apart from the replay and the scoring, which stay on the ordinary poll, and only the newest is held.
+The camera open in the panel can go faster. Where an agency's pictures refresh quicker than the wall polls, that one camera is fetched at the agency's own rate for as long as the panel stays open: every 5 seconds in Ohio, which ODOT publishes. The panel crossfades from one picture to the next, and the badge says how often a new one arrives, as in "Snapshot · 5 s" in grey. A camera with video gets a red "Live" pill instead, on the panel and on its wall tile, so the two can be told apart at a glance. These pictures are kept apart from the replay and the scoring, which stay on the ordinary poll, and only the newest is held.
 
 | | |
 | --- | --- |
@@ -139,7 +139,7 @@ uv run rt511 metros --top 20 --name
 uv run rt511 city "Des Moines, IA" --radius 12 --limit 60
 uv run rt511 catalog --region des-moines-ia
 uv run rt511 build --region des-moines-ia
-uv run rt511 counts --region des-moines-ia    # Iowa and Kentucky, where the agency publishes counts
+uv run rt511 counts --region des-moines-ia    # Iowa, where the agency publishes counts
 ```
 
 `sources` lists the agencies this project reads, what each publishes, and its terms. `metros` shows where cameras actually cluster, so you can pick somewhere worth watching. `city` geocodes the name, works out which source covers that state, keeps the cameras nearest the centre, and saves the region. `catalog` reads their details from the agency's feed and `build` matches them to roads. `counts` joins the agency's published traffic counts, where it publishes them under terms that allow it, so the scorer knows how big each road is from a measurement rather than from road class. A city in a state with no source is refused.
@@ -162,19 +162,19 @@ Cameras are matched to roads and then to each other, which is what turns a list 
 
 - **Sites** group cameras within 40 m of each other on the same carriageway. Motorway and surface cameras never share one.
 - **Matching is scored, not nearest-wins.** A camera's route number, taken from its roadway field, is the strongest signal available, and it's what separates a mainline camera from the frontage road beside it. Direction codes break the remaining tie between carriageways. Cameras named as an intersection give up their route number and are kept off the mainline, so a camera labelled with the freeway it sits beside does not land on the freeway half a mile away.
-- **A site with no direction code sits on both carriageways.** Iowa and Kentucky publish no direction, so a camera would land on whichever side is nearer and consecutive cameras would end up facing opposite ways. When you can't tell which way a camera looks, the honest answer is that it covers the whole cross-section.
+- **A site with no direction code sits on both carriageways.** Iowa publishes no direction, so a camera would land on whichever side is nearer and consecutive cameras would end up facing opposite ways. When you can't tell which way a camera looks, the honest answer is that it covers the whole cross-section.
 - **Edges follow traffic.** Site B follows site A if the shortest path between them passes no other site, comes within 60 m of no other camera, and isn't more than 2.5 times the straight-line distance. Each edge carries its length, free-flow travel time, road classes and geometry.
 - **Kinds** are freeway, ramp, street, and nearby. Nearby joins two sites close enough to watch the same place with no way to drive between them: parallel one-way streets a block apart, a freeway camera and the arterial at its interchange, or the two carriageways of a divided highway.
 - **Validation** checks direction codes against the carriageway, mile marker order, and how many cameras naming a route ended up on it. A source that publishes no direction codes gets an empty direction check instead of a failure.
 
 Where it stands:
 
-| | Oakland | Des Moines | Louisville | Columbus | Portland | Burlington |
-| --- | --- | --- | --- | --- | --- |
-| Cameras, sites | 80, 65 | 80, 75 | 77, 75 | 80, 80 | 80, 78 | 9, 6 |
-| Routes matched | 51/79 | 70/76 | 72/75 | 28/28 | 37/40 | 9/9 |
-| Direction reversed | 1 of 51 | not published | not published | not published | not published | 0 |
-| Isolated sites | 6 | 1 | 1 | 0 | 2 | 3 |
+| | Oakland | Des Moines | Columbus | Portland | Burlington |
+| --- | --- | --- | --- | --- |
+| Cameras, sites | 80, 65 | 80, 75 | 80, 80 | 80, 78 | 9, 6 |
+| Routes matched | 51/79 | 70/76 | 28/28 | 37/40 | 9/9 |
+| Direction reversed | 1 of 51 | not published | not published | not published | 0 |
+| Isolated sites | 6 | 1 | 0 | 2 | 3 |
 
 Direction codes name the route's signed direction, not a compass bearing, so they sit some way off the carriageway's bearing even when correct: a median of 38° around Oakland. That's why the check only flags a near-reversal.
 
@@ -192,12 +192,11 @@ rt511 reads cameras only from agencies whose published terms allow a third-party
 | --- | --- | --- | --- |
 | California | Caltrans Commercial Wholesale Web Portal (CWWP2) | [Public domain unless otherwise indicated](https://dot.ca.gov/conditions-of-use) | open HLS where published |
 | Iowa | Iowa DOT open-data Traffic Cameras layer | [CC BY 4.0](https://www.arcgis.com/home/item.html?id=c4063f200a7b4da5826e2ac86c677cf5) | open HLS where published |
-| Kentucky | KYTC Traffic Cameras layer, KYTC's own cameras only | [CC0](https://www.arcgis.com/home/item.html?id=54ca2c585b1b4b4dab1e5024f9b9e532) | snapshots only |
 | Ohio | ODOT's OHGO Public API, your own key | [Public domain, per ODOT](https://publicapi.ohgo.com/docs/terms-of-use) | snapshots only |
 | Oregon | ODOT's TripCheck API, your own key | [Use with credit, mirroring and ODOT's disclaimer](https://www.tripcheck.com/Pages/API) | snapshots only |
 | Maine, New Hampshire, Vermont | Tri-State's New England Compass Developer Portal | [Use, reproduce and redistribute, crediting Tri-State](http://nec-por.ne-compass.com/DeveloperPortal/Home/Terms) | snapshots only |
 
-Kentucky's layer also lists a few cameras belonging to Indiana, which KYTC's licence cannot cover, so those are dropped. Oregon's terms require its disclaimer to be repeated wherever its cameras are credited, so it appears in full with every Oregon camera. Ohio's terms cap each key at a published request rate, and this project stays well under it. Maine, New Hampshire and Vermont publish every camera's picture in one document per state, 5 to 10 MB, so the server fetches it at most once every five minutes and only while a city there is open.
+Oregon's terms require its disclaimer to be repeated wherever its cameras are credited, so it appears in full with every Oregon camera. Ohio's terms cap each key at a published request rate, and this project stays well under it. Maine, New Hampshire and Vermont publish every camera's picture in one document per state, 5 to 10 MB, so the server fetches it at most once every five minutes and only while a city there is open.
 
 States that are not listed either publish no terms permitting a third-party viewer, limit their content to individual use, or grant permission only through an agreement each user would have to apply for. They are left out rather than read in a way their owner has not agreed to.
 
