@@ -37,13 +37,36 @@ The files on disk are all text, and none of them is a picture: the source table,
 
 The aim is that one person watching rt511 costs an agency about what one person watching its own 511 site does. Each server asks each agency for at most one on-screen picture every 5 seconds and one off-screen picture every 10 seconds, however big the wall: a wall of ten cameras refreshes each tile every minute, a wall of forty every three minutes or so, and cameras off screen every ten minutes or longer. No camera is asked more often than its agency refreshes it, every five minutes for Caltrans, which publishes that interval, and every minute elsewhere. Every request is conditional, so an unchanged picture costs a "not modified" reply of a few hundred bytes, and a picture that has stopped updating is asked about once a period, not sooner. A browser tab nobody can see asks for nothing, and a city nobody has open is not polled at all.
 
-The camera open in the panel can go faster. Where an agency's pictures refresh quicker than the wall polls, that one camera is fetched at the agency's own rate for as long as the panel stays open: every 5 seconds in Ohio, which ODOT publishes. The panel crossfades from one picture to the next, and the badge says how often a new one arrives, as in "Snapshot · 5 s" in grey. A camera with video gets a red "Live" pill instead, on the panel and on its wall tile, so the two can be told apart at a glance. These pictures are kept apart from the replay and the scoring, which stay on the ordinary poll, and only the newest is held.
+The camera open in the panel can go faster. Where an agency's pictures refresh quicker than the wall polls, that one camera is fetched at the agency's own rate for as long as the panel stays open: every 5 seconds in Ohio, which ODOT publishes. The panel crossfades from one picture to the next, and the badge says how often a new one arrives, as in "Snapshot · 5 s". A camera with video gets a red "Live" pill instead, on the panel and on its wall tile, so the two can be told apart at a glance. These pictures are kept apart from the replay and the scoring, which stay on the ordinary poll, and only the newest is held.
 
 | | |
 | --- | --- |
 | Snapshot requests | at most one every 5 s on screen and one every 10 s off screen per agency, plus the one camera open in the panel at the agency's own rate, only for cities someone has open |
 | Video | none from the server. The browser loads an agency's open stream only while you have that camera open |
 | Disk written | none, apart from text logs under `out/` |
+
+### Why some pictures are slow
+
+Slow pictures are the policy working, not a fault. rt511 asks each agency for pictures no faster than the agency makes them, and within a small budget per agency, so a viewer here costs the agency about what one person on its own 511 site does. You will notice it in three places:
+
+- **A wall fills in over a few minutes.** Tiles arrive about one every 5 seconds per agency, so a city of forty cameras takes around three minutes before every tile has a picture, and a score needs two pictures, so scores follow a little after.
+- **A big wall refreshes slowly.** Each tile on screen is refreshed about every 5 seconds times the number of tiles from that agency, and never faster than the agency makes new pictures. Ten tiles refresh every minute; forty, every three minutes or so.
+- **Some agencies publish only a still every few minutes.** Nothing on this side can make those faster. Where an agency publishes live video, opening the camera plays the agency's own stream straight away.
+
+<details>
+<summary>Where it is fast and where it is snapshot only</summary>
+
+| State | Live video | A new still from the agency | A tile on the wall | The camera you open |
+| --- | --- | --- | --- | --- |
+| California | yes, on 2,184 of 3,412 cameras | every 5 minutes, as Caltrans publishes | every 5 minutes, longer on a big wall | the agency's video straight away where published, otherwise the still every 5 minutes |
+| Iowa | yes, on 692 of 1,251 cameras | not published, polled every minute | every minute, longer on a big wall | the agency's video straight away where published, otherwise the still every minute |
+| Ohio | no | every 5 seconds, as ODOT publishes | every minute, longer on a big wall | a new still every 5 seconds |
+| Oregon | no | not published, about every 2 minutes when sampled | every minute, longer on a big wall | a new still every minute |
+| Maine, New Hampshire, Vermont | no | about every 2 minutes, in one document per state | every 5 minutes | a new still every 5 minutes |
+
+"Longer on a big wall" means about 5 seconds for every tile on screen from that agency. Counts and rates were measured against the live feeds in September 2026; see [Camera sources](docs/sources.md) for the detail.
+
+</details>
 
 Memory depends on what you run. Road and graph geometry is loaded once per city, roughly 40 MB each, and that's what lets the map draw without a tile server. The frame buffer is cameras times frames times snapshot size, and snapshots run 20 to 200 KB depending on the agency. Use `--ring` to trade replay history for memory; ten frames is about ten minutes.
 

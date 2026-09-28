@@ -287,7 +287,7 @@ export function Wall({
             <b>Ranked by your own attention</b>, learned from your {rankedByYou} choices in Which?. The number on each tile is still the wall's own score, so you can see where you and the equation part ways.
           </>
         ) : (
-          <>Ranked by how unusual each camera's movement is against its own normal for this hour, scaled by how big the road is. An incident or stopped traffic nearby holds a camera up. Bigger tiles score higher, and the thin line along the top of each picture fills until its next one arrives.</>
+          <>Ranked by how unusual each camera's movement is against its own normal for this hour, scaled by how big the road is. An incident or stopped traffic nearby holds a camera up. Bigger tiles score higher, and the thin line along the top of each picture fills until its next one arrives. Pictures come slowly on purpose: each agency is asked for at most one every 5 seconds, so a big wall takes a few minutes to fill, and some agencies publish only a still every few minutes.</>
         )}
       </p>
       <div className="wall" ref={grid}>

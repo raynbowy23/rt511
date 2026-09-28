@@ -314,6 +314,9 @@ function Sources({ national, disclaimer, onClose }: { national: NationalResponse
       <p className="landing-note">
         Only agencies whose published terms let a viewer like this show their cameras. <span className="kind-chip is-video">Live</span> means some cameras stream video; <span className="kind-chip is-snapshot">Snapshot</span> means a still picture the agency refreshes on its own clock.
       </p>
+      <p className="landing-note">
+        Pictures are slow on purpose. Each agency is asked for no more than one picture every 5 seconds and never faster than it makes them, so a viewer here costs it about what one person on its own 511 site does. A big wall fills in over a few minutes, and a snapshot-only agency can take several minutes between pictures.
+      </p>
       <div className="landing-table-wrap">
         <table className="landing-table">
           <thead>
