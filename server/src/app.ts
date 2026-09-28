@@ -601,7 +601,9 @@ export function createApp(options: AppOptions): App {
     // The third subject, and the only one about ranking itself: the city the viewer has open, its leading cameras looked at together. Only cameras with a recent picture are offered, because a stale one has nothing new to be judged on.
     if (jev.enabled && region !== null && poller.isWatching(region)) {
       const leaders: ReviewCandidate[] = [];
-      for (const state of [...cameras].filter((item) => item.region === region && item.attention !== null && item.diff !== null).sort((a, b) => (b.attention as number) - (a.attention as number))) {
+      // Leaders by the fixed equation, not by the score the look has already moved, so the look never chooses its own shortlist.
+      const equationOf = (item: (typeof cameras)[number]): number => item.axes?.equation ?? (item.attention as number);
+      for (const state of [...cameras].filter((item) => item.region === region && item.attention !== null && item.diff !== null).sort((a, b) => equationOf(b) - equationOf(a))) {
         if (leaders.length >= JEV.REVIEW_TOP_K) break;
         const camera = byId.get(state.id);
         if (!camera || !state.axes || state.last_ts === null || now - state.last_ts > 3 * state.period_s) continue;
@@ -624,6 +626,7 @@ export function createApp(options: AppOptions): App {
           incident: state.axes.incident_floor > 0 ? state.axes.incident : null,
           queue: state.axes.queue_floor > 0,
           stoppedTraffic: (state.axes.gate?.floor ?? 0) > 0,
+          equation: state.axes.equation ?? (state.attention as number),
         });
       }
       jev.considerReview(region, configured.get(region)?.name ?? region, leaders, now);

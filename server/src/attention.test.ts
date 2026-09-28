@@ -351,14 +351,16 @@ test('a second look scales movement and never a floor', () => {
   const engine = new AttentionEngine(new Map(), temporaryDirectory(join(tmpdir(), 'rt511-attn-')));
   const busy = () => slot(1, [0.01, 0.01, 0.01, 0.01, 0.01], 0.012);
   const plain = engine.scorer(() => [])(busy(), null);
-  engine.review = () => ({ level: 3, levels: 4, confidence: 0.9, factor: 1.25, at: 0, model: 'test' });
+  engine.review = () => ({ level: 3, levels: 4, confidence: 0.9, factor: 1.25, acted: true, at: 0, model: 'test' });
   const lifted = engine.scorer(() => [])(busy(), null);
   assert.ok((lifted.attention ?? 0) > (plain.attention ?? 0));
   assert.equal(lifted.axes?.review?.factor, 1.25);
+  // The baseline stays the equation's own, whatever the look did to the wall.
+  assert.equal(lifted.axes?.equation, plain.attention);
 
   // A stopped-traffic floor stands exactly as it was, however low the look puts the picture.
   engine.gate = () => ({ at: 0, value: 0.6, influence: { standstill: 0.9, frozen: 0.05, floor: 0.6, gated: ['frozen'], model: 'test' } });
-  engine.review = () => ({ level: 0, levels: 4, confidence: 0.9, factor: 0.75, at: 0, model: 'test' });
+  engine.review = () => ({ level: 0, levels: 4, confidence: 0.9, factor: 0.75, acted: true, at: 0, model: 'test' });
   const floored = engine.scorer(() => [])(slot(2, [0.02, 0.02, 0.02, 0.02, 0.02], 0.0001), null);
   assert.equal(floored.attention, 0.6);
 });

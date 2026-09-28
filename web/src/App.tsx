@@ -502,7 +502,19 @@ export function App(): ReactElement {
     return poll.states.flatMap((state) => {
       const camera = topology.cameras.get(state.id);
       if (!camera || camera.region !== region || state.attention === null || !state.axes || state.frames === 0 || state.last_ts === null || now - state.last_ts > 3 * state.period_s) return [];
-      return [{ id: state.id, region, city, location: camera.location, attention: state.attention, x: features(state.axes, camera, state.brightness, now) }];
+      const look = state.axes.review;
+      return [
+        {
+          id: state.id,
+          region,
+          city,
+          location: camera.location,
+          attention: state.attention,
+          equation: state.axes.equation ?? state.attention,
+          look: look ? { level: look.level, levels: look.levels, confidence: look.confidence, at: look.at } : null,
+          x: features(state.axes, camera, state.brightness, now),
+        },
+      ];
     });
   }, [topology, region, poll.states, boot]);
 

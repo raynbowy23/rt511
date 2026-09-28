@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import { snapUrl } from '../api';
-import { agreement, disagreements, FACTORS, nextPair, type Candidate, type Vote } from '../preference';
+import { agreement, disagreements, evaluation, FACTORS, nextEvalPair, nextPair, type Candidate, type DuelMode, type Stratum, type Vote } from '../preference';
 
 /** How long both scores stay up after a choice before the next pair comes in. */
 const REVEAL_MS = 1600;
+/** In evaluation nothing is revealed, so the pause is only long enough to see the choice land. */
+const EVALUATE_PAUSE_MS = 450;
+const MODE_KEY = 'rt511.duelMode';
 /** Choices needed before the weights mean anything, and before the wall can be ranked by them. */
 const SHOW_WEIGHTS_AFTER = 5;
 const RANK_AFTER = 10;
@@ -32,19 +35,34 @@ export function Duel({
 }): ReactElement {
   const recent = useRef<number[]>([]);
   const [pair, setPair] = useState<[Candidate, Candidate] | null>(null);
+  const [stratum, setStratum] = useState<Stratum | null>(null);
   const [reveal, setReveal] = useState<'a' | 'b' | null>(null);
+  const [mode, setModeState] = useState<DuelMode>(readMode);
 
   // Latest values for the callbacks below, which are held by a timer and a key listener.
-  const latest = useRef({ candidates, weights, count: votes.length });
-  latest.current = { candidates, weights, count: votes.length };
+  const latest = useRef({ candidates, weights, count: votes.length, mode });
+  latest.current = { candidates, weights, count: votes.length, mode };
 
   const advance = useCallback(() => {
-    const { candidates: pool, weights: w, count } = latest.current;
-    const next = nextPair(pool, w, count, new Set(recent.current));
+    const { candidates: pool, weights: w, count, mode: current } = latest.current;
+    const drawn = current === 'evaluate' ? nextEvalPair(pool, new Set(recent.current)) : null;
+    const next = current === 'evaluate' ? (drawn?.pair ?? null) : nextPair(pool, w, count, new Set(recent.current));
     if (next) recent.current = [...recent.current, next[0].id, next[1].id].slice(-RECENT * 2);
     setPair(next);
+    setStratum(drawn?.stratum ?? null);
     setReveal(null);
   }, []);
+
+  const setMode = (next: DuelMode): void => {
+    setModeState(next);
+    latest.current.mode = next;
+    try {
+      window.localStorage.setItem(MODE_KEY, next);
+    } catch {
+      // Remembering the mode is a convenience; without storage it lasts the visit.
+    }
+    advance();
+  };
 
   // The first pair, and a new one if the pool was empty and has filled since.
   const hasPool = candidates.length >= 2;
@@ -56,11 +74,11 @@ export function Duel({
     (pick: 'a' | 'b') => {
       if (!pair || reveal) return;
       const [a, b] = pair;
-      onVote({ ts: Date.now() / 1000, a, b, pick });
+      onVote({ ts: Date.now() / 1000, a, b, pick, mode, stratum: mode === 'evaluate' ? stratum : null });
       setReveal(pick);
-      window.setTimeout(advance, REVEAL_MS);
+      window.setTimeout(advance, mode === 'evaluate' ? EVALUATE_PAUSE_MS : REVEAL_MS);
     },
-    [pair, reveal, onVote, advance],
+    [pair, reveal, onVote, advance, mode, stratum],
   );
 
   useEffect(() => {
@@ -80,6 +98,8 @@ export function Duel({
   }, [choose, advance, onClose, reveal]);
 
   const agreed = agreement(votes);
+  const evaluated = evaluation(votes);
+  const percent = ({ agree, total }: { agree: number; total: number }): string => (total === 0 ? 'none yet' : `${String(Math.round((100 * agree) / total))}% of ${String(total)}`);
   const against = disagreements(votes);
   const top = Math.max(1e-9, ...weights.map((w) => Math.abs(w)));
   const ordered = FACTORS.map((factor, i) => ({ factor, w: weights[i] ?? 0 })).sort((x, y) => Math.abs(y.w) - Math.abs(x.w));
@@ -89,7 +109,14 @@ export function Duel({
       <div className="duel-stage">
         <header className="duel-head">
           <h2>Which would you watch?</h2>
-          <p>Pick with a click or ← →. Space skips. The wall's own score shows after you choose.</p>
+          <p>{mode === 'evaluate' ? 'Pick the one you would rather watch. Nothing is revealed, so no score can steer the next choice.' : 'Pick with a click or ← →. Space skips. The wall’s own score shows after you choose.'}</p>
+          <div className="duel-mode" role="group" aria-label="Mode">
+            {(['learn', 'evaluate'] as const).map((option) => (
+              <button key={option} type="button" className={mode === option ? 'is-on' : ''} aria-pressed={mode === option} onClick={() => setMode(option)}>
+                {option === 'learn' ? 'Learn my attention' : 'Evaluate'}
+              </button>
+            ))}
+          </div>
           <button type="button" className="duel-close" onClick={onClose}>
             Close <kbd>Esc</kbd>
           </button>
@@ -108,7 +135,7 @@ export function Duel({
                     {camera.location}
                     <small>{camera.city}</small>
                   </span>
-                  {reveal && (
+                  {reveal && mode === 'learn' && (
                     <span className="duel-reveal">
                       <b>{camera.attention.toFixed(2)}</b> wall
                       {chosen && <em>{camera.attention === other.attention ? 'the wall had them level' : wallPrefers ? 'the wall agrees' : 'the wall would have picked the other'}</em>}
@@ -133,6 +160,17 @@ export function Duel({
             </>
           )}
         </p>
+        {evaluated.choices > 0 && (
+          <div className="duel-evaluation">
+            <h4>Evaluation</h4>
+            <p>
+              {evaluated.choices} blind {evaluated.choices === 1 ? 'choice' : 'choices'}, {evaluated.disagreements} where the two rankings split.
+            </p>
+            <p>
+              The equation picked your camera in <b>{percent(evaluated.equation)}</b>. The second look picked it in <b>{percent(evaluated.look)}</b>.
+            </p>
+          </div>
+        )}
         {votes.length < SHOW_WEIGHTS_AFTER ? (
           <p className="duel-note">A few more choices and what you weigh starts to show here.</p>
         ) : (
@@ -192,11 +230,19 @@ export function Duel({
 
 /** The choices and the weights as JSON, for looking at elsewhere. */
 function download(votes: Vote[], weights: number[]): void {
-  const body = JSON.stringify({ format: 'rt511-preferences', version: 1, factors: FACTORS.map((factor) => factor.key), weights, votes }, null, 1);
+  const body = JSON.stringify({ format: 'rt511-preferences', version: 2, factors: FACTORS.map((factor) => factor.key), weights, votes }, null, 1);
   const url = URL.createObjectURL(new Blob([body], { type: 'application/json' }));
   const link = document.createElement('a');
   link.href = url;
   link.download = `rt511-attention-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function readMode(): DuelMode {
+  try {
+    return window.localStorage.getItem(MODE_KEY) === 'evaluate' ? 'evaluate' : 'learn';
+  } catch {
+    return 'learn';
+  }
 }

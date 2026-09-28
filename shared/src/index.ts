@@ -187,6 +187,8 @@ export interface AttentionAxes {
   jev: JevInfluence | null;
   /** The arbiter's second look at the top of this camera's city, and the factor it put on the movement term. Null when the camera was not among those looked at, the look is older than its hold, or the answer was not confident enough to act on. Optional so a state recorded before it existed still reads. */
   review?: ReviewInfluence | null | undefined;
+  /** The score the fixed equation alone gives this camera, with no second look applied. The baseline every other ranking is compared against. Equal to the attention whenever no look has acted. */
+  equation?: number | null | undefined;
 }
 
 /** A second opinion on how much one camera deserves a person's attention, relative to the others at the top of its city. It scales the movement term only. The floors, which carry incidents and stopped traffic, are never touched by it. */
@@ -195,8 +197,10 @@ export interface ReviewInfluence {
   level: number;
   levels: number;
   confidence: number;
-  /** What the movement term was multiplied by. One is no change. */
+  /** What the movement term was multiplied by. One is no change, which is what an answer below the confidence gate gets. */
   factor: number;
+  /** Whether the answer was confident enough to act on. An unsure answer is still reported, so the look can be evaluated as a ranking in its own right, but it moves nothing. */
+  acted: boolean;
   at: number;
   model: string;
 }

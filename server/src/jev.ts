@@ -172,6 +172,8 @@ export interface ReviewCandidate {
   incident: string | null;
   queue: boolean;
   stoppedTraffic: boolean;
+  /** The fixed equation's score, for the shadow log only. It is never put in the state the model reads. */
+  equation: number;
 }
 
 /** What the review said about one camera. */
@@ -486,6 +488,9 @@ export class JevArbiter {
       this.outputTokens += usage.output_tokens;
       const at = Date.now() / 1000;
       for (const [uid, verdict] of verdicts) this.reviews.set(uid, { ...verdict, at });
+      // The shadow record: both rankings of the same cameras at the same moment, whether or not the look was confident enough to move the wall. This is what the look is evaluated from, rather than from the bounded factor the wall applies.
+      const equationOrder = [...leaders].sort((a, b) => b.equation - a.equation).map((candidate) => candidate.camera.uid);
+      const lookOrder = [...verdicts].sort((a, b) => b[1].level - a[1].level).map(([uid]) => uid);
       if (this.failing) console.log('jev recovered');
       this.failing = false;
       this.log.write(
@@ -496,6 +501,13 @@ export class JevArbiter {
             rubric_version: JEV.RUBRIC_VERSION,
             region,
             cameras: leaders.map((candidate) => candidate.camera.uid),
+            shadow: {
+              equation: leaders.map((candidate) => ({ uid: candidate.camera.uid, score: round(candidate.equation, 3) })),
+              look: [...verdicts].map(([uid, verdict]) => ({ uid, level: round(verdict.level, 3), levels: verdict.levels, confidence: round(verdict.confidence, 3) })),
+              equation_order: equationOrder,
+              look_order: lookOrder,
+              kendall_tau: kendallTau(equationOrder.filter((uid) => verdicts.has(uid)), lookOrder),
+            },
             state,
             latency_ms: latencyMs,
             model: [...verdicts.values()][0]?.model ?? null,
@@ -521,13 +533,15 @@ export class JevArbiter {
   reviewFactor(uid: number, now = Date.now() / 1000): ReviewInfluence | null {
     const verdict = this.reviews.get(uid);
     if (!verdict || now - verdict.at > JEV.REVIEW_HOLD_S) return null;
-    if (verdict.confidence < JEV.ACT_CONFIDENCE || verdict.levels < 2) return null;
+    if (verdict.levels < 2) return null;
+    const acted = verdict.confidence >= JEV.ACT_CONFIDENCE;
     const normalised = verdict.level / (verdict.levels - 1);
     return {
       level: round(verdict.level, 2),
       levels: verdict.levels,
       confidence: round(verdict.confidence, 2),
-      factor: round(1 + JEV.REVIEW_SWING * (2 * normalised - 1), 3),
+      factor: acted ? round(1 + JEV.REVIEW_SWING * (2 * normalised - 1), 3) : 1,
+      acted,
       at: round(verdict.at, 1),
       model: verdict.model,
     };
@@ -874,6 +888,22 @@ export function buildReviewState(cityName: string, leaders: ReviewCandidate[], n
       };
     }),
   };
+}
+
+/** Kendall's tau between two orderings of the same items, 1 for the same order and -1 for the reverse. Null with fewer than two items in common. Ties cannot occur, because both arguments are orders. */
+export function kendallTau(first: number[], second: number[]): number | null {
+  const common = first.filter((uid) => second.includes(uid));
+  if (common.length < 2) return null;
+  const at = new Map(second.filter((uid) => common.includes(uid)).map((uid, i) => [uid, i]));
+  let concordant = 0;
+  let discordant = 0;
+  for (let i = 0; i < common.length; i++) {
+    for (let j = i + 1; j < common.length; j++) {
+      if ((at.get(common[i]!) as number) < (at.get(common[j]!) as number)) concordant++;
+      else discordant++;
+    }
+  }
+  return round((concordant - discordant) / (concordant + discordant), 3);
 }
 
 /** The review's one question, asked once per camera. A Score because the answer is a place on an ordered scale, and relative because the cameras are judged side by side in one state. */

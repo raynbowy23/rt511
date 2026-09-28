@@ -32,14 +32,33 @@ export interface Candidate {
   location: string;
   /** The wall's own score, for comparing with the person's choice. */
   attention: number;
+  /** The fixed equation's score alone, the baseline. Optional so choices recorded before it existed still read. */
+  equation?: number | undefined;
+  /** The second look's reading of this camera when it was chosen, confident or not, or null when it had none. */
+  look?: Look | null | undefined;
   x: number[];
 }
+
+/** One second-look answer as a vote keeps it. */
+export interface Look {
+  level: number;
+  levels: number;
+  confidence: number;
+  at: number;
+}
+
+/** "learn" pairs are chosen to teach the person's own model fastest. "evaluate" pairs are chosen without reference to any model's opinion of the person, so they can judge the rankers fairly. */
+export type DuelMode = 'learn' | 'evaluate';
+/** How an evaluation pair was drawn: uniformly, or from the pairs the equation and the second look order differently. Kept on the vote because the two strata have to be reported apart. */
+export type Stratum = 'random' | 'disagree';
 
 export interface Vote {
   ts: number;
   a: Omit<Candidate, 'x'> & { x: number[] };
   b: Omit<Candidate, 'x'> & { x: number[] };
   pick: 'a' | 'b';
+  mode?: DuelMode | undefined;
+  stratum?: Stratum | null | undefined;
 }
 
 /** One camera's features, from its score's parts and where the sun is on it. */
@@ -127,4 +146,62 @@ export function nextPair(candidates: Candidate[], weights: number[], votes: numb
     }
   }
   return best;
+}
+
+/** How far apart two cameras must sit, on each ranking, for the pair to count as the two rankings disagreeing rather than a near tie. */
+const DISAGREE_EQUATION = 0.02;
+const DISAGREE_LOOK = 0.25;
+/** The share of evaluation pairs drawn from the disagreements, when there are any. The rest are uniform, which is what an overall figure is read from. */
+const DISAGREE_SHARE = 0.5;
+
+/** Whether the equation and the second look put two cameras in opposite orders, each by more than a near tie. */
+export function disagree(a: Candidate, b: Candidate): boolean {
+  if (!a.look || !b.look || a.equation === undefined || b.equation === undefined) return false;
+  const byEquation = a.equation - b.equation;
+  const byLook = a.look.level - b.look.level;
+  return Math.abs(byEquation) > DISAGREE_EQUATION && Math.abs(byLook) > DISAGREE_LOOK && byEquation * byLook < 0;
+}
+
+/** The next evaluation pair. Half the time, when there are any, one of the pairs the two rankings order differently, since those are the pairs that tell them apart. Otherwise any two cameras, uniformly. Never informed by the person's own model, which would bias the test towards it. */
+export function nextEvalPair(candidates: Candidate[], recent: Set<number>, random: () => number = Math.random): { pair: [Candidate, Candidate]; stratum: Stratum } | null {
+  const fresh = candidates.filter((candidate) => !recent.has(candidate.id));
+  const pool = fresh.length >= 2 ? fresh : candidates;
+  if (pool.length < 2) return null;
+  if (random() < DISAGREE_SHARE) {
+    const split: [Candidate, Candidate][] = [];
+    for (let i = 0; i < pool.length; i++) for (let j = i + 1; j < pool.length; j++) if (disagree(pool[i]!, pool[j]!)) split.push([pool[i]!, pool[j]!]);
+    if (split.length > 0) {
+      const pair = split[Math.floor(random() * split.length)]!;
+      // Sides shuffled, so neither ranking's favourite always sits on the left.
+      return { pair: random() < 0.5 ? pair : [pair[1], pair[0]], stratum: 'disagree' };
+    }
+  }
+  const i = Math.floor(random() * pool.length);
+  let j = Math.floor(random() * (pool.length - 1));
+  if (j >= i) j++;
+  return { pair: [pool[i]!, pool[j]!], stratum: 'random' };
+}
+
+export interface RankerAgreement {
+  agree: number;
+  total: number;
+}
+
+/** How often each ranking picked the camera the person chose, over evaluation choices only, and only where that ranking told the two apart. The person's own model is left out here, because it was trained on these same choices; the analysis script scores it on held-out choices instead. */
+export function evaluation(votes: Vote[]): { choices: number; disagreements: number; equation: RankerAgreement; look: RankerAgreement } {
+  const evaluated = votes.filter((vote) => vote.mode === 'evaluate');
+  const equation = { agree: 0, total: 0 };
+  const look = { agree: 0, total: 0 };
+  for (const vote of evaluated) {
+    const pickedA = vote.pick === 'a';
+    if (vote.a.equation !== undefined && vote.b.equation !== undefined && Math.abs(vote.a.equation - vote.b.equation) > 1e-6) {
+      equation.total++;
+      if (pickedA === vote.a.equation > vote.b.equation) equation.agree++;
+    }
+    if (vote.a.look && vote.b.look && Math.abs(vote.a.look.level - vote.b.look.level) > 1e-6) {
+      look.total++;
+      if (pickedA === vote.a.look.level > vote.b.look.level) look.agree++;
+    }
+  }
+  return { choices: evaluated.length, disagreements: evaluated.filter((vote) => vote.stratum === 'disagree').length, equation, look };
 }

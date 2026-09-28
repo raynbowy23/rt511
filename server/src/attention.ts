@@ -257,7 +257,10 @@ export class AttentionEngine {
     };
     // Nothing is known about this camera yet and no incident is pointing at it, so it has no score rather than a score of zero: a camera that has not returned a frame and one that has returned a still frame are different things and the wall treats them differently.
     if (anomaly === null && floor.value === 0 && queued.value === 0 && gateValue === 0) return { attention: null, axes };
-    const combined = amplifier * (review?.factor ?? 1) * (TUNING.WEIGHT_ANOMALY * (anomaly ?? 0) + TUNING.WEIGHT_SPECTACLE * (spectacle ?? 0));
+    const movement = amplifier * (TUNING.WEIGHT_ANOMALY * (anomaly ?? 0) + TUNING.WEIGHT_SPECTACLE * (spectacle ?? 0));
+    // The fixed equation on its own, kept beside the score the wall uses so the baseline stays clean however the look moves the wall.
+    axes.equation = round(clamp(Math.max(movement, floor.value, queued.value, gateValue)), 3);
+    const combined = movement * (review?.acted ? review.factor : 1);
     return { attention: round(clamp(Math.max(combined, floor.value, queued.value, gateValue)), 3), axes };
   }
 
@@ -304,6 +307,7 @@ export class AttentionEngine {
           gate: axes.gate,
           scale_amplifier: axes.scale_amplifier,
           review: axes.review ?? null,
+          equation: axes.equation ?? null,
         };
       }),
       now,
@@ -509,7 +513,7 @@ function cameraSnap(site: Site | undefined, uid: number): Snap | null {
 
 /** A floor wins a tie because it is the reason attention cannot drop even if movement eases. Equal floors prefer incident, then queue, then still for a stable explanation. */
 export function driver(axes: AttentionAxes): ScoreDriver {
-  const movement = axes.scale_amplifier * (axes.review?.factor ?? 1) * (TUNING.WEIGHT_ANOMALY * (axes.anomaly ?? 0) + TUNING.WEIGHT_SPECTACLE * (axes.spectacle ?? 0));
+  const movement = axes.scale_amplifier * (axes.review?.acted ? axes.review.factor : 1) * (TUNING.WEIGHT_ANOMALY * (axes.anomaly ?? 0) + TUNING.WEIGHT_SPECTACLE * (axes.spectacle ?? 0));
   const still = axes.gate?.floor ?? 0;
   if (axes.incident_floor >= movement && axes.incident_floor >= still && axes.incident_floor >= axes.queue_floor) return 'incident';
   if (axes.queue_floor >= movement && axes.queue_floor >= still) return 'queue';

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agreement, disagreements, FACTORS, nextPair, prefer, train, type Candidate, type Vote } from './preference';
+import { agreement, disagree, disagreements, evaluation, FACTORS, nextEvalPair, nextPair, prefer, train, type Candidate, type Vote } from './preference';
 
 const MOVEMENT = 0;
 const ROAD = 1;
@@ -94,5 +94,39 @@ describe('nextPair', () => {
 
   it('needs two cameras', () => {
     expect(nextPair([pool[0]!], FACTORS.map(() => 0), 0, new Set())).toBeNull();
+  });
+});
+
+describe('evaluation pairs', () => {
+  const cam = (id: number, equation: number, level: number | null): Candidate => ({ id, region: 'r', city: 'c', location: `cam ${String(id)}`, attention: equation, equation, look: level === null ? null : { level, levels: 4, confidence: 0.8, at: 0 }, x: [] });
+
+  it('knows when the equation and the second look order two cameras differently', () => {
+    expect(disagree(cam(1, 0.8, 0.5), cam(2, 0.4, 2.5))).toBe(true);
+    expect(disagree(cam(1, 0.8, 2.5), cam(2, 0.4, 0.5))).toBe(false);
+    expect(disagree(cam(1, 0.8, 2.5), cam(2, 0.79, 0.5))).toBe(false);
+    expect(disagree(cam(1, 0.8, null), cam(2, 0.4, 2.5))).toBe(false);
+  });
+
+  it('draws from the disagreements when asked to, and uniformly otherwise', () => {
+    const pool = [cam(1, 0.9, 3), cam(2, 0.8, 2.8), cam(3, 0.5, 0.2), cam(4, 0.2, 2.9)];
+    const split = nextEvalPair(pool, new Set(), () => 0.1)!;
+    expect(split.stratum).toBe('disagree');
+    expect(disagree(split.pair[0], split.pair[1])).toBe(true);
+    const any = nextEvalPair(pool, new Set(), () => 0.9)!;
+    expect(any.stratum).toBe('random');
+    expect(nextEvalPair([cam(1, 0.5, 1)], new Set())).toBeNull();
+  });
+
+  it('scores each ranking only on evaluation choices it could tell apart', () => {
+    const vote = (a: Candidate, b: Candidate, pick: 'a' | 'b', mode: 'learn' | 'evaluate' = 'evaluate'): Vote => ({ ts: 0, a, b, pick, mode, stratum: 'random' });
+    const result = evaluation([
+      vote(cam(1, 0.8, 0.5), cam(2, 0.4, 2.5), 'b'),
+      vote(cam(1, 0.8, 2.5), cam(2, 0.4, 0.5), 'a'),
+      vote(cam(1, 0.5, null), cam(2, 0.5, 1), 'a'),
+      vote(cam(1, 0.9, 3), cam(2, 0.1, 0), 'b', 'learn'),
+    ]);
+    expect(result.choices).toBe(3);
+    expect(result.equation).toEqual({ agree: 1, total: 2 });
+    expect(result.look).toEqual({ agree: 2, total: 2 });
   });
 });

@@ -3462,6 +3462,51 @@ body[data-view='home'] .stage.has-arbiter {
   cursor: pointer;
 }
 
+/* Learn or Evaluate: a two-way switch in the header. */
+.duel-mode {
+  display: inline-flex;
+  border: 1px solid var(--line-strong);
+  border-radius: 2px;
+}
+
+.duel-mode button {
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.duel-mode button.is-on {
+  color: var(--bg);
+  background: var(--accent);
+  text-shadow: none;
+}
+
+.duel-evaluation {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+}
+
+.duel-evaluation h4 {
+  margin: 0 0 6px;
+  font-size: 10px;
+  font-weight: 400;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.duel-evaluation p {
+  margin: 0 0 4px;
+  font-size: 12px;
+}
+
 .duel-close:hover,
 .duel-actions button:hover:not(:disabled) {
   color: var(--fg);

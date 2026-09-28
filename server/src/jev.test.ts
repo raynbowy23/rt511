@@ -5,7 +5,7 @@
  * Nothing here touches the network. The one call that would is injected, and the one test that exercises the real SDK hands it a `fetch` of its own. */
 
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, test } from 'node:test';
@@ -13,7 +13,7 @@ import type { Incident } from '../../shared/src/index.js';
 import { incidentFloor, queueFloor, TUNING } from './attention.js';
 import { buildQueueIndex } from './corridor.js';
 import { round } from './config.js';
-import { JEV, JevArbiter, ago, buildGateState, buildReviewState, buildState, choiceOptions, createAsk, createGateAsk, picture, type AskResult, type CameraTelemetry, type GateAskResult, type GateCandidate, type Neighbour, type ReviewAsk, type ReviewCandidate } from './jev.js';
+import { JEV, JevArbiter, ago, buildGateState, buildReviewState, kendallTau, buildState, choiceOptions, createAsk, createGateAsk, picture, type AskResult, type CameraTelemetry, type GateAskResult, type GateCandidate, type Neighbour, type ReviewAsk, type ReviewCandidate } from './jev.js';
 
 const temporaryDirectories: string[] = [];
 function temporaryDirectory(prefix: string): string {
@@ -709,7 +709,7 @@ for (const [name, verdict, expected] of [
 /** The review: a second look at the leading cameras of a city. It may reorder, within bounds, and nothing else. */
 
 function leader(uid: number, over: Partial<CameraTelemetry> = {}): ReviewCandidate {
-  return { camera: telemetry(uid, { ambiguousZero: false, diff: 0.03, ...over }), freeway: true, roadSize: 0.8, incident: null, queue: false, stoppedTraffic: false };
+  return { camera: telemetry(uid, { ambiguousZero: false, diff: 0.03, ...over }), freeway: true, roadSize: 0.8, incident: null, queue: false, stoppedTraffic: false, equation: 1 - uid / 1000 };
 }
 
 /** Answers every camera it is asked about with the level and confidence given for it, and counts the calls. */
@@ -732,7 +732,9 @@ test('a confident look moves a camera within the swing, and an unsure one moves 
   await arbiter.drain();
   assert.equal(arbiter.reviewFactor(1)?.factor, 1 + JEV.REVIEW_SWING);
   assert.equal(arbiter.reviewFactor(2)?.factor, 1 - JEV.REVIEW_SWING);
-  assert.equal(arbiter.reviewFactor(3), null);
+  // Reported for the shadow record, and acted on not at all.
+  assert.equal(arbiter.reviewFactor(3)?.factor, 1);
+  assert.equal(arbiter.reviewFactor(3)?.acted, false);
   assert.equal(arbiter.reviewFactor(4)?.factor, 1);
   assert.equal(arbiter.reviewFactor(99), null, 'a camera never looked at keeps the equation alone');
 });
@@ -774,4 +776,26 @@ test('the review state leaves the equation score out and says what each camera s
   assert.equal(state.cameras[0]!.times_its_usual, 3);
   assert.equal(state.cameras[1]!.incident_reported_here, 'Crash at exit 4');
   assert.ok(!JSON.stringify(state).includes('attention'), 'a second opinion, not an echo');
+});
+
+test('kendall tau reads two orders of the same cameras', () => {
+  assert.equal(kendallTau([1, 2, 3], [1, 2, 3]), 1);
+  assert.equal(kendallTau([1, 2, 3], [3, 2, 1]), -1);
+  assert.equal(kendallTau([1, 2, 3], [2, 1, 3]), 0.333);
+  assert.equal(kendallTau([1], [1]), null);
+});
+
+test('every look writes both rankings of the same cameras to the shadow log', async () => {
+  const { ask } = reviewer({ 1: [0.5, 0.3], 2: [2.5, 0.9], 3: [1, 0.9] });
+  const logDir = dir();
+  const arbiter = makeArbiter(null, logDir, null, ask);
+  arbiter.considerReview('city', 'City', [leader(1), leader(2), leader(3)]);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  await arbiter.drain();
+  const file = readdirSync(logDir).find((name) => name.startsWith('jev-'))!;
+  const line = readFileSync(join(logDir, file), 'utf8').trim().split('\n').map((row) => JSON.parse(row) as { kind: string; shadow?: { equation_order: number[]; look_order: number[]; kendall_tau: number } }).find((row) => row.kind === 'review')!;
+  assert.deepEqual(line.shadow?.equation_order, [1, 2, 3]);
+  // The unsure answer on camera 1 still ranks in the shadow, which is the point of it.
+  assert.deepEqual(line.shadow?.look_order, [2, 3, 1]);
+  assert.equal(line.shadow?.kendall_tau, -0.333);
 });
