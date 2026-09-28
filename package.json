@@ -14,7 +14,7 @@
     "build": "pnpm --filter @rt511/server --filter rt511-web run build",
     "dev": "concurrently -n api,web -c cyan,magenta -k --handle-input \"pnpm dev:api\" \"pnpm dev:web\"",
     "dev:api": "pnpm --filter @rt511/server run build && node server/dist/server/src/index.js",
-    "dev:web": "pnpm --filter rt511-web run dev",
+    "dev:web": "node scripts/wait-for-api.mjs && pnpm --filter rt511-web run dev",
     "check": "pnpm --recursive run check",
     "lint": "eslint --max-warnings 0 ."
   },
