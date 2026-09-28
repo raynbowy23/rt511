@@ -1,6 +1,6 @@
 {
  "_comment": "Canonical table of the camera sources this project reads. Every source here is an agency's own published feed whose written terms allow a third-party viewer to show its cameras. Both the Python pipeline and the TypeScript server load this file. See docs/sources.md.",
- "user_agent": "rt511/0.3.0 (open-source traffic camera viewer; https://github.com/raynbowy23/rt511)",
+ "user_agent": "rt511/0.4.0 (open-source traffic camera viewer; https://github.com/raynbowy23/rt511)",
  "sources": {
   "caltrans": {
    "kind": "caltrans",

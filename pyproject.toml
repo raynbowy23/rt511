@@ -1,6 +1,6 @@
 [project]
 name = "rt511"
-version = "0.3.0"
+version = "0.4.0"
 description = "Offline pipeline for the rt511 camera wall: camera catalogs from agencies' published feeds, road graphs and the national index"
 license = "MIT"
 requires-python = ">=3.12"
