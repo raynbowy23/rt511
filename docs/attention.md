@@ -112,8 +112,11 @@ It is an **arbiter, not a calculator**. It must not sit in the continuous path, 
 | Choice | Which neighbouring camera best shows the queue tail |
 | Noul | Is this still camera stopped traffic rather than an empty road |
 | Noul | Has this camera's feed frozen |
+| Score | How much does each of a city's eight leading cameras deserve attention, judged side by side, on a 0–3 rubric |
 
 There are 84 incidents live across all fourteen states at a typical moment, so this is a handful of calls a minute at most, not hundreds. Confidence gates action: a low-confidence verdict means "show it normally", never "hide it".
+
+**The review is the one use that ranks.** While a viewer has a city open, its eight leading cameras with a recent picture are looked at together, at most every two minutes and only once one has a new picture. A confident Score multiplies that camera's movement term by 0.75 to 1.25 for ten minutes. Floors are never touched, so it reorders close calls and cannot bury an incident or invent one. The equation's own score is left out of the state so the answer is a second opinion. At most thirty calls an hour per open city.
 
 **Coverage is the binding constraint, not cadence.** Dispatch records are matched against every camera the source publishes, which for Florida is 4,956. Each city in `data/regions.json` carries a `limit`, and Miami's is 80 out of the 183 fl511 cameras inside its own bounding box. The result is that a Miami-only server sees 53 road-relevant records statewide and can serve cameras for exactly one of them, so there is almost nothing to arbitrate however fast the arbiter is allowed to run. Raising a region's `limit` and rebuilding its catalog is the lever, and it costs request rate in direct proportion, which is why it is a decision rather than a default.
 
@@ -141,7 +144,7 @@ The candidate set comes from walking the directed graph backwards against the tr
 | `AMBIGUOUS_ZERO` flag | live, measured and arbitrated |
 | Decision logging | live, `out/attention-<date>.jsonl` |
 | Detector resolving the gate | live as evidence to Jev, `server/src/detector.ts` and `src/rt511/detect.py`; not yet measured at night or in a jam |
-| Jev arbitration | live over still cameras, and over incidents once a feed exists, `server/src/jev.ts` |
+| Jev arbitration | live over still cameras, over Ohio incidents, and as a second look at each open city's leading cameras, `server/src/jev.ts` |
 | Corridor queue-tail candidates | live, directed walk in `server/src/app.ts` |
 | Queue floor carried upstream along the graph | live, `server/src/corridor.ts` and `server/src/attention.ts` |
 | National radar and top-30 board | live, `server/src/radar.ts`, `server/src/board.ts`, `web/src/components/Board.tsx` |

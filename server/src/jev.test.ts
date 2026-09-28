@@ -13,7 +13,7 @@ import type { Incident } from '../../shared/src/index.js';
 import { incidentFloor, queueFloor, TUNING } from './attention.js';
 import { buildQueueIndex } from './corridor.js';
 import { round } from './config.js';
-import { JEV, JevArbiter, ago, buildGateState, buildState, choiceOptions, createAsk, createGateAsk, picture, type AskResult, type CameraTelemetry, type GateAskResult, type GateCandidate, type Neighbour } from './jev.js';
+import { JEV, JevArbiter, ago, buildGateState, buildReviewState, buildState, choiceOptions, createAsk, createGateAsk, picture, type AskResult, type CameraTelemetry, type GateAskResult, type GateCandidate, type Neighbour, type ReviewAsk, type ReviewCandidate } from './jev.js';
 
 const temporaryDirectories: string[] = [];
 function temporaryDirectory(prefix: string): string {
@@ -667,7 +667,7 @@ test('neighbours carry pictures or explicit missing pictures without epoch times
   assert.equal(neighbours[1]?.newest_frame, 'none yet');
   assert.ok(!JSON.stringify(state).includes('1000'));
   assert.ok(!JSON.stringify(state).includes('900'));
-  assert.equal(JEV.RUBRIC_VERSION, 4);
+  assert.equal(JEV.RUBRIC_VERSION, 5);
 });
 
 for (const [name, verdict, expected] of [
@@ -705,3 +705,73 @@ for (const [name, verdict, expected] of [
     assert.equal(index.has(3), false);
   });
 }
+
+/** The review: a second look at the leading cameras of a city. It may reorder, within bounds, and nothing else. */
+
+function leader(uid: number, over: Partial<CameraTelemetry> = {}): ReviewCandidate {
+  return { camera: telemetry(uid, { ambiguousZero: false, diff: 0.03, ...over }), freeway: true, roadSize: 0.8, incident: null, queue: false, stoppedTraffic: false };
+}
+
+/** Answers every camera it is asked about with the level and confidence given for it, and counts the calls. */
+function reviewer(levels: Record<number, [number, number]>): { ask: ReviewAsk; calls: () => number; seen: () => number[][] } {
+  let calls = 0;
+  const seen: number[][] = [];
+  const ask: ReviewAsk = async (_state, cameras) => {
+    calls++;
+    seen.push(cameras.map((camera) => camera.uid));
+    const verdicts = new Map(cameras.filter(({ uid }) => levels[uid]).map(({ uid }) => [uid, { level: levels[uid]![0], levels: 4, confidence: levels[uid]![1], model: 'jev-test' }]));
+    return { verdicts, usage: { input_tokens: 900, output_tokens: 80 }, raw: {}, latencyMs: 400 };
+  };
+  return { ask, calls: () => calls, seen: () => seen };
+}
+
+test('a confident look moves a camera within the swing, and an unsure one moves nothing', async () => {
+  const { ask } = reviewer({ 1: [3, 0.9], 2: [0, 0.9], 3: [3, JEV.ACT_CONFIDENCE - 0.01], 4: [1.5, 0.8] });
+  const arbiter = makeArbiter(null, dir(), null, ask);
+  arbiter.considerReview('city', 'City', [leader(1), leader(2), leader(3), leader(4)]);
+  await arbiter.drain();
+  assert.equal(arbiter.reviewFactor(1)?.factor, 1 + JEV.REVIEW_SWING);
+  assert.equal(arbiter.reviewFactor(2)?.factor, 1 - JEV.REVIEW_SWING);
+  assert.equal(arbiter.reviewFactor(3), null);
+  assert.equal(arbiter.reviewFactor(4)?.factor, 1);
+  assert.equal(arbiter.reviewFactor(99), null, 'a camera never looked at keeps the equation alone');
+});
+
+test('a look expires, so a camera that has left the leaders is judged by the equation again', async () => {
+  const { ask } = reviewer({ 1: [3, 0.9], 2: [0, 0.9] });
+  const arbiter = makeArbiter(null, dir(), null, ask);
+  arbiter.considerReview('city', 'City', [leader(1), leader(2)]);
+  await arbiter.drain();
+  const now = Date.now() / 1000;
+  assert.ok(arbiter.reviewFactor(1, now));
+  assert.equal(arbiter.reviewFactor(1, now + JEV.REVIEW_HOLD_S + 1), null);
+});
+
+test('a city is looked at again only after the window and only once a leader has a new picture', async () => {
+  const { ask, calls, seen } = reviewer({ 1: [2, 0.9], 2: [2, 0.9] });
+  const arbiter = makeArbiter(null, dir(), null, ask);
+  const now = 10_000;
+  arbiter.considerReview('city', 'City', [leader(1), leader(2)], now);
+  await arbiter.drain();
+  arbiter.considerReview('city', 'City', [leader(1), leader(2, { lastTs: 950 })], now + 30);
+  assert.equal(calls(), 1, 'inside the window');
+  arbiter.considerReview('city', 'City', [leader(1), leader(2)], now + JEV.REVIEW_EVERY_S + 1);
+  assert.equal(calls(), 1, 'nothing new to judge');
+  arbiter.considerReview('city', 'City', [leader(1), leader(2, { lastTs: 950 })], now + JEV.REVIEW_EVERY_S + 1);
+  await arbiter.drain();
+  assert.equal(calls(), 2);
+  // At most the top few, and never one camera on its own.
+  arbiter.considerReview('other', 'Other', Array.from({ length: 12 }, (_, i) => leader(100 + i)), now);
+  arbiter.considerReview('lonely', 'Lonely', [leader(200)], now);
+  await arbiter.drain();
+  assert.equal(calls(), 3);
+  assert.equal(seen()[2]!.length, JEV.REVIEW_TOP_K);
+});
+
+test('the review state leaves the equation score out and says what each camera shows', () => {
+  const state = buildReviewState('City', [leader(1, { diff: 0.06, baseline: 0.02 }), { ...leader(2), incident: 'Crash at exit 4', queue: true }], 1_790_000_000) as { cameras: Record<string, unknown>[] };
+  assert.equal(state.cameras.length, 2);
+  assert.equal(state.cameras[0]!.times_its_usual, 3);
+  assert.equal(state.cameras[1]!.incident_reported_here, 'Crash at exit 4');
+  assert.ok(!JSON.stringify(state).includes('attention'), 'a second opinion, not an echo');
+});

@@ -33,7 +33,7 @@ import { Diary, DIARY } from './diary.js';
 import { readSky } from './sky.js';
 import { Pulse } from './pulse.js';
 import { localDay } from './jsonlog.js';
-import { JEV, JevArbiter, createAsk, createGateAsk, type CameraTelemetry, type GateCandidate, type Neighbour } from './jev.js';
+import { JEV, JevArbiter, createAsk, createGateAsk, createReviewAsk, type CameraTelemetry, type GateCandidate, type Neighbour, type ReviewCandidate } from './jev.js';
 import { Poller } from './poller.js';
 import { RADAR, selectRadarAnchors } from './radar.js';
 import { buildBoard } from './board.js';
@@ -146,11 +146,15 @@ export function createApp(options: AppOptions): App {
 
   // The arbiter over incidents. With no key it is inert: `createAsk` is never called, `consider` returns at once and the floor every camera gets is exactly the deterministic one. The key is read here and passed once; nothing else in the process sees it.
   const jevKey = process.env.JEV_API?.trim();
-  const jev = new JevArbiter(jevKey ? createAsk(jevKey) : null, join(root, 'out'), jevKey ? createGateAsk(jevKey) : null);
+  const jev = new JevArbiter(jevKey ? createAsk(jevKey) : null, join(root, 'out'), jevKey ? createGateAsk(jevKey) : null, jevKey ? createReviewAsk(jevKey) : null);
   attention.chosenQueue = (incident, uid, floor) => jev.chosenQueue(incident, uid, floor);
   attention.modulate = (incident, uid, deterministic) => jev.modulate(incident, uid, deterministic);
   attention.gate = (uid, now) => jev.gateFloor(uid, now);
-  console.log(jev.enabled ? 'jev arbitration on, incidents and still cameras will be asked about once each' : 'no JEV_API, incidents keep their deterministic floor and still cameras keep none');
+  attention.review = (uid, now) => jev.reviewFactor(uid, now);
+  // Which cameras the graphs place on a freeway, for the review's description of each one.
+  const onFreeway = new Set<number>();
+  for (const graph of graphs.values()) for (const camera of graph.cameras) if (camera.is_freeway) onFreeway.add(camera.id);
+  console.log(jev.enabled ? 'jev arbitration on, incidents and still cameras will be asked about once each, and the leading cameras of each open city looked at again every few minutes' : 'no JEV_API, incidents keep their deterministic floor and still cameras keep none');
 
   // The vehicle detector the gate hands its still frames to. Optional and out of process: until `rt511 detect` answers, still cameras are asked about from telemetry alone, and it is looked for again once a minute so it can be started after the server.
   const detectorUrl = process.env.RT511_DETECTOR_URL?.trim() || DETECTOR.URL;
@@ -594,6 +598,36 @@ export function createApp(options: AppOptions): App {
       });
     }
     if (candidates.length > 0) jev.considerGate(candidates, now);
+    // The third subject, and the only one about ranking itself: the city the viewer has open, its leading cameras looked at together. Only cameras with a recent picture are offered, because a stale one has nothing new to be judged on.
+    if (jev.enabled && region !== null && poller.isWatching(region)) {
+      const leaders: ReviewCandidate[] = [];
+      for (const state of [...cameras].filter((item) => item.region === region && item.attention !== null && item.diff !== null).sort((a, b) => (b.attention as number) - (a.attention as number))) {
+        if (leaders.length >= JEV.REVIEW_TOP_K) break;
+        const camera = byId.get(state.id);
+        if (!camera || !state.axes || state.last_ts === null || now - state.last_ts > 3 * state.period_s) continue;
+        leaders.push({
+          camera: {
+            uid: state.id,
+            roadway: camera.roadway,
+            location: camera.location,
+            lat: camera.lat,
+            lon: camera.lon,
+            diff: state.diff,
+            activity: state.activity,
+            baseline: state.axes.baseline,
+            baselineN: state.axes.baseline_n,
+            ambiguousZero: state.axes.ambiguous_zero,
+            lastTs: state.last_ts,
+          },
+          freeway: onFreeway.has(state.id),
+          roadSize: state.axes.scale_prior,
+          incident: state.axes.incident_floor > 0 ? state.axes.incident : null,
+          queue: state.axes.queue_floor > 0,
+          stoppedTraffic: (state.axes.gate?.floor ?? 0) > 0,
+        });
+      }
+      jev.considerReview(region, configured.get(region)?.name ?? region, leaders, now);
+    }
     return { interval_s: poller.interval_s, started_at: poller.started_at, cameras, ambiguous_zero: attention.ambiguousZeroStats() } satisfies CamerasResponse;
   });
 

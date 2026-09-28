@@ -185,7 +185,9 @@ Jev is a typed reasoning engine that answers structured questions about text and
 
 Two properties hold across every call. The arbiter modulates and never replaces, so the deterministic floor is computed first and stands on its own, and an answer moves it only within bounds the code sets. Every answer is also gated, so an unconfident answer changes nothing, and low confidence means the feed is treated normally and never hidden. Answers are model output about public data. They are treated as data and never as instructions, and so is everything in the state sent to the model, including any free text in an agency's record.
 
-Jev runs only when a key is configured, and its internals are kept out of the interface. The viewer sees the floors it adjusted as part of the score.
+Jev runs only when a key is configured, and its internals are kept out of the interface. The viewer sees the floors and factors it adjusted as part of the score.
+
+The first three uses below are about exceptions, a still picture and an incident record, and on the current pool they are rare. Section 4.4 describes the one use that takes part in ranking itself.
 
 ### 4.1 Noul, resolving an ambiguous zero state
 
@@ -254,6 +256,25 @@ Only the cleared answer can collapse a floor, and it leaves a tenth of it becaus
 
 **One measured failure, recorded because it shaped the design.** With the picture guard bypassed, eight live records were scored on the screen rubric while every camera they named read "no picture yet". All eight returned between 0.3 and 1.1 of 3 whatever their dispatch code said, including two open roadblocks. The rubric's upper levels ask for a camera showing something, so absence of evidence was read as absence of severity. The guard that now prevents this refuses to ask about a record until at least one of its cameras has returned a difference. A floor must not be lowered because of a gap in the system's own coverage.
 
+### 4.4 Score, a second look at the top of a city
+
+The equation scores each camera from its own numbers, but whether a camera deserves attention is relative. A busy interstate at rush hour is less remarkable beside five others doing the same thing. The review asks Jev for that relative judgement. While a viewer has a city open, its eight leading cameras with a recent picture are described together in one state, and one Score per camera asks how much that camera deserves the attention of a person watching the city, compared with the others listed. The rubric runs from nothing to watch, through worth a glance and worth watching, to the one to watch first.
+
+Each camera is described by the evidence the equation used, namely its road and view, whether it is on a freeway, how much traffic its road carries, its picture against the usual for the hour, how many frames stand behind that hour, how recent its picture is, and any incident, expected queue or confirmed standstill on it. The equation's own score is left out, so the answer is a second opinion and not an echo of the first.
+
+A confident answer, at a confidence of at least 0.5, multiplies the camera's movement term by a factor between 0.75 at the bottom of the rubric and 1.25 at the top.
+
+$$
+\text{Attn} = \operatorname{clamp}\Big(
+\max\big(P \cdot R \cdot (w_a A + w_s S),\; F_{\text{incident}},\; F_{\text{queue}},\; F_{\text{gate}}\big),\,
+0,\, 1
+\Big), \qquad R = 1 + 0.25\,(2n - 1)
+$$
+
+Here $n$ is the camera's level normalised to the unit interval, and $R$ is one for any camera without a confident answer. The factor touches only the movement term. It can reorder cameras the equation scores close together, and it cannot lift a still picture over a busy one or lower a floor, so an incident or a stopped queue keeps exactly the priority it earned. A factor is held for ten minutes and then lapses, so a camera that has left the leaders is judged by the equation alone again.
+
+A city is looked at again no sooner than every two minutes, and only once one of its leaders has returned a new picture, which keeps the review on the same evidence-driven cadence as the incident questions. One open city therefore costs at most thirty calls an hour, inside the arbiter's shared limits. A live call on four synthetic cameras took 356 ms and about 1,900 input tokens. It placed the camera moving three times its usual at 2.66 of 3, an ordinary one at 0.15, and one carrying a reported crash at 2.17. How often the review and the equation disagree on live cities, and how either compares with a person's own choices from Section 7, has not been measured yet. The decision log records the factor on every line, and the arbiter's log records every look with its full state, so that comparison can be made.
+
 ## 5. The corridor graph
 
 ### 5.1 Nodes and edges
@@ -293,7 +314,7 @@ ts, id, region, rank, attention, activity, diff,
 anomaly, spectacle, baseline, baseline_n,
 scale_prior, scale_prior_source, scale_amplifier, aadt, highway,
 incident_floor, incident_floor_base, incident, jev,
-ambiguous_zero, gate
+ambiguous_zero, gate, review
 ```
 
 Keeping the components separate is what makes the log usable for calibration. `incident_floor_base` is the floor before the arbiter touched it and `incident_floor` is the floor after, so the effect of every answer can be recovered from the log alone. The arbiter writes its own log in parallel, one line per call, with the full state sent, the answers returned, the latency and the token usage, and with the rubrics written at the top of each day's file so that an answer can always be read against the question that produced it. The rubric version is recorded on every line and is incremented by hand whenever a rubric or the state feeding it changes, because answers under different versions are not comparable.
@@ -379,6 +400,7 @@ The effect was measured on the same Des Moines wall with one viewer at the same 
 | Board freshness | newest picture within 20 minutes |
 | Stopping-wave speed | 15 km/h |
 | Arbiter rate limits | 20 calls per minute, 2 in flight, 3 gate calls per pass |
+| Review of a city's leaders | 8 cameras, at most every 2 minutes and only on a new picture, factor 0.75 to 1.25 on movement at confidence 0.5, held 10 minutes |
 | Display selection | top 30 feeds |
 | Display hysteresis | four ranks |
 | Comparison model | Bradley-Terry over 8 features, L2 0.02, 400 steps from zero |

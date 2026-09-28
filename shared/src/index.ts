@@ -185,6 +185,20 @@ export interface AttentionAxes {
   gate: GateInfluence | null;
   /** What the arbiter said about the incident that set this camera's floor, or null when nothing was asked or nothing came back. Model output about public data: it is shown and logged, never obeyed. */
   jev: JevInfluence | null;
+  /** The arbiter's second look at the top of this camera's city, and the factor it put on the movement term. Null when the camera was not among those looked at, the look is older than its hold, or the answer was not confident enough to act on. Optional so a state recorded before it existed still reads. */
+  review?: ReviewInfluence | null | undefined;
+}
+
+/** A second opinion on how much one camera deserves a person's attention, relative to the others at the top of its city. It scales the movement term only. The floors, which carry incidents and stopped traffic, are never touched by it. */
+export interface ReviewInfluence {
+  /** The level the camera was placed on, and how many levels the rubric has. */
+  level: number;
+  levels: number;
+  confidence: number;
+  /** What the movement term was multiplied by. One is no change. */
+  factor: number;
+  at: number;
+  model: string;
 }
 
 /** One incident's arbitration, as it reached one camera. The probabilities are the model's; the multiplier is this project's arithmetic over them. */

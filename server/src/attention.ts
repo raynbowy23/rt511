@@ -6,7 +6,7 @@
  *
  * The frozen-camera question is not answered. It is only recorded: AMBIGUOUS_ZERO marks a frame that changed by nothing in an hour that usually moves. Nothing acts on it, because acting on it either way would be a guess, and the flag exists to find out how often the guess would have to be made. */
 
-import { SCORE, type AttentionAxes, type ScoreCamera, type ScoreDriver, type ScoreRegion, type CameraState, type GateInfluence, type Graph, type Incident, type JevInfluence, type ScalePriorSource, type Site, type Snap } from '../../shared/src/index.js';
+import { SCORE, type AttentionAxes, type ScoreCamera, type ScoreDriver, type ScoreRegion, type CameraState, type GateInfluence, type Graph, type Incident, type JevInfluence, type ReviewInfluence, type ScalePriorSource, type Site, type Snap } from '../../shared/src/index.js';
 import { CAMERA_RADIUS_KM, distanceKm } from './cad.js';
 import { loadAadt, round } from './config.js';
 import { CORRIDOR } from './corridor.js';
@@ -141,6 +141,8 @@ export class AttentionEngine {
   chosenQueue: ChosenQueue | undefined = undefined;
   /** Set by whoever owns an arbiter. Without it an ambiguous zero is recorded and nothing acts on it, which is what it was before the gate had anywhere to ask. */
   gate: GateFloor | undefined = undefined;
+  /** Set by whoever owns an arbiter. Without it the movement term is exactly the equation's. */
+  review: ReviewFactor | undefined = undefined;
 
   constructor(
     private readonly priors: Map<number, ScalePriorFact>,
@@ -231,6 +233,8 @@ export class AttentionEngine {
     const gate = this.gate ? this.gate(slot.uid, inputs.now) : null;
     const queued = queueFloor(slot.uid, inputs.queue, inputs.now, this.chosenQueue, this.gate);
     const gateValue = gate?.value ?? 0;
+    // The second look at the top of the city. It scales movement and nothing else, so an incident or stopped traffic keeps exactly the floor it earned whatever a reviewer thinks of the picture.
+    const review = this.review ? this.review(slot.uid, inputs.now) : null;
 
     const axes: AttentionAxes = {
       anomaly,
@@ -249,10 +253,11 @@ export class AttentionEngine {
       ambiguous_zero: this.flagged.get(slot.uid) ?? false,
       gate: gate?.influence ?? null,
       jev: floor.jev,
+      review,
     };
     // Nothing is known about this camera yet and no incident is pointing at it, so it has no score rather than a score of zero: a camera that has not returned a frame and one that has returned a still frame are different things and the wall treats them differently.
     if (anomaly === null && floor.value === 0 && queued.value === 0 && gateValue === 0) return { attention: null, axes };
-    const combined = amplifier * (TUNING.WEIGHT_ANOMALY * (anomaly ?? 0) + TUNING.WEIGHT_SPECTACLE * (spectacle ?? 0));
+    const combined = amplifier * (review?.factor ?? 1) * (TUNING.WEIGHT_ANOMALY * (anomaly ?? 0) + TUNING.WEIGHT_SPECTACLE * (spectacle ?? 0));
     return { attention: round(clamp(Math.max(combined, floor.value, queued.value, gateValue)), 3), axes };
   }
 
@@ -298,6 +303,7 @@ export class AttentionEngine {
           ambiguous_zero: axes.ambiguous_zero,
           gate: axes.gate,
           scale_amplifier: axes.scale_amplifier,
+          review: axes.review ?? null,
         };
       }),
       now,
@@ -330,6 +336,9 @@ export type Modulate = (incident: Incident, uid: number, deterministic: number) 
 
 /** What a still camera is worth, if anything was asked about it. Passed in for the same reason `Modulate` is: the scorer stays arithmetic and knows nothing about where the answer came from. */
 export type GateFloor = (uid: number, now: number) => { value: number; at: number; influence: GateInfluence } | null;
+
+/** The factor a second look put on one camera's movement term, if any. Injected for the same reason as the others. */
+export type ReviewFactor = (uid: number, now: number) => ReviewInfluence | null;
 
 export interface FloorContext {
   uid: number;
@@ -500,7 +509,7 @@ function cameraSnap(site: Site | undefined, uid: number): Snap | null {
 
 /** A floor wins a tie because it is the reason attention cannot drop even if movement eases. Equal floors prefer incident, then queue, then still for a stable explanation. */
 export function driver(axes: AttentionAxes): ScoreDriver {
-  const movement = axes.scale_amplifier * (TUNING.WEIGHT_ANOMALY * (axes.anomaly ?? 0) + TUNING.WEIGHT_SPECTACLE * (axes.spectacle ?? 0));
+  const movement = axes.scale_amplifier * (axes.review?.factor ?? 1) * (TUNING.WEIGHT_ANOMALY * (axes.anomaly ?? 0) + TUNING.WEIGHT_SPECTACLE * (axes.spectacle ?? 0));
   const still = axes.gate?.floor ?? 0;
   if (axes.incident_floor >= movement && axes.incident_floor >= still && axes.incident_floor >= axes.queue_floor) return 'incident';
   if (axes.queue_floor >= movement && axes.queue_floor >= still) return 'queue';

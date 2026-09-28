@@ -9,7 +9,7 @@
  * Answers are model output about public data. They are data, never instructions, and so is everything in the state: the dispatcher's free-text remarks are the one field here that nobody on this project writes. */
 
 import { TypeSafeClient, choice, noul, score, type EntryType, type TypeSafeClientConfig } from '@typesafe-ai/sdk';
-import type { GateInfluence, GatePoint, Incident, JevInfluence, JevSnapshot, VerdictPoint } from '../../shared/src/index.js';
+import type { GateInfluence, GatePoint, Incident, JevInfluence, JevSnapshot, ReviewInfluence, VerdictPoint } from '../../shared/src/index.js';
 import { distanceKm } from './cad.js';
 import { round } from './config.js';
 import type { VehicleCount } from './detector.js';
@@ -21,8 +21,8 @@ export const JEV = {
   MODEL: 'jev-latest',
   /** Bumped by hand whenever a rubric below changes, or whenever the state the rubrics are answered from changes. Answers logged under different versions are not comparable, and calibration is the whole reason the log exists.
    *
-   * Version 3 gives neighbours pictures and makes a neighbour choice add a floor without demoting named cameras. Version 4 gives the gate a vehicle count from the detector and has the standstill rubric read it. */
-  RUBRIC_VERSION: 4,
+   * Version 3 gives neighbours pictures and makes a neighbour choice add a floor without demoting named cameras. Version 4 gives the gate a vehicle count from the detector and has the standstill rubric read it. Version 5 adds the review of the top of a city. */
+  RUBRIC_VERSION: 5,
   /** Per attempt. The API answers a handful of questions in well under a second, so anything near this is a network fault, and the call is abandoned rather than kept waiting while the floor it would have adjusted is already being served deterministically. */
   TIMEOUT_MS: 8000,
   /** Answers below this confidence change nothing. The documentation puts genuine uncertainty at 0.5 and reserves 0.9 for high-stakes action; nothing here is high-stakes, because the deterministic floor is already serving. */
@@ -64,6 +64,14 @@ export const JEV = {
   /** After a failed call, leave that incident alone for this long. The SDK already retries the retryable statuses twice inside one call. */
   RETRY_AFTER_S: 120,
   LOG_MAX_BYTES: 16 * 1024 * 1024,
+  /** The review: a second look at the top of a city the equation has already ranked. How many of its leading cameras are looked at together, in one call, so each is judged against the others rather than alone. */
+  REVIEW_TOP_K: 8,
+  /** The soonest a city is looked at again, and only once a picture among its leaders has changed. Two minutes is two pictures on most feeds, which is as fast as the leaders can change. */
+  REVIEW_EVERY_S: 120,
+  /** How long a camera keeps the factor its last look gave it. Long enough to outlast the next look, short enough that a camera which has dropped out of the leaders is judged by the equation alone again. */
+  REVIEW_HOLD_S: 600,
+  /** How far a confident look may move a camera's movement term: the top of the rubric multiplies it by 1.25 and the bottom by 0.75. Enough to reorder cameras the equation scores close together, too little to lift a still picture over a busy one. */
+  REVIEW_SWING: 0.25,
 } as const;
 
 /** What one camera looks like right now, as the scorer already knows it. Assembled by the caller so that this file never reaches into the poller. */
@@ -154,6 +162,38 @@ export interface GateCandidate {
   vehicles: VehicleCount | null;
 }
 
+/** One of the leading cameras of a city, as the review describes it. Assembled by the caller from what the scorer already knows. */
+export interface ReviewCandidate {
+  camera: CameraTelemetry;
+  freeway: boolean;
+  /** The scale prior, 0 for a quiet street to 1 for an urban interstate. */
+  roadSize: number;
+  /** The record behind an incident floor on this camera, in words, or null. */
+  incident: string | null;
+  queue: boolean;
+  stoppedTraffic: boolean;
+}
+
+/** What the review said about one camera. */
+export interface ReviewVerdict {
+  level: number;
+  levels: number;
+  confidence: number;
+  at: number;
+  model: string;
+}
+
+export interface ReviewAskResult {
+  /** Keyed by camera id. A camera the answer left out is simply not in it. */
+  verdicts: Map<number, Omit<ReviewVerdict, 'at'>>;
+  usage: { input_tokens: number; output_tokens: number };
+  raw: unknown;
+  latencyMs: number;
+}
+
+/** The third call this file can make: one Score per leading camera of a city, in one call. */
+export type ReviewAsk = (state: unknown, cameras: { uid: number; view: string }[]) => Promise<ReviewAskResult>;
+
 /** Describes an incident to the model and turns what comes back into a multiplier on the deterministic floor.
  *
  * Every path through this class has a no-op: no key, no network, a malformed answer, a rate limit, a timeout, an incident nobody has asked about yet. In all of them `modulate` hands back the number it was given. */
@@ -179,11 +219,17 @@ export class JevArbiter {
   private readonly gateVerdicts = new Map<number, GateVerdict>();
   private readonly gatePending = new Set<number>();
   private readonly gateAskedAt = new Map<number, number>();
+  private readonly reviews = new Map<number, ReviewVerdict>();
+  /** When each city was last looked at, and what its leaders' pictures were then. */
+  private readonly reviewedAt = new Map<string, { at: number; evidence: string }>();
+  private readonly reviewPending = new Set<string>();
+  reviewCalls = 0;
 
   constructor(
     private readonly ask: Ask | null,
     logDir: string,
     private readonly askGate: GateAsk | null = null,
+    private readonly askReview: ReviewAsk | null = null,
   ) {
     this.log = new JsonLog(logDir, 'jev', JEV.LOG_MAX_BYTES);
   }
@@ -399,6 +445,92 @@ export class JevArbiter {
     } finally {
       this.gatePending.delete(uid);
     }
+  }
+
+  /** Looks again at the leading cameras of one city, and returns at once.
+   *
+   * The equation ranks every camera from its numbers. This asks for a second opinion on the few at the top, judged together, because being worth a person's attention is relative: a busy interstate at rush hour is less remarkable beside five others doing the same. What comes back moves each camera's movement term within REVIEW_SWING and never touches a floor, so it can reorder cameras the equation scores close together but cannot bury an incident or invent one. */
+  considerReview(region: string, cityName: string, candidates: ReviewCandidate[], now = Date.now() / 1000): void {
+    if (!this.askReview) return;
+    const leaders = candidates.slice(0, JEV.REVIEW_TOP_K);
+    // Attention is relative, so one camera on its own has nothing to be judged against.
+    if (leaders.length < 2) return;
+    if (this.reviewPending.has(region)) return;
+    const evidence = leaders.map((candidate) => `${String(candidate.camera.uid)}:${candidate.camera.lastTs === null ? '-' : String(Math.round(candidate.camera.lastTs))}`).join(',');
+    const last = this.reviewedAt.get(region);
+    if (last && (now - last.at < JEV.REVIEW_EVERY_S || last.evidence === evidence)) return;
+    if (this.reviewPending.size + this.gatePending.size + this.pending.size >= JEV.MAX_IN_FLIGHT) return;
+    while (this.recentCalls.length > 0 && now - (this.recentCalls[0] as number) > 60) this.recentCalls.shift();
+    if (this.recentCalls.length >= JEV.MAX_CALLS_PER_MINUTE) {
+      this.throttled++;
+      return;
+    }
+    void this.reviewCity(region, cityName, leaders, evidence, now);
+  }
+
+  private async reviewCity(region: string, cityName: string, leaders: ReviewCandidate[], evidence: string, now: number): Promise<void> {
+    const askReview = this.askReview;
+    if (!askReview) return;
+    const state = buildReviewState(cityName, leaders, now);
+    this.reviewPending.add(region);
+    this.reviewedAt.set(region, { at: now, evidence });
+    this.recentCalls.push(now);
+    try {
+      const { verdicts, usage, raw, latencyMs } = await askReview(
+        state,
+        leaders.map((candidate) => ({ uid: candidate.camera.uid, view: candidate.camera.location })),
+      );
+      this.calls++;
+      this.reviewCalls++;
+      this.inputTokens += usage.input_tokens;
+      this.outputTokens += usage.output_tokens;
+      const at = Date.now() / 1000;
+      for (const [uid, verdict] of verdicts) this.reviews.set(uid, { ...verdict, at });
+      if (this.failing) console.log('jev recovered');
+      this.failing = false;
+      this.log.write(
+        [
+          {
+            kind: 'review',
+            ts: round(at, 3),
+            rubric_version: JEV.RUBRIC_VERSION,
+            region,
+            cameras: leaders.map((candidate) => candidate.camera.uid),
+            state,
+            latency_ms: latencyMs,
+            model: [...verdicts.values()][0]?.model ?? null,
+            answers: raw,
+            usage,
+          },
+        ],
+        at,
+        () => ({ kind: 'rubric', version: JEV.RUBRIC_VERSION, model: JEV.MODEL, questions: { ...RUBRICS, ...GATE_RUBRICS, review: REVIEW_RUBRIC } }),
+      );
+    } catch (error) {
+      this.errors++;
+      const status = typeof (error as { status?: unknown }).status === 'number' ? ` ${String((error as { status: number }).status)}` : '';
+      const name = error instanceof Error ? error.name : 'Error';
+      if (!this.failing) console.warn(`jev unavailable (${name}${status}), the wall is ranked by the equation alone`);
+      this.failing = true;
+    } finally {
+      this.reviewPending.delete(region);
+    }
+  }
+
+  /** The factor the last look put on one camera's movement term, or null when there is none to apply: never looked at, looked at too long ago, or answered without enough confidence. */
+  reviewFactor(uid: number, now = Date.now() / 1000): ReviewInfluence | null {
+    const verdict = this.reviews.get(uid);
+    if (!verdict || now - verdict.at > JEV.REVIEW_HOLD_S) return null;
+    if (verdict.confidence < JEV.ACT_CONFIDENCE || verdict.levels < 2) return null;
+    const normalised = verdict.level / (verdict.levels - 1);
+    return {
+      level: round(verdict.level, 2),
+      levels: verdict.levels,
+      confidence: round(verdict.confidence, 2),
+      factor: round(1 + JEV.REVIEW_SWING * (2 * normalised - 1), 3),
+      at: round(verdict.at, 1),
+      model: verdict.model,
+    };
   }
 
   /** The floor a gate answer puts under one camera, or null when there is none to apply.
@@ -716,6 +848,46 @@ export function buildGateState(candidate: GateCandidate, now: number): Record<st
   };
 }
 
+/** How the leading cameras of a city are described for the review. The equation's own score is left out on purpose, so the answer is a second opinion rather than an echo of the first. Its parts are in, because they are the evidence. */
+export function buildReviewState(cityName: string, leaders: ReviewCandidate[], now: number): Record<string, unknown> {
+  return {
+    city: cityName,
+    time_of_day: new Date(now * 1000).toLocaleString('en-US', { weekday: 'long', hour: 'numeric' }),
+    cameras: leaders.map((candidate) => {
+      const { camera } = candidate;
+      const state = picture(camera);
+      return {
+        camera_id: String(camera.uid),
+        road: camera.roadway,
+        view: camera.location,
+        on_a_freeway: candidate.freeway,
+        how_much_traffic_the_road_carries: `${String(round(candidate.roadSize, 2))} on a scale from 0, a quiet street, to 1, an urban interstate`,
+        picture: state.summary,
+        frame_difference: state.frame_difference,
+        usual_frame_difference_this_hour: state.usual,
+        times_its_usual: state.times_usual,
+        frames_behind_this_hour: camera.baselineN,
+        newest_frame: camera.lastTs === null ? 'none yet' : ago(Math.max(0, now - camera.lastTs)),
+        incident_reported_here: candidate.incident ?? 'none',
+        queue_expected_from_an_incident_ahead: candidate.queue,
+        stopped_traffic_confirmed: candidate.stoppedTraffic,
+      };
+    }),
+  };
+}
+
+/** The review's one question, asked once per camera. A Score because the answer is a place on an ordered scale, and relative because the cameras are judged side by side in one state. */
+export const REVIEW_RUBRIC = {
+  type: 'score',
+  instructions: 'How much does this camera deserve the attention of a person watching this city right now, compared with the other cameras listed?',
+  criteria: [
+    'Nothing to watch here: the picture is ordinary for this hour, or stale, or says little about the road, and the other cameras have more going on.',
+    'Worth a glance: an ordinary moving road, perhaps a busy one, with nothing that sets it apart from the others.',
+    'Worth watching: something sets it apart, such as far more or far less movement than this hour usually has, a large road at a busy hour, or an incident or queue near it.',
+    'The one to watch first: something is clearly happening here that a person would want to see, and this camera shows it better than the others do.',
+  ],
+} as const;
+
 /** The two questions asked about a still picture. Both Nouls, because each one is a single yes or no about a state of the world, and neither of them is a judgement about the wall.
  *
  * They are not exclusive and are not asked to be. A frozen feed answered yes takes precedence in code, in `gateFloor`, rather than in the rubric, because a model asked to rank its own two answers is being asked to do the recombination this project already does with weights it can see. */
@@ -797,6 +969,34 @@ export function createGateAsk(apiKey: string, overrides: Partial<TypeSafeClientC
       raw: result.answers,
       latencyMs,
     };
+  };
+}
+
+/** The binding for the review. One Score per camera, all in one call, each naming its camera so the answers are judged against the same state. */
+export function createReviewAsk(apiKey: string, overrides: Partial<TypeSafeClientConfig> = {}): ReviewAsk {
+  const client = new TypeSafeClient({ apiKey, timeout: JEV.TIMEOUT_MS, defaultModel: JEV.MODEL, ...overrides });
+  return async (state, cameras) => {
+    const started = Date.now();
+    const questions: Record<string, ReturnType<typeof score>> = {};
+    for (const { uid, view } of cameras) {
+      questions[`camera_${String(uid)}`] = score(`About camera ${String(uid)}, ${view}. ${REVIEW_RUBRIC.instructions}`, [...REVIEW_RUBRIC.criteria]);
+    }
+    const result = await client.systemOne({ state: state as EntryType, questions });
+    const latencyMs = Date.now() - started;
+    const verdicts = new Map<number, Omit<ReviewVerdict, 'at'>>();
+    for (const { uid } of cameras) {
+      const answer = result.answers[`camera_${String(uid)}`];
+      // A camera the answer left out keeps the equation's score. A missing answer is never read as the bottom of the scale.
+      if (typeof answer?.score !== 'number') continue;
+      verdicts.set(uid, {
+        level: answer.score,
+        levels: Object.keys(answer.legend ?? {}).length || REVIEW_RUBRIC.criteria.length,
+        confidence: typeof answer.confidence === 'number' ? answer.confidence : 0,
+        model: result.model,
+      });
+    }
+    if (verdicts.size === 0) throw new Error('answer missing every camera');
+    return { verdicts, usage: { input_tokens: result.usage.input_tokens, output_tokens: result.usage.output_tokens }, raw: result.answers, latencyMs };
   };
 }
 
