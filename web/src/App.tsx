@@ -37,6 +37,7 @@ import { pickRelay, type RelayCity, type RelayPick } from './sunrelay';
 import { Topology } from './graph';
 import { useTour } from './hooks/useTour';
 import { useWallRanking } from './hooks/useWallRanking';
+import { ChannelStatic } from './components/ChannelStatic';
 
 /** Three levels: the country, one region's map or wall, and a camera inside it. */
 type Level = 'home' | 'national' | 'map' | 'wall' | 'board';
@@ -666,6 +667,8 @@ export function App(): ReactElement {
           onClose={closeDiary}
         />
       )}
+      {/* A burst of snow whenever the view changes channel: the front page, the country, a city, the board. Moving between a city's map and its wall stays on the same channel. */}
+      <ChannelStatic channel={effectiveLevel === 'map' || effectiveLevel === 'wall' ? `city:${region ?? ''}` : effectiveLevel} />
       <div
         ref={stageRef}
         className={`stage${cameraOpen ? ' has-camera' : ''}${arbiterOpen ? ' has-arbiter' : ''}`}

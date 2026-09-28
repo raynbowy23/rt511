@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
-import { latOfLonLat, lonOfLonLat, solarElevation, type LonLat, type NationalResponse, type NationalSource } from '@rt511/shared';
-import { AlbersUsa, groupForState, groupForStates } from '../albers';
+import { solarElevation, type NationalResponse, type NationalSource } from '@rt511/shared';
+import { explode } from '../slabs';
+import { PHOSPHOR, rgba } from '../retro';
 import { prefersReducedMotion } from '../motion';
 import { period } from '../format';
 
-/** The front page: every camera in the country as a point of light, coloured by where the sun is on it right now, and a single way in. Clicking anywhere on the picture opens the map. The sources and their terms are one quiet click away, and the disclaimer is in the footer as on every page. */
+/** The front page: the states with cameras, lifted out and floating in a row, every camera a point of light coloured by where the sun is on it right now, and a single way in. Clicking anywhere on the picture opens the map. The sources and their terms are one quiet click away, and the disclaimer is in the footer as on every page. */
 export function Landing({
   national,
   disclaimer,
@@ -52,11 +53,11 @@ export function Landing({
   );
 }
 
-/** Colours for the three kinds of light, and the sun elevation that separates them. Civil twilight, six degrees either side of the horizon, is the band that reads as sunset. */
+/** Colours for the three kinds of light, all in the one phosphor, and the sun elevation that separates them. Civil twilight, six degrees either side of the horizon, is the band that reads as sunset. */
 const LIGHT = {
-  day: [248, 212, 138],
-  dusk: [242, 118, 58],
-  night: [120, 150, 236],
+  day: PHOSPHOR.hot,
+  dusk: [255, 138, 30],
+  night: [200, 70, 30],
   DUSK_DEG: 6,
 } as const;
 
@@ -71,40 +72,23 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
     const context = element?.getContext('2d');
     if (!element || !context) return;
 
-    // The same Albers projection the country map uses, fitted to the lower 48, which is where every source is today.
-    const outline: LonLat[] = [];
-    for (const [code, state] of Object.entries(national.states)) {
-      if (groupForState(code) !== 'conus') continue;
-      for (const ring of state.polygons) for (const point of ring) outline.push(point);
-    }
-    const projection = new AlbersUsa({ conus: outline, alaska: [], hawaii: [] });
-    const points: { x: number; y: number; lat: number; lon: number }[] = [];
+    // The same floating slabs as the country map, with each slab's resting float baked in, since nothing here lifts one slab on its own.
+    const layout = explode(national);
+    const floatOf = (slab: number): number => layout.slabs[slab]?.float ?? 0;
+    const points: { x: number; y: number; slab: number; lat: number; lon: number }[] = [];
+    let at = 0;
     for (const source of Object.values(national.sources)) {
-      const group = groupForStates(source.states);
-      if (group !== 'conus') continue;
       const { lat, lon } = source.cameras;
-      for (let i = 0; i < lat.length; i++) {
-        const [x, y] = projection.project(lon[i] as number, lat[i] as number, group);
-        points.push({ x, y, lat: lat[i] as number, lon: lon[i] as number });
+      for (let i = 0; i < lat.length; i++, at++) {
+        const slab = layout.camSlab[at] as number;
+        if (slab < 0) continue;
+        points.push({ x: layout.camX[at] as number, y: layout.camY[at] as number, slab, lat: lat[i] as number, lon: lon[i] as number });
       }
     }
-    const states: [number, number][][] = [];
-    for (const [code, state] of Object.entries(national.states)) {
-      if (groupForState(code) !== 'conus') continue;
-      for (const ring of state.polygons) states.push(ring.map((point) => projection.project(lonOfLonLat(point), latOfLonLat(point), 'conus')));
-    }
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-    for (const ring of states) {
-      for (const [x, y] of ring) {
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-      }
-    }
+    // Back to front, so a nearer slab's side covers the one behind it.
+    const order = layout.slabs.map((_, i) => i).sort((a, b) => layout.slabs[a]!.box.maxY - layout.slabs[b]!.box.maxY);
+    const DEPTH = 8;
+    const { minX, minY, maxX, maxY } = layout.bounds;
 
     // One soft dot per colour, drawn once and stamped thousands of times, which is far cheaper than a gradient per point.
     const sprite = (rgb: readonly number[]): HTMLCanvasElement => {
@@ -150,6 +134,21 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
     const base = document.createElement('canvas');
     const layers = Array.from({ length: LAYERS }, () => document.createElement('canvas'));
 
+    /** A slab's top face in screen pixels, at its float, reaching `down` pixels lower for the side when used as a hit area. */
+    const slabPath = (i: number, down: number): Path2D => {
+      const path = new Path2D();
+      const lift = floatOf(i);
+      for (const ring of layout.slabs[i]!.rings) {
+        ring.forEach(([x, y], k) => (k === 0 ? path.moveTo(x * scale + offsetX, y * scale + offsetY - lift) : path.lineTo(x * scale + offsetX, y * scale + offsetY - lift)));
+        path.closePath();
+        if (down > 0) {
+          ring.forEach(([x, y], k) => (k === 0 ? path.moveTo(x * scale + offsetX, y * scale + offsetY - lift + down) : path.lineTo(x * scale + offsetX, y * scale + offsetY - lift + down)));
+          path.closePath();
+        }
+      }
+      return path;
+    };
+
     const build = (): void => {
       const pixelW = Math.max(1, Math.round(width * ratio));
       const pixelH = Math.max(1, Math.round(height * ratio));
@@ -157,23 +156,25 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
         layer.width = pixelW;
         layer.height = pixelH;
       }
-      const outline = base.getContext('2d');
-      if (outline) {
-        outline.setTransform(ratio, 0, 0, ratio, 0, 0);
-        // The states as the faintest of lines, just enough to say "this is a country".
-        outline.strokeStyle = 'rgba(255,255,255,0.1)';
-        outline.lineWidth = 1;
-        outline.beginPath();
-        for (const ring of states) {
-          ring.forEach(([x, y], i) => {
-            const sx = x * scale + offsetX;
-            const sy = y * scale + offsetY;
-            if (i === 0) outline.moveTo(sx, sy);
-            else outline.lineTo(sx, sy);
-          });
-          outline.closePath();
+      const slabs = base.getContext('2d');
+      if (slabs) {
+        slabs.setTransform(ratio, 0, 0, ratio, 0, 0);
+        for (const i of order) {
+          const top = slabPath(i, 0);
+          // The side, as the top stacked downwards a pixel at a time, then the top face and its phosphor edge.
+          slabs.fillStyle = rgba(PHOSPHOR.deep, 1);
+          for (let k = DEPTH; k > 0; k--) {
+            slabs.save();
+            slabs.translate(0, k);
+            slabs.fill(top);
+            slabs.restore();
+          }
+          slabs.fillStyle = 'rgba(20, 13, 5, 1)';
+          slabs.fill(top);
+          slabs.strokeStyle = rgba(PHOSPHOR.bright, 0.45);
+          slabs.lineWidth = 1;
+          slabs.stroke(top);
         }
-        outline.stroke();
       }
       // The glow scales with the picture, so a phone and a wall-sized screen both read as a field of lights rather than dust or blobs.
       const size = Math.max(5, Math.min(11, width / 170));
@@ -190,7 +191,7 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
         if (!g) continue;
         // Low enough that a city of hundreds of cameras glows rather than burning out to white, since the lights add up where they overlap.
         g.globalAlpha = kind === 'night' ? 0.42 : kind === 'dusk' ? 0.72 : 0.36;
-        g.drawImage(sprites[kind], point.x * scale + offsetX - size / 2, point.y * scale + offsetY - size / 2, size, size);
+        g.drawImage(sprites[kind], point.x * scale + offsetX - size / 2, point.y * scale + offsetY - floatOf(point.slab) - size / 2, size, size);
       }
     };
 
@@ -219,15 +220,7 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
     let lift = 0;
     const outlinePath = (): void => {
       country = new Path2D();
-      for (const ring of states) {
-        ring.forEach(([x, y], i) => {
-          const sx = x * scale + offsetX;
-          const sy = y * scale + offsetY;
-          if (i === 0) country.moveTo(sx, sy);
-          else country.lineTo(sx, sy);
-        });
-        country.closePath();
-      }
+      for (let i = 0; i < layout.slabs.length; i++) country.addPath(slabPath(i, DEPTH));
     };
     const onMove = (event: PointerEvent): void => {
       const box = element.getBoundingClientRect();
@@ -304,7 +297,7 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
     };
   }, [national]);
 
-  return <canvas ref={canvas} className="landing-sky" aria-label="Map of every camera. Click the country to open the map." onClick={() => overRef.current && onClick()} />;
+  return <canvas ref={canvas} className="landing-sky" aria-label="The states with cameras, each camera a light. Click a state to open the map." onClick={() => overRef.current && onClick()} />;
 }
 
 /** The agencies behind the pictures, with their 511 sites, what they publish and under what terms, and the disclaimer in full. */

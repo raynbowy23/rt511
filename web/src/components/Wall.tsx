@@ -10,6 +10,12 @@ export interface TileRank {
   top: boolean;
 }
 
+/** A picture's time as a recorder prints it, hours to seconds in the viewer's own clock. */
+function clockOf(ts: number): string {
+  const at = new Date(ts * 1000);
+  return [at.getHours(), at.getMinutes(), at.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
+}
+
 /** The wall's entrance: each tile follows the one before by STEP_MS, and the queue is capped so a city of eighty cameras is fully in after about a second and a half rather than waiting on tiles far below the fold. */
 const ARRIVE = { STEP_MS: 34, MAX_STAGGER: 30, DURATION_MS: 620 } as const;
 
@@ -22,10 +28,13 @@ const Tile = memo(function Tile({
   intervalS,
   observer,
   caption,
+  number,
   follow,
   onSelect,
 }: {
   caption?: string | undefined;
+  /** The tile's place on the wall, shown as its channel number the way a control-room monitor labels its camera. */
+  number: number;
   /** Whether becoming active scrolls this tile into view. */
   follow: boolean;
   camera: Camera;
@@ -131,6 +140,10 @@ const Tile = memo(function Tile({
           {camera.location}
         </span>
         {caption && <span className="tile-city">{caption}</span>}
+        <span className="tile-osd" aria-hidden="true">
+          CAM {String(number).padStart(2, '0')}
+          {lastTs !== null && <> · {clockOf(lastTs)}</>}
+        </span>
       </div>
       {attention !== null && driver && (
         <span className={`tile-score is-${driver.key}`} title={driver.title}>
@@ -278,8 +291,9 @@ export function Wall({
         )}
       </p>
       <div className="wall" ref={grid}>
-        {cameras.map((camera) => (
+        {cameras.map((camera, i) => (
           <Tile
+            number={i + 1}
             key={camera.id}
             camera={camera}
             caption={captions?.get(camera.id)}

@@ -1,14 +1,14 @@
 # rt511
 
-A traffic camera wall built from state transportation agencies' published camera feeds. It opens on a picture of every camera in the country, each lit by the sun that is on it right now. Step in to the map, pick a city, and you get that city's cameras laid out on its road network and ranked on a wall. Click one to watch it: a red LIVE badge where the agency streams video, a grey SNAPSHOT with its refresh where it publishes stills.
+A traffic camera wall built from state transportation agencies' published camera feeds. It is dressed as an eighties security desk, amber phosphor and scanlines, and opens on the states it can see lifted out of the country and floating in a row, every camera a light lit by the sun that is on it right now. Step in to the map, pick a city, and you get that city's cameras laid out on its road network and ranked on a wall. Click one to watch it: a red LIVE badge where the agency streams video, a SNAPSHOT tag with its refresh where it publishes stills.
 
-![The front page: every camera in the country as a point of light, coloured by the sun on it](docs/images/front-page.jpg)
+![The front page: the seven covered states floating in a row, every camera a point of light coloured by the sun on it](docs/images/front-page.jpg)
 
 It reads only agencies whose written terms allow a third-party viewer to show their cameras, through the feeds they publish for that purpose: California, Iowa, Ohio, Oregon, Maine, New Hampshire and Vermont, 7,394 cameras in all. See [Camera sources](#camera-sources) and [Disclaimer](#disclaimer).
 
 | The country map | A city's wall |
 | --- | --- |
-| ![Every city on the country map, with the cameras indexed in each state](docs/images/country-map.jpg) | ![A city's cameras ranked on the wall, each with its score, a SNAPSHOT tag and a countdown to its next picture](docs/images/wall.jpg) |
+| ![The country map: each covered state a floating slab, west to east, with its cameras as lights and its cities as markers](docs/images/country-map.jpg) | ![A city's cameras ranked on the wall, each with its score, a SNAPSHOT tag and a countdown to its next picture](docs/images/wall.jpg) |
 
 The wall above is a synthetic city: its pictures are drawn by the repository's mock server, so no agency's camera image is stored in this repository, as the disclaimer promises. The front page and the country map contain no camera pictures at all.
 

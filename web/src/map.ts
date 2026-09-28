@@ -4,42 +4,42 @@ import { latOf, lonOf, type LatLon } from '@rt511/shared';
 import { measure, pointAt, roadPath, type AttentionFlow, type FlowReason, type Link } from './flows';
 import { prefersReducedMotion } from './motion';
 
-/** Road colours and stroke weights, in screen pixels, taken from the standalone `graph_<region>.html` map so the two read the same: a dim blue-slate background that the camera graph sits on top of rather than competes with. Weight is held in screen pixels so a motorway stays a motorway at every zoom. */
+/** Road colours and stroke weights, in screen pixels, in the control room's phosphor, dimmed to a warm brown the camera graph sits on top of rather than competes with. Weight is held in screen pixels so a motorway stays a motorway at every zoom. */
 const ROAD_STYLE: Record<RoadClass, { color: string; width: number }> = {
-  motorway: { color: '#3a4b66', width: 3 },
-  motorway_link: { color: '#33415a', width: 1.5 },
-  trunk: { color: '#34485a', width: 2.2 },
-  trunk_link: { color: '#2f3f50', width: 1.2 },
-  primary: { color: '#2f3f4d', width: 1.8 },
-  primary_link: { color: '#2a3742', width: 1 },
-  secondary: { color: '#2a353f', width: 1.4 },
-  secondary_link: { color: '#262f38', width: 1 },
-  tertiary: { color: '#242c34', width: 1 },
-  tertiary_link: { color: '#20272e', width: 0.8 },
-  unclassified: { color: '#1e252b', width: 0.8 },
+  motorway: { color: '#4a3414', width: 3 },
+  motorway_link: { color: '#3e2c12', width: 1.5 },
+  trunk: { color: '#433013', width: 2.2 },
+  trunk_link: { color: '#382810', width: 1.2 },
+  primary: { color: '#3a2a12', width: 1.8 },
+  primary_link: { color: '#30230f', width: 1 },
+  secondary: { color: '#30240f', width: 1.4 },
+  secondary_link: { color: '#2a1f0d', width: 1 },
+  tertiary: { color: '#271c0c', width: 1 },
+  tertiary_link: { color: '#22190b', width: 0.8 },
+  unclassified: { color: '#1f170a', width: 0.8 },
 };
 
-/** Edge colours by kind, matching the standalone map: blue freeway, green street, amber ramp, violet nearby. The kinds have to be tellable apart at a glance, which is the whole point of drawing the graph rather than a heat map. Nearby edges join sites you cannot drive between and have zero length, so they are dashed and drawn last. */
+/** Edge colours by kind, in the one phosphor at different strengths: a bright freeway, a dim street, a pale ramp, a dashed dark nearby. The kinds have to be tellable apart at a glance, which is the whole point of drawing the graph rather than a heat map. Nearby edges join sites you cannot drive between and have zero length, so they are dashed and drawn last. */
 const EDGE_STYLE: Record<EdgeKind, { width: number; color: string; alpha: number; dash?: [number, number] }> = {
-  freeway: { width: 4, color: '#4da3ff', alpha: 0.85 },
-  street: { width: 2.5, color: '#6ee7a0', alpha: 0.8 },
-  ramp: { width: 2.5, color: '#ffb347', alpha: 0.85 },
-  nearby: { width: 2.2, color: '#c9a0ff', alpha: 0.6, dash: [4, 6] },
+  freeway: { width: 4, color: '#ffb43c', alpha: 0.9 },
+  street: { width: 2.5, color: '#b87a28', alpha: 0.85 },
+  ramp: { width: 2, color: '#ffe0a0', alpha: 0.85 },
+  nearby: { width: 2.2, color: '#8a5a22', alpha: 0.7, dash: [4, 6] },
 };
 
 const EDGE_KINDS: EdgeKind[] = ['street', 'ramp', 'freeway', 'nearby'];
-/** The colour of attention by what set it moving, as RGB for mixing with an alpha: the incident red the map already uses, the wall's amber for stopped traffic, and a cool blue for unusual movement. */
-const FLOW_COLOUR: Record<FlowReason, string> = { incident: '255, 107, 94', still: '232, 184, 110', movement: '190, 235, 255' };
+/** The colour of attention by what set it moving, as RGB for mixing with an alpha: the incident red the map already uses, a deep orange for stopped traffic, and the phosphor's palest for unusual movement. */
+const FLOW_COLOUR: Record<FlowReason, string> = { incident: '255, 84, 60', still: '255, 138, 30', movement: '255, 230, 180' };
 /** How fast a pulse travels along the road on screen. */
 const FLOW_SPEED_PX = 70;
 
-/** A site is coloured by what it sits on, as in the standalone map, and warms towards amber as its camera gets busy. */
-const NODE_FREEWAY = [77, 163, 255] as const;
-const NODE_STREET = [110, 231, 160] as const;
-const NODE_HOT = [240, 176, 90] as const;
+/** A site is coloured by what it sits on, bright on a freeway and dim on a street, and burns towards the phosphor's hottest as its camera gets busy. */
+const NODE_FREEWAY = [255, 180, 60] as const;
+const NODE_STREET = [184, 122, 40] as const;
+const NODE_HOT = [255, 232, 176] as const;
 
 /** Background colour behind a node's halo. Matching the canvas background is what separates a dot from the line it sits on. */
-const MAP_BG = '#050608';
+const MAP_BG = '#080603';
 
 /** Activity at which a node starts warming towards amber, matching the wall's threshold for a hot tile. */
 const HOT_FROM = 0.6;
@@ -51,7 +51,7 @@ const MAX_PITCH = 1.05;
 const HIT_RADIUS_PX = 14;
 /** Incident markers are drawn larger than camera nodes and take a larger target, since they sit on top of them. */
 const INCIDENT_HIT_PX = 18;
-const INCIDENT_COLOUR = '#ff6b5e';
+const INCIDENT_COLOUR = '#ff543c';
 // Twenty-four times the framing zoom puts a couple of kilometres across the view, which is as deep as this data rewards: past that there is nothing but empty space between the ways.
 const MAX_ZOOM_FACTOR = 24;
 
@@ -767,7 +767,7 @@ export class MapView {
         ctx.beginPath();
         ctx.arc(hx, hy, 10, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = `rgba(255, 255, 255, ${bright})`;
+        ctx.fillStyle = `rgba(255, 240, 210, ${bright})`;
         ctx.beginPath();
         ctx.arc(hx, hy, 2, 0, Math.PI * 2);
         ctx.fill();
@@ -817,7 +817,7 @@ export class MapView {
       if (!active) continue;
       ctx.beginPath();
       ctx.arc(sx, sy, radius + 7, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255, 107, 94, 0.55)';
+      ctx.strokeStyle = 'rgba(255, 84, 60, 0.55)';
       ctx.lineWidth = 1.2;
       ctx.stroke();
     }
@@ -903,7 +903,7 @@ export class MapView {
     if (!active) {
       ctx.beginPath();
       ctx.arc(sx, sy, radius + 4, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(236, 240, 246, 0.8)';
+      ctx.strokeStyle = 'rgba(255, 226, 170, 0.8)';
       ctx.lineWidth = 1.2;
       ctx.stroke();
       return;
@@ -915,7 +915,7 @@ export class MapView {
     ] as [number, number, number][]) {
       ctx.beginPath();
       ctx.arc(sx, sy, r, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(226, 178, 104, ${alpha})`;
+      ctx.strokeStyle = `rgba(255, 180, 60, ${alpha})`;
       ctx.lineWidth = w;
       ctx.stroke();
     }

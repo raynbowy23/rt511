@@ -1,13 +1,17 @@
-import { AlbersUsa, groupForState, groupForStates, type Box, type ProjGroup } from './albers';
-import { latOfLonLat, lonOfLonLat, type LonLat } from '@rt511/shared';
+import type { Box } from './albers';
 import { capture, release } from './ptz';
+import { ACROSS, ALONG, explode, type SlabLayout } from './slabs';
+import { MONO, PHOSPHOR, rgba, type Rgb } from './retro';
 import type { CameraState, NationalRegion, NationalResponse, PulsePoint, SkyRegion } from './api';
 import { prefersReducedMotion } from './motion';
 
 const MAX_ZOOM_FACTOR = 26;
 const HIT_RADIUS_PX = 18;
-/** Screen size of a density cell at country zoom. Small enough to show a corridor, large enough that 19,327 cameras do not turn the east coast into a solid block. */
-const CELL_PX = 6;
+/** Screen size of a density cell at country zoom. Small enough to show a corridor, large enough that a metro does not turn into a solid block. */
+const CELL_PX = 5;
+/** How thick a slab is, in screen pixels, and how much higher a hovered one floats. */
+const SLAB_DEPTH_PX = 9;
+const HOVER_LIFT_PX = 12;
 /** Past this much zoom the cells are finer than the cameras are spaced, so individual positions are drawn instead. */
 const DOTS_FROM = 7;
 const PULSE_MS = 2600;
@@ -23,6 +27,8 @@ interface View {
 
 interface Marker {
   region: NationalRegion;
+  /** The slab the city sits on, which it floats with. */
+  slab: number;
   x: number;
   y: number;
   /** Polled cameras reporting frames, which only a served region has. */
@@ -34,14 +40,10 @@ interface Marker {
   sky: SkyRegion | null;
 }
 
-/** The sunset wave's colour for a median camera brightness. Cameras expose for the scene, so daylight sits around 0.45 and a lit night street around 0.15; the ramp spans that rather than 0..1, and runs from night blue through a dusk amber to a pale day gold. */
+/** The sunset wave's colour for a median camera brightness. Cameras expose for the scene, so daylight sits around 0.45 and a lit night street around 0.15; the ramp spans that rather than 0..1, and runs through the one phosphor, from an ember at night through a dusk orange to a pale day gold. */
 function skyColour(brightness: number): [number, number, number] {
   const t = Math.min(1, Math.max(0, (brightness - 0.15) / 0.3));
-  const stops: [number, number, number][] = [
-    [34, 48, 110],
-    [226, 118, 70],
-    [246, 222, 150],
-  ];
+  const stops: Rgb[] = [[120, 38, 16], PHOSPHOR.mid, PHOSPHOR.hot];
   const scaled = t * (stops.length - 1);
   const i = Math.min(stops.length - 2, Math.floor(scaled));
   const f = scaled - i;
@@ -57,9 +59,9 @@ function skyPhrase(sky: SkyRegion): string {
   return `${sun}${light}${murk}`;
 }
 
-/** The country view: where cameras exist at all, which states this install can see, and which regions are being polled right now.
+/** The country view: only the states this install can see, lifted out and floating in a row on a tilted table, west to east, with their cameras as lights and the regions being polled right now as markers.
  *
- * Two stacked canvases. The base holds the states and the density layer and is redrawn only when the view or the data changes; the overlay holds the region markers and their pulse and is cheap enough to redraw every frame. Nineteen thousand points binned per frame would not survive a 60 Hz pulse. */
+ * Two stacked canvases. The base holds the slabs and the lights and is redrawn only when the view, the data or a slab's height changes; the overlay holds the region markers and their pulse and is cheap enough to redraw every frame. */
 export class NationalView {
   readonly root: HTMLElement;
   private readonly host: HTMLElement;
@@ -72,12 +74,14 @@ export class NationalView {
   private readonly credit: HTMLElement;
   private readonly rows = new Map<string, HTMLElement>();
 
-  private readonly projection: AlbersUsa;
-  private readonly covered: Path2D;
-  private readonly plain: Path2D;
-  private readonly insetFrames: { label: string; box: Box }[];
-  private readonly camX: Float64Array;
-  private readonly camY: Float64Array;
+  private readonly layout: SlabLayout;
+  private readonly tops: Path2D[];
+  /** How much higher than its resting float each slab is right now, easing toward `liftTarget`. */
+  private readonly lift: number[];
+  private readonly liftTarget: number[];
+  private liftFrame = 0;
+  private hoveredSlab = -1;
+  private readonly hitCtx: CanvasRenderingContext2D | null = document.createElement('canvas').getContext('2d');
   private readonly markers: Marker[] = [];
 
   private view: View | null = null;
@@ -134,7 +138,7 @@ export class NationalView {
     const legend = document.createElement('div');
     legend.className = 'map-legend national-legend';
     for (const [cls, text] of [
-      ['is-ramp', 'cameras indexed'],
+      ['is-ramp', 'cameras'],
       ['is-live', 'polled now'],
       ['is-configured', 'configured'],
       ['is-sky-day', 'sky: day'],
@@ -156,48 +160,19 @@ export class NationalView {
     frame.append(this.host, this.credit);
     this.root.append(frame, this.list);
 
-    // Outlines and camera positions are projected once: the composite is static, so every frame after this is one affine transform.
-    const byGroup: Record<ProjGroup, LonLat[]> = { conus: [], alaska: [], hawaii: [] };
-    for (const [code, state] of Object.entries(data.states)) {
-      const group = groupForState(code);
-      for (const ring of state.polygons) for (const point of ring) byGroup[group].push(point);
-    }
-    this.projection = new AlbersUsa(byGroup);
-
-    const coveredSet = new Set(data.covered_states);
-    this.covered = new Path2D();
-    this.plain = new Path2D();
-    for (const [code, state] of Object.entries(data.states)) {
-      const group = groupForState(code);
-      const target = coveredSet.has(code) ? this.covered : this.plain;
-      for (const ring of state.polygons) {
-        // GeoJSON order here: longitude first. The branded type is what makes drawing a graph edge on this path a compile error.
-        ring.forEach((point, i) => {
-          const [x, y] = this.projection.project(lonOfLonLat(point), latOfLonLat(point), group);
-          if (i === 0) target.moveTo(x, y);
-          else target.lineTo(x, y);
-        });
-        target.closePath();
+    // Everything is laid out once: the slabs are static, so every frame after this is one affine transform and a height per slab.
+    this.layout = explode(data);
+    this.tops = this.layout.slabs.map((slab) => {
+      const path = new Path2D();
+      for (const ring of slab.rings) {
+        ring.forEach(([x, y], i) => (i === 0 ? path.moveTo(x, y) : path.lineTo(x, y)));
+        path.closePath();
       }
-    }
-    this.insetFrames = this.projection.insets.map(({ label, box }) => ({ label, box }));
-
-    let total = 0;
-    for (const source of Object.values(data.sources)) total += source.cameras.ids.length;
-    this.camX = new Float64Array(total);
-    this.camY = new Float64Array(total);
-    let at = 0;
-    for (const source of Object.values(data.sources)) {
-      const group = groupForStates(source.states);
-      const { lat, lon } = source.cameras;
-      for (let i = 0; i < lat.length; i++) {
-        const [x, y] = this.projection.project(lon[i] as number, lat[i] as number, group);
-        this.camX[at] = x;
-        this.camY[at] = y;
-        at++;
-      }
-    }
-
+      return path;
+    });
+    this.lift = this.layout.slabs.map(() => 0);
+    this.liftTarget = this.layout.slabs.map(() => 0);
+    const total = this.layout.camX.length;
     this.buildMarkers();
     this.buildList(total);
     this.credit.textContent = `${data.attribution} · ${total.toLocaleString()} cameras indexed`;
@@ -223,21 +198,27 @@ export class NationalView {
   /** Stops the pulse loop and releases the observer. The pulse re-arms itself every frame, so without this a double mount would leave a second loop redrawing an orphaned canvas forever. */
   destroy(): void {
     this.observer.disconnect();
-    for (const frame of [this.frame, this.resizeFrame, this.pulseFrame, this.zoomFrame]) if (frame !== 0) cancelAnimationFrame(frame);
+    for (const frame of [this.frame, this.resizeFrame, this.pulseFrame, this.zoomFrame, this.liftFrame]) if (frame !== 0) cancelAnimationFrame(frame);
     this.frame = 0;
     this.resizeFrame = 0;
     this.pulseFrame = 0;
+    this.liftFrame = 0;
     this.root.remove();
   }
 
   private buildMarkers(): void {
     for (const region of this.data.regions) {
       const source = this.data.sources[region.source];
-      const group = source ? groupForStates(source.states) : 'conus';
       const centre = region.center ?? centreOfBox(region.bbox);
       if (!centre) continue;
-      const [x, y] = this.projection.project(centre[1], centre[0], group);
-      this.markers.push({ region, x, y, live: 0, activity: 0, indexed: this.countInBox(region, source), sky: null });
+      // A city's name ends with its state, which names its slab; a name that does not is looked up by position.
+      const code = region.name.split(', ').pop() ?? '';
+      let slab = this.layout.slabs.findIndex((item) => item.code === code);
+      if (slab === -1) slab = this.layout.slabOf(centre[1], centre[0]);
+      if (slab === -1) continue;
+      const at = this.layout.place(centre[1], centre[0], this.layout.slabs[slab]!.code);
+      if (!at) continue;
+      this.markers.push({ region, slab, x: at[0], y: at[1], live: 0, activity: 0, indexed: this.countInBox(region, source), sky: null });
     }
   }
 
@@ -260,7 +241,7 @@ export class NationalView {
     const summary = document.createElement('div');
     summary.className = 'national-summary';
     // The honest headline: most of what this view draws is catalogue, not coverage.
-    summary.innerHTML = `<b>${served} of ${this.data.regions.length}</b> regions polled in this run<br>${totalCameras.toLocaleString()} cameras indexed across ${this.data.covered_states.length} states`;
+    summary.innerHTML = `<b>${served} of ${this.data.regions.length}</b> regions polled in this run<br>${totalCameras.toLocaleString()} cameras indexed across ${this.data.covered_states.length} states<br><span class="national-summary-note">Only the states with cameras, lifted out and set west to east, sizes eased toward each other.</span>`;
     this.list.appendChild(summary);
 
     // Grouped by state, states and cities in alphabetical order, so thirty cities read as a handful of states rather than one long column.
@@ -399,9 +380,9 @@ export class NationalView {
       const x = (ts: number): number => ((ts - start) / 86400) * width;
       const y = (diff: number): number => height - 3 - (diff / peak) * (height - 6);
       // Six-hour marks, so the morning and evening can be found at a glance.
-      ctx.fillStyle = 'rgba(150, 165, 185, 0.18)';
+      ctx.fillStyle = rgba(PHOSPHOR.dim, 0.3);
       for (let h = 6; h < 24; h += 6) ctx.fillRect(Math.round((h / 24) * width), 0, 1, height);
-      ctx.strokeStyle = 'rgba(226, 178, 104, 0.9)';
+      ctx.strokeStyle = rgba(PHOSPHOR.bright, 0.9);
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       points.forEach((p, i) => {
@@ -411,7 +392,7 @@ export class NationalView {
         else ctx.lineTo(x(p.ts), y(p.diff));
       });
       ctx.stroke();
-      ctx.fillStyle = 'rgba(236, 240, 246, 0.8)';
+      ctx.fillStyle = rgba(PHOSPHOR.hot, 0.85);
       ctx.fillRect(Math.round(x(now)), 0, 1, height);
       canvas.title = `Movement through the day, ${points.length} minutes recorded`;
     }
@@ -434,23 +415,35 @@ export class NationalView {
     this.invalidate();
   }
 
+  /** The layout's extent with room around it for the slabs' thickness and float, which are in screen pixels and so cannot be part of the world box. */
+  private bounds(): Box {
+    const { minX, minY, maxX, maxY } = this.layout.bounds;
+    const padX = (maxX - minX) * 0.03;
+    const padY = (maxY - minY) * 0.12;
+    return { minX: minX - padX, minY: minY - padY, maxX: maxX + padX, maxY: maxY + padY };
+  }
+
   private fit(hard = false): void {
     if (this.width === 0) return;
     if (this.view !== null && !hard) return;
-    const { minX, minY, maxX, maxY } = this.projection.bounds;
-    const scale = Math.min(this.width / Math.max(1e-9, maxX - minX), this.height / Math.max(1e-9, maxY - minY)) * 0.94;
-    this.view = { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, scale, fitted: true };
+    const { minX, minY, maxX, maxY } = this.bounds();
+    this.view = { cx: (minX + maxX) / 2, cy: (minY + maxY) / 2, scale: this.fitScale(), fitted: true };
     this.invalidate();
   }
 
   private fitScale(): number {
-    const { minX, minY, maxX, maxY } = this.projection.bounds;
+    const { minX, minY, maxX, maxY } = this.bounds();
     return Math.min(this.width / Math.max(1e-9, maxX - minX), this.height / Math.max(1e-9, maxY - minY)) * 0.94;
   }
 
   private toScreen(x: number, y: number): [number, number] {
     const view = this.view as View;
     return [(x - view.cx) * view.scale + this.width / 2, (y - view.cy) * view.scale + this.height / 2];
+  }
+
+  /** How far above the table a slab's top face is drawn, in screen pixels. */
+  private raised(slab: number): number {
+    return (this.layout.slabs[slab]?.float ?? 0) + (this.lift[slab] ?? 0);
   }
 
   private onWheel(event: WheelEvent): void {
@@ -485,8 +478,10 @@ export class NationalView {
     if (!view) return;
     if (!this.dragging) {
       const over = this.hit(event);
-      this.overlay.style.cursor = over?.region.served ? 'pointer' : 'grab';
+      const slab = over ? over.slab : this.hitSlab(event);
+      this.overlay.style.cursor = over?.region.served ? 'pointer' : slab !== -1 ? 'zoom-in' : 'grab';
       this.setHover(over, event.clientX, event.clientY);
+      this.setHoveredSlab(slab);
       return;
     }
     const dx = event.clientX - this.lastX;
@@ -509,7 +504,13 @@ export class NationalView {
     this.overlay.style.cursor = 'grab';
     if (this.dragMoved) return;
     const target = this.hit(event);
-    if (target?.region.served) this.enter(target.region.key);
+    if (target?.region.served) {
+      this.enter(target.region.key);
+      return;
+    }
+    // A click on a slab away from its cities brings that state up to fill the view.
+    const slab = this.hitSlab(event);
+    if (slab !== -1) this.flyTo(this.layout.slabs[slab]!.box);
   }
 
   private hit(event: { clientX: number; clientY: number }): Marker | null {
@@ -521,13 +522,58 @@ export class NationalView {
     let bestDist = HIT_RADIUS_PX;
     for (const marker of this.markers) {
       const [sx, sy] = this.toScreen(marker.x, marker.y);
-      const d = Math.hypot(sx - px, sy - py);
+      const d = Math.hypot(sx - px, sy - this.raised(marker.slab) - py);
       if (d < bestDist) {
         bestDist = d;
         best = marker;
       }
     }
     return best;
+  }
+
+  /** The slab whose top face is under the pointer, frontmost first, or -1. */
+  private hitSlab(event: { clientX: number; clientY: number }): number {
+    const view = this.view;
+    if (!view || !this.hitCtx) return -1;
+    const rect = this.overlay.getBoundingClientRect();
+    const px = event.clientX - rect.left;
+    const py = event.clientY - rect.top;
+    for (const i of this.drawOrder().reverse()) {
+      const wx = (px - this.width / 2) / view.scale + view.cx;
+      const wy = (py + this.raised(i) - this.height / 2) / view.scale + view.cy;
+      if (this.hitCtx.isPointInPath(this.tops[i]!, wx, wy)) return i;
+    }
+    return -1;
+  }
+
+  private setHoveredSlab(slab: number): void {
+    if (slab === this.hoveredSlab) return;
+    this.hoveredSlab = slab;
+    this.liftTarget.forEach((_, i) => (this.liftTarget[i] = i === slab ? HOVER_LIFT_PX : 0));
+    if (prefersReducedMotion()) {
+      this.liftTarget.forEach((value, i) => (this.lift[i] = value));
+      this.invalidate();
+      return;
+    }
+    this.animateLift();
+  }
+
+  /** Eases each slab toward its target height, redrawing until they all arrive. */
+  private animateLift(): void {
+    if (this.liftFrame !== 0) return;
+    const step = (): void => {
+      let moving = false;
+      this.lift.forEach((value, i) => {
+        const target = this.liftTarget[i]!;
+        const next = value + (target - value) * 0.22;
+        this.lift[i] = Math.abs(target - next) < 0.2 ? target : next;
+        if (this.lift[i] !== target) moving = true;
+      });
+      this.draw();
+      this.drawOverlay();
+      this.liftFrame = moving ? requestAnimationFrame(step) : 0;
+    };
+    this.liftFrame = requestAnimationFrame(step);
   }
 
   private setHover(marker: Marker | null, clientX: number, clientY: number): void {
@@ -554,9 +600,37 @@ export class NationalView {
   private clampView(): void {
     const view = this.view;
     if (!view) return;
-    const { minX, minY, maxX, maxY } = this.projection.bounds;
+    const { minX, minY, maxX, maxY } = this.bounds();
     view.cx = clamp(view.cx, minX, maxX);
     view.cy = clamp(view.cy, minY, maxY);
+  }
+
+  /** Glides the view onto a box, as a zoom that feels even: the scale changes geometrically while the centre slides. */
+  private flyTo(box: Box): void {
+    const view = this.view;
+    if (!view || this.zooming) return;
+    const pad = 1.35;
+    const scale = clamp(Math.min(this.width / ((box.maxX - box.minX) * pad), this.height / ((box.maxY - box.minY) * pad * 1.4)), this.fitScale(), this.fitScale() * MAX_ZOOM_FACTOR);
+    const to = { cx: (box.minX + box.maxX) / 2, cy: (box.minY + box.maxY) / 2, scale };
+    if (prefersReducedMotion()) {
+      Object.assign(view, to, { fitted: false });
+      this.invalidate();
+      return;
+    }
+    const from = { cx: view.cx, cy: view.cy, scale: view.scale };
+    const start = performance.now();
+    const step = (now: number): void => {
+      const t = Math.min(1, (now - start) / ZOOM_MS);
+      const eased = t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+      view.scale = from.scale * (to.scale / from.scale) ** eased;
+      view.cx = from.cx + (to.cx - from.cx) * eased;
+      view.cy = from.cy + (to.cy - from.cy) * eased;
+      view.fitted = false;
+      this.draw();
+      this.drawOverlay();
+      this.zoomFrame = t < 1 ? requestAnimationFrame(step) : 0;
+    };
+    this.zoomFrame = requestAnimationFrame(step);
   }
 
   /** Flies into a city, then hands over to it. The scale grows geometrically, which is how a zoom feels even, while the centre slides onto the city's marker; the country fades in the last stretch so the city map, fading in behind it, takes over rather than replacing it. Without motion, or with no view yet, it hands over at once. */
@@ -593,6 +667,7 @@ export class NationalView {
       window.setTimeout(() => {
         this.zooming = false;
         this.root.classList.remove('is-zooming', 'is-leaving');
+        this.setHoveredSlab(-1);
         this.fit(true);
       }, 400);
     };
@@ -608,6 +683,11 @@ export class NationalView {
     });
   }
 
+  /** Back to front: the slab nearest the top of the screen is the farthest away on the table. */
+  private drawOrder(): number[] {
+    return this.layout.slabs.map((_, i) => i).sort((a, b) => this.layout.slabs[a]!.box.maxY - this.layout.slabs[b]!.box.maxY);
+  }
+
   private draw(): void {
     const ctx = this.baseCtx;
     const view = this.view;
@@ -616,55 +696,97 @@ export class NationalView {
     ctx.clearRect(0, 0, this.base.width, this.base.height);
     if (!view || this.width === 0) return;
 
-    ctx.setTransform(
-      dpr * view.scale,
-      0,
-      0,
-      dpr * view.scale,
-      dpr * (this.width / 2 - view.cx * view.scale),
-      dpr * (this.height / 2 - view.cy * view.scale),
-    );
+    const world = (lift: number): void =>
+      ctx.setTransform(dpr * view.scale, 0, 0, dpr * view.scale, dpr * (this.width / 2 - view.cx * view.scale), dpr * (this.height / 2 - view.cy * view.scale - lift));
     ctx.lineJoin = 'round';
 
-    // States this install has no source for are outline only; the seventeen it can see are filled, so the covered footprint reads before anything else does.
-    ctx.fillStyle = 'rgba(24, 32, 43, 0.9)';
-    ctx.fill(this.plain);
-    ctx.strokeStyle = 'rgba(120, 140, 165, 0.22)';
-    ctx.lineWidth = 0.9 / view.scale;
-    ctx.stroke(this.plain);
+    // The table: a faint grid in the same tilt as the slabs, so they read as floating over something.
+    this.drawTable(ctx, view, dpr);
 
-    ctx.fillStyle = 'rgba(48, 70, 95, 0.95)';
-    ctx.fill(this.covered);
-    ctx.strokeStyle = 'rgba(160, 194, 230, 0.62)';
-    ctx.lineWidth = 1.1 / view.scale;
-    ctx.stroke(this.covered);
+    const order = this.drawOrder();
+    for (const i of order) {
+      const top = this.tops[i]!;
+      const up = this.raised(i);
+      const hovered = i === this.hoveredSlab;
 
-    for (const { box } of this.insetFrames) {
-      ctx.strokeStyle = 'rgba(120, 140, 165, 0.18)';
+      // Its shadow on the table, softer the higher it floats.
+      world(-SLAB_DEPTH_PX);
+      ctx.filter = `blur(${(4 + up * 0.5).toFixed(1)}px)`;
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.fill(top);
+      ctx.filter = 'none';
+
+      // The sides: the top face stacked downwards a pixel at a time, which on a tilted table is exactly what the edge of a slab looks like.
+      ctx.fillStyle = rgba(PHOSPHOR.deep, 1);
+      for (let k = SLAB_DEPTH_PX; k > 0; k -= 1) {
+        world(up - k);
+        ctx.fill(top);
+      }
+      world(up - SLAB_DEPTH_PX);
+      ctx.strokeStyle = rgba(PHOSPHOR.dim, 0.35);
       ctx.lineWidth = 0.8 / view.scale;
-      ctx.strokeRect(box.minX, box.minY, box.maxX - box.minX, box.maxY - box.minY);
+      ctx.stroke(top);
+
+      world(up);
+      ctx.fillStyle = hovered ? 'rgba(34, 22, 8, 1)' : 'rgba(22, 14, 5, 1)';
+      ctx.fill(top);
+      ctx.strokeStyle = rgba(PHOSPHOR.bright, hovered ? 0.95 : 0.6);
+      ctx.lineWidth = (hovered ? 1.4 : 1) / view.scale;
+      ctx.stroke(top);
     }
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.drawDensity(ctx, view);
-    this.drawInsetLabels(ctx);
+    this.drawSlabLabels(ctx);
   }
 
-  /** The density layer. Individual dots at 19,327 points say nothing at country scale, so cameras are binned into screen cells and coloured by how many landed in each: the corridors and metros are the signal. Zoomed in past the point where a cell is finer than the cameras are spaced, the same data is drawn as individual positions. */
+  /** A grid on the table below the slabs, drawn in world units along the same tilt, so it turns and zooms with them. */
+  private drawTable(ctx: CanvasRenderingContext2D, view: View, dpr: number): void {
+    const { minX, minY, maxX, maxY } = this.bounds();
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    const reach = (maxX - minX) * 0.8;
+    const step = (maxX - minX) / 30;
+    ctx.setTransform(dpr * view.scale, 0, 0, dpr * view.scale, dpr * (this.width / 2 - view.cx * view.scale), dpr * (this.height / 2 - view.cy * view.scale));
+    ctx.strokeStyle = rgba(PHOSPHOR.dim, 0.1);
+    ctx.lineWidth = 1 / view.scale;
+    ctx.beginPath();
+    for (const [a, b] of [
+      [ALONG, ACROSS],
+      [ACROSS, ALONG],
+    ] as const) {
+      for (let k = -30; k <= 30; k++) {
+        const ox = cx + b[0] * k * step;
+        const oy = cy + b[1] * k * step;
+        ctx.moveTo(ox - a[0] * reach, oy - a[1] * reach);
+        ctx.lineTo(ox + a[0] * reach, oy + a[1] * reach);
+      }
+    }
+    ctx.stroke();
+  }
+
+  /** The lights. Cameras are binned into screen cells and each cell glows by how many landed in it, so corridors and metros are the signal. Zoomed in past the point where a cell is finer than the cameras are spaced, the same data is drawn as individual lights. */
   private drawDensity(ctx: CanvasRenderingContext2D, view: View): void {
     const zoom = view.scale / this.fitScale();
-    const n = this.camX.length;
+    const { camX, camY, camSlab } = this.layout;
+    const n = camX.length;
+    const raised = this.layout.slabs.map((_, i) => this.raised(i));
+    ctx.globalCompositeOperation = 'lighter';
 
     if (zoom >= DOTS_FROM) {
-      ctx.fillStyle = 'rgba(226, 232, 240, 0.75)';
+      ctx.fillStyle = rgba(PHOSPHOR.bright, 0.8);
       const radius = Math.min(2.6, 0.7 + zoom * 0.08);
       for (let i = 0; i < n; i++) {
-        const [sx, sy] = this.toScreen(this.camX[i] as number, this.camY[i] as number);
+        const slab = camSlab[i] as number;
+        if (slab < 0) continue;
+        const [sx, sy0] = this.toScreen(camX[i] as number, camY[i] as number);
+        const sy = sy0 - raised[slab]!;
         if (sx < -4 || sy < -4 || sx > this.width + 4 || sy > this.height + 4) continue;
         ctx.beginPath();
         ctx.arc(sx, sy, radius, 0, Math.PI * 2);
         ctx.fill();
       }
+      ctx.globalCompositeOperation = 'source-over';
       return;
     }
 
@@ -673,7 +795,10 @@ export class NationalView {
     const counts = new Map<number, number>();
     let peak = 1;
     for (let i = 0; i < n; i++) {
-      const [sx, sy] = this.toScreen(this.camX[i] as number, this.camY[i] as number);
+      const slab = camSlab[i] as number;
+      if (slab < 0) continue;
+      const [sx, sy0] = this.toScreen(camX[i] as number, camY[i] as number);
+      const sy = sy0 - raised[slab]!;
       if (sx < 0 || sy < 0 || sx > this.width || sy > this.height) continue;
       const key = ((sy / cell) | 0) * cols + ((sx / cell) | 0);
       const next = (counts.get(key) ?? 0) + 1;
@@ -683,29 +808,39 @@ export class NationalView {
     const denominator = Math.log(1 + Math.min(peak, 24));
     for (const [key, count] of counts) {
       const t = Math.min(1, Math.log(1 + count) / denominator);
-      // Sparse is a dim steel blue, dense is near white. The ramp deliberately never reaches amber: amber on this map means a region is being polled right now, and a density scale that also went amber would make "lots of cameras" look like "live".
-      const r = Math.round(104 + (233 - 104) * t);
-      const g = Math.round(136 + (241 - 136) * t);
-      const b = Math.round(178 + (252 - 178) * t);
-      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${(0.3 + t * 0.62).toFixed(3)})`;
-      const cx = (key % cols) * cell;
-      const cy = ((key / cols) | 0) * cell;
-      const size = cell - 1 + t * 1.6;
-      ctx.fillRect(cx, cy, size, size);
+      // From a dim ember for one camera to the phosphor's hottest for a metro. Polled cities are marked by their rings on the overlay, not by colour, so dense never reads as live.
+      const r = Math.round(PHOSPHOR.dim[0] + (PHOSPHOR.hot[0] - PHOSPHOR.dim[0]) * t);
+      const g = Math.round(PHOSPHOR.dim[1] + (PHOSPHOR.hot[1] - PHOSPHOR.dim[1]) * t);
+      const b = Math.round(PHOSPHOR.dim[2] + (PHOSPHOR.hot[2] - PHOSPHOR.dim[2]) * t);
+      ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${(0.35 + t * 0.6).toFixed(3)})`;
+      const cx = (key % cols) * cell + cell / 2;
+      const cy = ((key / cols) | 0) * cell + cell / 2;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 0.9 + t * 1.6, 0, Math.PI * 2);
+      ctx.fill();
     }
+    ctx.globalCompositeOperation = 'source-over';
   }
 
-  private drawInsetLabels(ctx: CanvasRenderingContext2D): void {
-    ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(150, 165, 185, 0.6)';
-    for (const { label, box } of this.insetFrames) {
-      const [sx, sy] = this.toScreen(box.minX, box.maxY);
-      if (sx < -200 || sy < -40 || sx > this.width + 200 || sy > this.height + 40) continue;
-      ctx.fillText(label.toUpperCase(), sx + 2, sy + 12);
+  /** Each slab's name and camera count, hung off its front edge like a label on a monitor. */
+  private drawSlabLabels(ctx: CanvasRenderingContext2D): void {
+    ctx.font = `10px ${MONO}`;
+    ctx.textAlign = 'center';
+    for (const i of this.drawOrder()) {
+      const slab = this.layout.slabs[i]!;
+      const [sx, sy] = this.toScreen(slab.centre[0], slab.box.maxY);
+      if (sx < -200 || sy < -40 || sx > this.width + 200 || sy > this.height + 60) continue;
+      const hovered = i === this.hoveredSlab;
+      const y = sy - this.raised(i) + SLAB_DEPTH_PX + 16;
+      ctx.fillStyle = rgba(PHOSPHOR.bright, hovered ? 1 : 0.72);
+      ctx.fillText(slab.name.toUpperCase(), sx, y);
+      ctx.fillStyle = rgba(PHOSPHOR.dim, hovered ? 1 : 0.85);
+      ctx.fillText(`${slab.cameras.toLocaleString()} CAM`, sx, y + 12);
     }
+    ctx.textAlign = 'start';
   }
 
-  /** Markers and their pulse. Cheap: four regions, redrawn on an animation frame while a live one is on screen. */
+  /** Markers and their pulse. Cheap: a few dozen regions, redrawn on an animation frame while a live one is on screen. */
   private drawOverlay(): void {
     const ctx = this.overlayCtx;
     const view = this.view;
@@ -717,47 +852,49 @@ export class NationalView {
 
     const phase = (Date.now() % PULSE_MS) / PULSE_MS;
     let animating = false;
+    const zoom = view.scale / this.fitScale();
 
     for (const marker of this.markers) {
-      const [sx, sy] = this.toScreen(marker.x, marker.y);
+      const [sx, sy0] = this.toScreen(marker.x, marker.y);
+      const sy = sy0 - this.raised(marker.slab);
       const served = marker.region.served;
       const hovered = this.hovered === marker;
-      const radius = served ? 5.5 + marker.activity * 2.5 : 4;
+      const radius = served ? 3.5 + marker.activity * 2 : 2.5;
 
       if (served && !prefersReducedMotion()) {
         animating = true;
-        // One slow ring, not a strobe: this is meant to be left running on a screen.
-        const grow = radius + 4 + phase * 16;
+        // One slow ring, not a strobe: this is meant to be left running on a screen. Flattened like the table it lies on.
+        const grow = radius + 3 + phase * 14;
         ctx.beginPath();
-        ctx.arc(sx, sy, grow, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(226, 178, 104, ${(0.42 * (1 - phase)).toFixed(3)})`;
-        ctx.lineWidth = 1.4;
+        ctx.ellipse(sx, sy, grow, grow * 0.55, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = rgba(PHOSPHOR.bright, 0.5 * (1 - phase));
+        ctx.lineWidth = 1.2;
         ctx.stroke();
       }
 
       // The sunset wave: a soft halo in the colour of the city's sky, behind everything else the marker draws.
       if (marker.sky?.brightness != null) {
         const [r, g, b] = skyColour(marker.sky.brightness);
-        const halo = ctx.createRadialGradient(sx, sy, radius, sx, sy, radius + 16);
-        halo.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.7)`);
+        const halo = ctx.createRadialGradient(sx, sy, radius, sx, sy, radius + 14);
+        halo.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.6)`);
         halo.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
         ctx.beginPath();
-        ctx.arc(sx, sy, radius + 16, 0, Math.PI * 2);
+        ctx.arc(sx, sy, radius + 14, 0, Math.PI * 2);
         ctx.fillStyle = halo;
         ctx.fill();
       }
       if (marker.sky?.weather === 'snow') {
-        // Snow is a solid white ring, where murk is a dashed grey one.
+        // Snow is a solid pale ring, where murk is a dashed dim one.
         ctx.beginPath();
-        ctx.arc(sx, sy, radius + 10, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(245, 248, 255, 0.95)';
+        ctx.arc(sx, sy, radius + 8, 0, Math.PI * 2);
+        ctx.strokeStyle = rgba(PHOSPHOR.hot, 0.95);
         ctx.lineWidth = 2;
         ctx.stroke();
       }
       if (marker.sky?.weather === 'murky') {
         ctx.beginPath();
-        ctx.arc(sx, sy, radius + 10, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(190, 200, 212, 0.8)';
+        ctx.arc(sx, sy, radius + 8, 0, Math.PI * 2);
+        ctx.strokeStyle = rgba(PHOSPHOR.dim, 0.9);
         ctx.lineWidth = 1.2;
         ctx.setLineDash([2, 3]);
         ctx.stroke();
@@ -765,41 +902,41 @@ export class NationalView {
       }
 
       ctx.beginPath();
-      ctx.arc(sx, sy, radius + 3.5, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(5, 6, 8, 0.8)';
+      ctx.arc(sx, sy, radius + 2.5, 0, Math.PI * 2);
+      ctx.fillStyle = rgba(PHOSPHOR.ink, 0.85);
       ctx.fill();
 
       ctx.beginPath();
       ctx.arc(sx, sy, radius, 0, Math.PI * 2);
       if (served) {
-        ctx.fillStyle = 'rgba(226, 178, 104, 0.95)';
+        ctx.fillStyle = rgba(PHOSPHOR.hot, 0.98);
         ctx.fill();
       } else {
         // Configured but not polled: an outline, deliberately not filled, so "present" never looks like "live".
-        ctx.fillStyle = 'rgba(150, 183, 219, 0.14)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(150, 183, 219, 0.75)';
-        ctx.lineWidth = 1.3;
-        ctx.setLineDash([3, 3]);
+        ctx.strokeStyle = rgba(PHOSPHOR.dim, 0.9);
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([2, 2]);
         ctx.stroke();
         ctx.setLineDash([]);
       }
 
       if (hovered) {
         ctx.beginPath();
-        ctx.arc(sx, sy, radius + 7, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(236, 240, 246, 0.85)';
+        ctx.arc(sx, sy, radius + 6, 0, Math.PI * 2);
+        ctx.strokeStyle = rgba(PHOSPHOR.hot, 0.9);
         ctx.lineWidth = 1.2;
         ctx.stroke();
       }
 
+      // Names only once there is room for them, or on the slab under the pointer, so the row is not buried in labels.
+      if (!hovered && zoom < 1.8 && marker.slab !== this.hoveredSlab) continue;
       const label = marker.region.name.toUpperCase();
-      ctx.font = '10px ui-sans-serif, system-ui, sans-serif';
+      ctx.font = `10px ${MONO}`;
       const width = ctx.measureText(label).width;
-      const lx = sx + radius + 8;
-      ctx.fillStyle = 'rgba(5, 6, 8, 0.72)';
-      ctx.fillRect(lx - 4, sy - 7, width + 8, 15);
-      ctx.fillStyle = served ? 'rgba(236, 240, 246, 0.92)' : 'rgba(180, 196, 214, 0.72)';
+      const lx = sx + radius + 7;
+      ctx.fillStyle = rgba(PHOSPHOR.ink, 0.8);
+      ctx.fillRect(lx - 3, sy - 7, width + 6, 14);
+      ctx.fillStyle = served ? rgba(PHOSPHOR.hot, 0.95) : rgba(PHOSPHOR.dim, 1);
       ctx.fillText(label, lx, sy + 3.5);
     }
 
