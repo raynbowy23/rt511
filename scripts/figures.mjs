@@ -13,10 +13,10 @@ const OUT = join(ROOT, 'docs', 'figures');
 const { TUNING } = await import(join(ROOT, 'server/dist/server/src/attention.js'));
 const { CORRIDOR } = await import(join(ROOT, 'server/dist/server/src/corridor.js'));
 const { JEV } = await import(join(ROOT, 'server/dist/server/src/jev.js'));
-const { MARGIN_S, DIFF_HISTORY, DEFAULT_RING } = await import(join(ROOT, 'server/dist/server/src/poller.js'));
+const { MARGIN_S, DIFF_HISTORY, DEFAULT_RING, BUDGET, SLOW_PERIOD_S } = await import(join(ROOT, 'server/dist/server/src/poller.js'));
 
 /** A constant that stops being exported reads as `undefined` in a label and the figure still renders, which is exactly the drift these figures exist to prevent. */
-for (const [name, value] of Object.entries({ MARGIN_S, DIFF_HISTORY, DEFAULT_RING })) {
+for (const [name, value] of Object.entries({ MARGIN_S, DIFF_HISTORY, DEFAULT_RING, SLOW_PERIOD_S, ON_SCREEN_S: BUDGET?.ON_SCREEN_S, OFF_SCREEN_S: BUDGET?.OFF_SCREEN_S })) {
   if (value === undefined) throw new Error(`${name} is not exported from the built poller`);
 }
 for (const [table, values] of [['TUNING', TUNING], ['JEV', JEV], ['CORRIDOR', CORRIDOR]]) {
@@ -131,20 +131,20 @@ const add = (...args) => made.push(figure(...args));
 /* 1. Ingest and polling. */
 add(
   '01-polling.svg',
-  'Process 1. Polling. One request per camera per period, scheduled off the picture that came back',
-  330,
+  'Process 1. Polling. No faster than an agency makes pictures, and within a budget per agency',
+  350,
   [
-    box(28, 70, 190, 80, '511 snapshot host', ['14 hosts, 17 states', 'one JPEG per camera']),
+    box(28, 70, 190, 80, 'Agency image host', ['5 agency feeds, 7 states', 'one JPEG per camera']),
     arrow(218, 110, 300, 110, 'HTTP GET'),
-    box(300, 70, 200, 80, 'Per-source client', ['If-Modified-Since', 'token handshake for HLS']),
+    box(300, 70, 200, 80, 'Per-source client', ['If-Modified-Since', 'rate cap per agency']),
     arrow(500, 110, 582, 110, 'fresh, 304, gone', { lx: 526, ly: 96 }),
     box(582, 70, 290, 80, 'Camera slot', [`newest frame plus ${DIFF_HISTORY} differences`, `${DEFAULT_RING} frames kept for replay`]),
     arrow(727, 150, 727, 196, ''),
-    box(582, 196, 290, 76, 'Next poll time', [`Last-Modified + period + ${MARGIN_S} s margin`], { stroke: ACCENT }),
+    box(582, 196, 290, 94, 'Next poll time', [`fresh: Last-Modified + period + ${MARGIN_S} s`, 'stale or 304: one full period'], { stroke: ACCENT }),
     arrow(582, 234, 400, 234, 'schedule', { path: 'M 582 234 L 420 234' }),
-    box(180, 196, 240, 76, 'Three tiers', ['on screen, watched, idle'], { stroke: ACCENT }),
+    box(180, 196, 240, 94, 'Budget per agency', [`on screen: 1 per ${BUDGET.ON_SCREEN_S} s`, `off screen: 1 per ${BUDGET.OFF_SCREEN_S} s, each >= ${SLOW_PERIOD_S / 60} min`], { stroke: ACCENT }),
     arrow(180, 234, 118, 234, '', { path: 'M 180 234 L 130 234 L 130 150' }),
-    note(28, 300, ['A fixed clock returns the same picture twice. The host regenerates a snapshot on demand, so the next request is timed off the Last-Modified the last one carried.']),
+    note(28, 322, ['A fresh picture times the next request to the next one. A picture that has stopped changing is asked about once a period. The camera open in the panel sits outside the budget.']),
   ].join('\n'),
 );
 
