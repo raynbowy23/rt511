@@ -82,9 +82,9 @@ export function nextPollDelay(result: PollResult, lastModified: string | null, p
   const stamp = Date.parse(lastModified);
   if (!Number.isFinite(stamp)) return full;
   const target = stamp / 1000 + full - now;
-  // Only a picture made within the last period is a schedule worth timing to.
-  if (target < MIN_DELAY_S) return full;
-  return Math.min(full, target);
+  // Only a picture made within the last period is a schedule worth timing to. One made near the end of it is still on schedule, and waits the short floor rather than a full period, which would land a picture late.
+  if (target < 0) return full;
+  return Math.min(full, Math.max(MIN_DELAY_S, target));
 }
 
 export async function analyze(data: Buffer, prevThumb: Float32Array | null): Promise<{ thumb: Float32Array; brightness: number; contrast: number; white: number; diff: number | null }> {

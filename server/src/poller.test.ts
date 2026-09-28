@@ -15,6 +15,11 @@ test('a fresh picture times the next poll to just after the next one is made', (
   assert.equal(nextPollDelay('unchanged', stamp(0), PERIOD, NOW), PERIOD + MARGIN_S);
 });
 
+test('a picture made near the end of its period still catches the next one', () => {
+  // Due again in six seconds. A full wait would land after the picture after it; the short floor lands just after this one.
+  assert.equal(nextPollDelay('fresh', stamp(PERIOD - 2), PERIOD, NOW), 10);
+});
+
 test('a picture older than a period waits a full period rather than falling to the floor', () => {
   assert.equal(nextPollDelay('unchanged', stamp(PERIOD * 3), PERIOD, NOW), PERIOD + MARGIN_S);
   assert.equal(nextPollDelay('fresh', stamp(3600), PERIOD, NOW), PERIOD + MARGIN_S);
