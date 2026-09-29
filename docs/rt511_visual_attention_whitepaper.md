@@ -44,7 +44,7 @@ The components of rt511 are engineering choices, and each has an established acc
 
 **Acting only when confident.** Jev's gates act on an answer only when its confidence clears a threshold, and otherwise leave the deterministic score in place. This is the reject option in classification, in which a classifier abstains below a confidence level and hands the decision to a fallback (Chow, 1970). The fallback here is the deterministic floor, so abstaining never removes a feed from the wall.
 
-**A person's attention from comparisons.** People are poor at stating how much a camera deserves attention on an absolute scale and good at saying which of two they would rather watch. Paired comparison turns such choices into a scale. Thurstone's law of comparative judgment treats each choice as a noisy comparison of latent values (Thurstone, 1927), and the Bradley-Terry model gives the logistic form used here, in which the probability of preferring one item to another depends on the difference of their scores (Bradley and Terry, 1952). rt511 parameterizes each camera's score as a weighted sum of the same features the equation uses, so the fitted weights are directly comparable with the equation's structure. The pairs are chosen where the model is least certain, the uncertainty sampling strategy of active learning [REF: seminal uncertainty-sampling source, for example Lewis and Gale (1994), for choosing the next query where the current model is least sure].
+**A person's attention from comparisons.** People are poor at stating how much a camera deserves attention on an absolute scale and good at saying which of two they would rather watch. Paired comparison turns such choices into a scale. Thurstone's law of comparative judgment treats each choice as a noisy comparison of latent values (Thurstone, 1927), and the Bradley-Terry model gives the logistic form used here, in which the probability of preferring one item to another depends on the difference of their scores (Bradley and Terry, 1952). rt511 parameterizes each camera's score as a weighted sum of the same features the equation uses, so the fitted weights are directly comparable with the equation's structure. The pairs are chosen where the model is least certain, the uncertainty sampling strategy of active learning (Lewis and Gale, 1994).
 
 ## 2. Architecture and inputs
 
@@ -283,9 +283,9 @@ The first live looks, on the Des Moines wall on 28 September 2026, showed how fa
 
 The arbiter was chosen for the shape of its answers rather than for any measured quality of its judgment. Each question returns a number, a probability for a Noul and a level with a confidence for a Score or a Choice, so every answer can be compared with a threshold, bounded and written to the log without parsing text. Several questions travel in one call and are answered independently, so the model is never asked to weigh its own answers against each other. That recombination stays in the code, with weights that can be read. A response that lacks any question it was asked is treated as a failure, and the deterministic score stands. Live calls took between 226 and 482 ms and used between about 1,900 and 3,800 input tokens.
 
-The same design has limits that follow from the model. It accepts text only and cannot look at a camera. What it reasons over is the description the system builds, so it knows that a picture changed three times as much as usual for the hour and not what the picture shows. The model is proprietary and paid for, it cannot run locally, and it is addressed by its latest version, so its answers can change without any change here. Every log line records the model version that answered and the rubric version it answered, which is what keeps answers from different versions apart. The confidence it reports is described as calibrated in its documentation [REF: TypeSafe System One documentation on calibration of Noul probabilities and Score and Choice confidences], and that calibration has not been checked on this task.
+The same design has limits that follow from the model. It accepts text only and cannot look at a camera. What it reasons over is the description the system builds, so it knows that a picture changed three times as much as usual for the hour and not what the picture shows. The model is proprietary and paid for, it cannot run locally, and it is addressed by its latest version, so its answers can change without any change here. Every log line records the model version that answered and the rubric version it answered, which is what keeps answers from different versions apart. Its documentation defines a Noul as the probability that the answer is yes and a confidence as a single number from 0 to 1 to be thresholded, and it advises raising a threshold where acting on a false yes is costly, which is how the 0.8 gate here was set (TypeSafe, 2026). It does not claim that these numbers are calibrated, and their calibration has not been checked on this task.
 
-No other model has been compared with it here. The alternative considered at the outset was an open model run locally, with its output constrained to a fixed structure and its token probabilities read as confidence [REF: grammar-constrained decoding for structured LLM output, and calibration of token probabilities as confidence]. That would cost nothing to run and could include a vision model that sees the frame itself. It would also leave the calibration of its confidence to be built and verified within this project. Such a model could be added as a further ranking beside the equation and the second look, and the evaluation of Section 7.5 would compare all of them on the same blind choices.
+No other model has been compared with it here. The alternative considered at the outset was an open model run locally, with its output constrained to a fixed structure by grammar-constrained decoding (Geng et al., 2023) and its token probabilities read as confidence, although the probabilities of language models have been found to be poorly calibrated without further adjustment (Jiang et al., 2021). That would cost nothing to run and could include a vision model that sees the frame itself. It would also leave the calibration of its confidence to be built and verified within this project. Such a model could be added as a further ranking beside the equation and the second look, and the evaluation of Section 7.5 would compare all of them on the same blind choices.
 
 ## 5. The corridor graph
 
@@ -475,11 +475,17 @@ Efron, B., & Morris, C. (1973). Stein's estimation rule and its competitors, an 
 
 Fishburn, P. C. (1974). Lexicographic orders, utilities and decision rules: A survey. *Management Science*, 20(11), 1442–1471. https://doi.org/10.1287/mnsc.20.11.1442
 
+Geng, S., Josifoski, M., Peyrard, M., & West, R. (2023). Grammar-constrained decoding for structured NLP tasks without finetuning. In *Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing* (pp. 10932–10952). https://doi.org/10.18653/v1/2023.emnlp-main.674
+
 Greenshields, B. D., Bibbins, J. R., Channing, W. S., & Miller, H. H. (1935). A study of traffic capacity. *Highway Research Board Proceedings*, 14, 448–477.
 
 Itti, L., & Baldi, P. (2009). Bayesian surprise attracts human attention. *Vision Research*, 49(10), 1295–1306. https://doi.org/10.1016/j.visres.2008.09.007
 
 Itti, L., Koch, C., & Niebur, E. (1998). A model of saliency-based visual attention for rapid scene analysis. *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 20(11), 1254–1259. https://doi.org/10.1109/34.730558
+
+Jiang, Z., Araki, J., Ding, H., & Neubig, G. (2021). How can we know when language models know? On the calibration of language models for question answering. *Transactions of the Association for Computational Linguistics*, 9, 962–977. https://doi.org/10.1162/tacl_a_00407
+
+Lewis, D. D., & Gale, W. A. (1994). A sequential algorithm for training text classifiers. In *SIGIR '94, Proceedings of the Seventeenth Annual International ACM-SIGIR Conference on Research and Development in Information Retrieval* (pp. 3–12). Springer London. https://doi.org/10.1007/978-1-4471-2099-5_1
 
 Lighthill, M. J., & Whitham, G. B. (1955). On kinematic waves II. A theory of traffic flow on long crowded roads. *Proceedings of the Royal Society of London. Series A*, 229(1178), 317–345. https://doi.org/10.1098/rspa.1955.0089
 
@@ -492,6 +498,8 @@ Richards, P. I. (1956). Shock waves on the highway. *Operations Research*, 4(1),
 Thurstone, L. L. (1927). A law of comparative judgment. *Psychological Review*, 34(4), 273–286.
 
 Treiber, M., Kesting, A., & Helbing, D. (2010). Three-phase traffic theory and two-phase models with a fundamental diagram in the light of empirical stylized facts. *Transportation Research Part B*, 44(8–9), 983–1000. https://doi.org/10.1016/j.trb.2010.03.004
+
+TypeSafe (2026). Confidence, and the Noul primitive. TypeSafe documentation. https://docs.typesafe.ai/confidence and https://docs.typesafe.ai/primitives/noul (accessed 28 September 2026)
 
 ## Source and figures
 

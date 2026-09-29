@@ -100,7 +100,7 @@ The counting continues underneath, because it is what the detector will be sized
 
 ## Where Jev sits
 
-Jev is TypeSafe's System One model: typed questions against a state, returning calibrated distributions and confidence rather than text. It accepts **text only**, so it cannot look at a camera. Everything it decides is reasoning over numbers and records we hand it, which makes the quality of the axes above the ceiling on its usefulness.
+Jev is TypeSafe's System One model: typed questions against a state, returning a probability or a level with a confidence rather than text. It accepts **text only**, so it cannot look at a camera. Everything it decides is reasoning over numbers and records we hand it, which makes the quality of the axes above the ceiling on its usefulness.
 
 It is an **arbiter, not a calculator**. It must not sit in the continuous path, which runs for every camera on every frame. It is asked rarely, about specific situations, using atomic questions combined in code:
 
