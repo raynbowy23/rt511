@@ -23,16 +23,18 @@ LIMIT ?= 80
 # Pinned and run through uvx, so the linter needs no entry in uv.lock and every machine runs the same version.
 RUFF = uvx ruff@0.16.8
 
-DETECT = uv run rt511 detect --weights $(WEIGHTS) --port $(DETECT_PORT) $(if $(DEVICE),--device $(DEVICE))
+# `--extra detector` makes the detector targets install their own optional dependencies, so they work after a plain `uv sync` or `make setup`, which leave them out.
+DETECT = uv run --extra detector rt511 detect --weights $(WEIGHTS) --port $(DETECT_PORT) $(if $(DEVICE),--device $(DEVICE))
 
 help: ## list the targets
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 # --- setup
 
-setup: ## first run: install dependencies and build every included city (a few minutes; Overpass is paced)
+setup: ## first run: install dependencies and build every included city (about half an hour, since Overpass is paced)
 	pnpm install
-	uv sync
+	# Inexact, so a detector installed earlier is kept rather than removed.
+	uv sync --inexact
 	@test -f .env || cp .env.example .env
 	uv run rt511 setup
 
@@ -90,7 +92,7 @@ test-web:
 test-python:
 	uv run python -m unittest discover -s tests
 
-release: ## bump every version, write the changelog, run the gates, commit and tag: VERSION=0.3.0 (never pushes)
+release: ## bump every version, write the changelog, run the gates, commit and tag: VERSION=x.y.z (never pushes)
 	@test -n "$(VERSION)" || { echo 'usage: make release VERSION=x.y.z'; exit 1; }
 	uv run --no-project python scripts/release.py $(VERSION)
 
