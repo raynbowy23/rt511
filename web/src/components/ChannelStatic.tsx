@@ -3,11 +3,11 @@ import { prefersReducedMotion } from '../motion';
 
 /** How long the snow lasts. Long enough to read as a monitor changing channel, short enough never to be waited on. */
 const STATIC_MS = 260;
-/** The noise is drawn this small and stretched, which is both cheaper and closer to the coarse grain of an analogue tube. */
+/** The noise is drawn this small and stretched, which is both cheaper and closer to the coarse grain of an analog tube. */
 const GRAIN_W = 192;
 const GRAIN_H = 120;
 
-/** A burst of analogue snow over the whole screen whenever `channel` changes, the way a control-room monitor switched between cameras. It never takes a click, never runs on the first render, and never runs for a viewer who asked for less motion. */
+/** A burst of analog snow over the whole screen whenever `channel` changes, the way a control-room monitor switched between cameras. It never takes a click, never runs on the first render, and never runs for a viewer who asked for less motion. */
 export function ChannelStatic({ channel }: { channel: string }): ReactElement {
   const canvas = useRef<HTMLCanvasElement>(null);
   /** The channel last shown. Compared rather than counted, so a development double render of the first view is not taken for a change. */
@@ -32,7 +32,7 @@ export function ChannelStatic({ channel }: { channel: string }): ReactElement {
         frame = 0;
         return;
       }
-      // Amber-grey grain, with a few rolling dark bands, fading out as the new picture settles.
+      // Amber-gray grain, with a few rolling dark bands, fading out as the new picture settles.
       const band = Math.floor(now / 16) % GRAIN_H;
       for (let y = 0; y < GRAIN_H; y++) {
         const dark = Math.abs(y - band) < 6 || Math.abs(y - ((band + GRAIN_H / 2) % GRAIN_H)) < 3 ? 0.45 : 1;

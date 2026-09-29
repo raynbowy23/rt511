@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import type { CameraState, ScoreCamera, Graph, Incident } from '../../shared/src/index.js';
 import { AttentionEngine, TUNING, queueFloor, driver, summarizeRegions, aadtPrior, capacityPrior, buildScalePriors, classPrior, incidentFloor, scaleAmplifier } from './attention.js';
 import { CORRIDOR, buildQueueIndex } from './corridor.js';
-import type { Neighbour } from './jev.js';
+import type { Neighbor } from './jev.js';
 import { catalogPath, graphPath, loadAadt, loadCatalog, loadGraph, loadSources } from './config.js';
 import { ACTIVITY_FLOOR, CameraSlot, type Frame } from './poller.js';
 import { testRoot } from './testroot.js';
@@ -182,7 +182,7 @@ test('the incident floor respects the code, the distance and the age', () => {
   const halved = incidentFloor(at(here.lat, here.lon, now + TUNING.INCIDENT_HALF_LIFE_S), [incident({})]);
   assert.ok(Math.abs(halved.value - TUNING.FLOOR_ROAD_RELEVANT / 2) < 1e-12);
 
-  // A tenth of a degree of latitude is about eleven kilometres, well outside the linking radius, but the floor is a function of distance rather than of the link, so it tapers to the far factor and stops there.
+  // A tenth of a degree of latitude is about eleven kilometers, well outside the linking radius, but the floor is a function of distance rather than of the link, so it tapers to the far factor and stops there.
   const far = incidentFloor(at(here.lat + 0.1, here.lon, now), [incident({})]);
   assert.ok(Math.abs(far.value - TUNING.FLOOR_ROAD_RELEVANT * TUNING.INCIDENT_FAR_FACTOR) < 1e-12);
 
@@ -417,8 +417,8 @@ test('region summaries use available cameras when fewer than five are scored', (
 
 function queueFixture(over: Partial<Incident> = {}) {
   const record = incident({ cameras: [1], reported_at: 1000, ...over });
-  const neighbour = (uid: number, length_m: number, side: Neighbour['side'] = 'upstream'): Neighbour => ({ uid, length_m, side, roadway: 'I 10', location: 'test', tt_s: 30, hops: 1, wave_s: side === 'upstream' ? length_m / (CORRIDOR.WAVE_SPEED_KMH / 3.6) : null });
-  const corridor = new Map([[1, [neighbour(1, 100), neighbour(2, 1000), neighbour(3, 2000), neighbour(4, CORRIDOR.MAX_UPSTREAM_M), neighbour(5, 100, 'downstream'), neighbour(6, 100, 'nearby')]]]);
+  const neighbor = (uid: number, length_m: number, side: Neighbor['side'] = 'upstream'): Neighbor => ({ uid, length_m, side, roadway: 'I 10', location: 'test', tt_s: 30, hops: 1, wave_s: side === 'upstream' ? length_m / (CORRIDOR.WAVE_SPEED_KMH / 3.6) : null });
+  const corridor = new Map([[1, [neighbor(1, 100), neighbor(2, 1000), neighbor(3, 2000), neighbor(4, CORRIDOR.MAX_UPSTREAM_M), neighbor(5, 100, 'downstream'), neighbor(6, 100, 'nearby')]]]);
   const index = buildQueueIndex([record], corridor, new Map([[1, { lat: record.lat, lon: record.lon }]]));
   return { record, index, floor: (uid: number, age: number) => queueFloor(uid, index.get(uid) ?? [], 1000 + age) };
 }
@@ -454,7 +454,7 @@ test('a record never propagates a queue to its named cameras', () => {
   assert.equal(queueFixture({ cameras: [1, 2] }).floor(2, 500).value, 0);
 });
 
-test('downstream and nearby neighbours receive no deterministic queue floor', () => {
+test('downstream and nearby neighbors receive no deterministic queue floor', () => {
   const { floor } = queueFixture();
   assert.equal(floor(5, 500).value, 0);
   assert.equal(floor(6, 500).value, 0);

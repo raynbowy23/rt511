@@ -70,7 +70,7 @@ test('the white share counts bright neutral pixels only', async () => {
   const picture = async (r: number, g: number, b: number): Promise<number> => (await analyze(await sharp({ create: { width: 64, height: 48, channels: 3, background: { r, g, b } } }).jpeg().toBuffer(), null)).white;
   assert.ok((await picture(240, 240, 245)) > 0.95, 'a snowfield is white');
   assert.ok((await picture(240, 200, 60)) < 0.05, 'a bright yellow sky is not');
-  assert.ok((await picture(90, 90, 90)) < 0.05, 'grey pavement is not');
+  assert.ok((await picture(90, 90, 90)) < 0.05, 'gray pavement is not');
 });
 
 test('the same flattening at night is not weather', () => {

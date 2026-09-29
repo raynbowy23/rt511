@@ -61,11 +61,11 @@ function diamond(cx, cy, w, h, title, opts = {}) {
 }
 
 function arrow(x1, y1, x2, y2, label, opts = {}) {
-  const colour = opts.colour ?? LINE;
+  const color = opts.color ?? LINE;
   const dash = opts.dash ? ' stroke-dasharray="5 4"' : '';
   const path = opts.path ?? `M ${x1} ${y1} L ${x2} ${y2}`;
-  const marker = colour === WARM ? 'headWarm' : 'head';
-  const parts = [`<path d="${path}" fill="none" stroke="${colour}" stroke-width="1.6" marker-end="url(#${marker})"${dash}/>`];
+  const marker = color === WARM ? 'headWarm' : 'head';
+  const parts = [`<path d="${path}" fill="none" stroke="${color}" stroke-width="1.6" marker-end="url(#${marker})"${dash}/>`];
   if (label) {
     const lx = opts.lx ?? (x1 + x2) / 2;
     const ly = opts.ly ?? (y1 + y2) / 2 - 7;
@@ -158,7 +158,7 @@ add(
     box(28, 160, 170, 74, 'Frame at t-1', ['the one before it']),
     arrow(198, 107, 268, 130, ''),
     arrow(198, 197, 268, 174, ''),
-    box(268, 112, 200, 80, 'Downscale to 64 x 48', ['greyscale', 'one thumbnail per frame']),
+    box(268, 112, 200, 80, 'Downscale to 64 x 48', ['grayscale', 'one thumbnail per frame']),
     arrow(468, 152, 540, 152, ''),
     box(540, 112, 330, 80, 'Mean absolute difference', ['one scalar in 0..1']),
     formula(705, 232, 'diff = (1/WH) * SUM |I_t(x,y) - I_t-1(x,y)|'),
@@ -324,8 +324,8 @@ add(
     `<text x="360" y="108" text-anchor="middle" font-size="12" fill="${MUTED}">traffic travels this way</text>`,
     arrow(200, 96, 560, 96, '', { path: 'M 200 96 L 560 96' }),
     `<text x="360" y="222" text-anchor="middle" font-size="12" fill="${WARM}">the queue tail travels this way, at ${CORRIDOR.WAVE_SPEED_KMH} km/h</text>`,
-    arrow(560, 210, 200, 210, '', { path: 'M 560 210 L 200 210', colour: WARM }),
-    box(28, 250, 400, 76, 'Candidate set', [`up to ${CORRIDOR.MAX_UPSTREAM_HOPS} hops and ${CORRIDOR.MAX_UPSTREAM_M / 1000} km of road`, `offered to the choice, ${JEV.MAX_NEIGHBOURS} at a time`], { stroke: ACCENT }),
+    arrow(560, 210, 200, 210, '', { path: 'M 560 210 L 200 210', color: WARM }),
+    box(28, 250, 400, 76, 'Candidate set', [`up to ${CORRIDOR.MAX_UPSTREAM_HOPS} hops and ${CORRIDOR.MAX_UPSTREAM_M / 1000} km of road`, `offered to the choice, ${JEV.MAX_NEIGHBORS} at a time`], { stroke: ACCENT }),
     box(456, 250, 416, 76, 'What each candidate carries', ['road distance, driving time, hops', 'pictures and when a tail would reach it']),
   ].join('\n'),
 );

@@ -50,10 +50,10 @@ Modules:
 
 - `sources.py` loads `data/sources.json`, the table of camera sources. That table is JSON rather than code because the TypeScript server reads the same facts, and a measured fact written twice drifts.
 - `regions.py` and `geocode.py` turn a city name into a bounding box and a source. Geocoding goes through Nominatim, once per city, cached.
-- `catalog.py` fetches each camera's detail record and normalises it. Camera position, roadway, direction, mile marker, snapshot path, stream URL.
+- `catalog.py` fetches each camera's detail record and normalizes it. Camera position, roadway, direction, mile marker, snapshot path, stream URL.
 - `osm.py` downloads the road extract from Overpass, once per city, cached, and builds a directed graph of the road network with lengths and free-flow travel times.
 - `network.py` does the matching. Each camera is scored against nearby road segments rather than snapped to the nearest one.
-- `refs.py` parses route numbers out of camera names and OpenStreetMap tags, normalising them so `I-39/US 51`, `I 39;US 51` and `US 12/18` all compare correctly.
+- `refs.py` parses route numbers out of camera names and OpenStreetMap tags, normalizing them so `I-39/US 51`, `I 39;US 51` and `US 12/18` all compare correctly.
 - `graph.py` clusters cameras into sites, derives which site follows which, classifies each edge, and runs the validation checks.
 
 ### How matching works
@@ -64,8 +64,8 @@ Each candidate segment within 80 m is scored:
 
 - Distance is the base score.
 - A route number in common with the camera's roadway field is worth a large bonus, and a conflicting route number a penalty. This is the strongest signal and works in every state, unlike mile markers, which not every source publishes.
-- If the camera has a direction code, segments are penalised in proportion to how far their bearing is from it. Graded, not pass or fail, because a direction code names the route's signed direction and a road curves away from that.
-- A camera named as an intersection is penalised for landing on a motorway, since a mainline camera is never at a signalised junction.
+- If the camera has a direction code, segments are penalized in proportion to how far their bearing is from it. Graded, not pass or fail, because a direction code names the route's signed direction and a road curves away from that.
+- A camera named as an intersection is penalized for landing on a motorway, since a mainline camera is never at a signalized junction.
 
 Cameras within 40 m on the same carriageway then merge into one site. Sites are spliced into the road graph as nodes, and site adjacency comes from shortest paths between them, so an edge exists only when you could actually drive from one to the other without passing a third.
 
@@ -93,7 +93,7 @@ A 304 is handled differently from a 200 with identical bytes. A 304 carries no n
 
 A camera with no feed can return a valid placeholder image, so availability is decided by the content type each source declares for a real picture, not by inspecting the bytes.
 
-Each new frame is decoded, converted to greyscale, resized to 64×48, and compared to the previous thumbnail. That gives brightness and a mean absolute difference. Only the newest thumbnail is kept, since it's only there to difference the next frame against.
+Each new frame is decoded, converted to grayscale, resized to 64×48, and compared to the previous thumbnail. That gives brightness and a mean absolute difference. Only the newest thumbnail is kept, since it's only there to difference the next frame against.
 
 ### Activity
 
@@ -111,14 +111,14 @@ Camera ids are only unique within one source. The feeds carry no id that is nume
 
 ## 3. The React wall (`web/`)
 
-A front page, then three levels: the country, a city, a camera. The whole wall is dressed as an eighties security desk, one amber phosphor on near-black in a monospace face, with scanlines laid over the screen and a burst of snow when the view changes channel. The canvases take their colours from `web/src/retro.ts`, beside the stylesheet's tokens of the same names. The scanlines darken the screen above the pictures and never alter them, and all motion stops for a viewer who asks for less.
+A front page, then three levels: the country, a city, a camera. The whole wall is dressed as an eighties security desk, one amber phosphor on near-black in a monospace face, with scanlines laid over the screen and a burst of snow when the view changes channel. The canvases take their colors from `web/src/retro.ts`, beside the stylesheet's tokens of the same names. The scanlines darken the screen above the pictures and never alter them, and all motion stops for a viewer who asks for less.
 
-- **Front page** is one canvas: the covered states laid out as in the national view below, every indexed camera a point of light on its state, coloured by the sun on it now (day, sunset and sunrise, night), drawn once into a dozen layers that breathe on their own cycles so a frame costs a dozen blends. Clicking a state opens the country map, and the sources table with each agency's terms and the disclaimer sit behind one link. Nothing is polled while it is open.
+- **Front page** is one canvas: the covered states laid out as in the national view below, every indexed camera a point of light on its state, colored by the sun on it now (day, sunset and sunrise, night), drawn once into a dozen layers that breathe on their own cycles so a frame costs a dozen blends. Clicking a state opens the country map, and the sources table with each agency's terms and the disclaimer sit behind one link. Nothing is polled while it is open.
 
 - **National** draws only the states that have a camera source. Each is lifted out of the country as a slab and set in a row west to east on a tilted table, its size eased toward the others so Vermont is not a speck beside California (`web/src/slabs.ts`). Indexed cameras are binned into lights on their own slab. Cities being polled appear as markers, cities merely configured as dashed outlines. Hovering a slab raises it and names its cities, and clicking one away from its cities brings that state up to fill the view.
 - **City** draws the road network underneath and the camera graph on top, edges told apart by the phosphor's strength and a dash, nodes sized and warmed by activity. Clicking a node opens that camera beside the map.
 - **Wall** is the tile grid for one city, cross-fading as frames arrive and resizing tiles by attention, so a camera with a crash reported on it can hold a large tile while its picture sits still. The bar under each tile still shows raw activity, which is what the picture is doing rather than what the camera is worth. Each tile also carries its score and what drove it (moving, incident, queue, stopped), a line along its top that fills until its next picture is due, a LIVE or SNAPSHOT tag, and its channel number and picture time in the label strip, so a wall of stills a minute apart still shows it is working. The tiles come in one after another, busiest first, when the wall opens.
-- **Scores** is a collapsible right pane summarising attention by city and by camera, with each camera's score broken down into movement times road size, times the second-look factor where there is one, the incident floor, and the stopped-traffic floor. Jev, when a key is set, adjusts those floors and gives the second look behind the scenes, but the interface does not name it. It reads `/api/scores`, a read-only endpoint built on the same scoring code as the wall, so opening it never changes what the server polls and never causes a model call.
+- **Scores** is a collapsible right pane summarizing attention by city and by camera, with each camera's score broken down into movement times road size, times the second-look factor where there is one, the incident floor, and the stopped-traffic floor. Jev, when a key is set, adjusts those floors and gives the second look behind the scenes, but the interface does not name it. It reads `/api/scores`, a read-only endpoint built on the same scoring code as the wall, so opening it never changes what the server polls and never causes a model call.
 
 React owns navigation, the breadcrumb, the city list, the tile grid, the camera panel and the splitter. Canvas drawing and video playback stay imperative behind effects that create and destroy them, because pushing thousands of paths through the virtual DOM would be slower for no benefit. The camera panel is placed by CSS grid rather than moved between parents, so one video element survives switching views.
 

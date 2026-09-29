@@ -4,7 +4,7 @@
  *
  * It is asked about two things. Incidents, which is the original case below, and cameras whose picture has stopped changing in an hour that usually moves, which the arithmetic cannot tell apart from an empty road or a frozen feed. Both are sparse. A few dozen incidents are live across a state, and the zero-motion gate fired on none of 2,831 Miami daytime polls in the run this was written against. Each subject is asked about once and then cached, which puts this at a handful of calls an hour rather than hundreds a minute. Nothing here sits on the per-camera per-frame path.
  *
- * It modulates and never replaces. The deterministic floor is computed first and stands on its own; an answer moves it within bounds this file sets, and every bound leans the safe way: an unconfident answer does nothing at all, a confident screen score can scale the floor between half and one and a half times, a chosen named camera gains while the others on the record keep three quarters, and a chosen neighbour adds a view without demoting the named cameras, and the only thing that can collapse a floor is the model saying the incident has cleared, which still leaves a tenth. Low confidence means behave normally, never hide it.
+ * It modulates and never replaces. The deterministic floor is computed first and stands on its own; an answer moves it within bounds this file sets, and every bound leans the safe way: an unconfident answer does nothing at all, a confident screen score can scale the floor between half and one and a half times, a chosen named camera gains while the others on the record keep three quarters, and a chosen neighbor adds a view without demoting the named cameras, and the only thing that can collapse a floor is the model saying the incident has cleared, which still leaves a tenth. Low confidence means behave normally, never hide it.
  *
  * Answers are model output about public data. They are data, never instructions, and so is everything in the state: the dispatcher's free-text remarks are the one field here that nobody on this project writes. */
 
@@ -15,13 +15,13 @@ import { round } from './config.js';
 import type { VehicleCount } from './detector.js';
 import { JsonLog } from './jsonlog.js';
 
-/** Everything the arbiter's behaviour depends on, in one block. The rubrics themselves are at the bottom, because they are prose rather than numbers. */
+/** Everything the arbiter's behavior depends on, in one block. The rubrics themselves are at the bottom, because they are prose rather than numbers. */
 export const JEV = {
   /** `jev-latest` is what the SDK and the documentation recommend. The model that actually answered is recorded on every log line, so the day a new one lands is visible in the log rather than a mystery. */
   MODEL: 'jev-latest',
   /** Bumped by hand whenever a rubric below changes, or whenever the state the rubrics are answered from changes. Answers logged under different versions are not comparable, and calibration is the whole reason the log exists.
    *
-   * Version 3 gives neighbours pictures and makes a neighbour choice add a floor without demoting named cameras. Version 4 gives the gate a vehicle count from the detector and has the standstill rubric read it. Version 5 adds the review of the top of a city. */
+   * Version 3 gives neighbors pictures and makes a neighbor choice add a floor without demoting named cameras. Version 4 gives the gate a vehicle count from the detector and has the standstill rubric read it. Version 5 adds the review of the top of a city. */
   RUBRIC_VERSION: 5,
   /** Per attempt. The API answers a handful of questions in well under a second, so anything near this is a network fault, and the call is abandoned rather than kept waiting while the floor it would have adjusted is already being served deterministically. */
   TIMEOUT_MS: 8000,
@@ -35,13 +35,13 @@ export const JEV = {
   CLEARED_RESIDUE: 0.1,
   /** How much a confident yes to "the cameras support this" may lift a floor. Small, and one-sided: a no never lowers anything, because a frozen camera and an empty road look the same to the telemetry this question is answered from, and that is exactly the case the floor exists for. */
   SUPPORTED_LIFT: 1.2,
-  /** What the camera the model picks gains, and what the others keep. A named choice redistributes because being the second-best view of a crash is still worth something. A neighbour choice adds a view and leaves the named cameras alone. */
+  /** What the camera the model picks gains, and what the others keep. A named choice redistributes because being the second-best view of a crash is still worth something. A neighbor choice adds a view and leaves the named cameras alone. */
   CHOSEN_GAIN: 1.25,
   CHOSEN_OTHERS: 0.75,
   /** At most this many options on the Choice. The limit is 255 and we will never approach it, but a state full of cameras the incident has nothing to do with is a distractor, and the documentation is explicit that accuracy falls as irrelevant state grows. */
   MAX_OPTIONS: 10,
-  /** How many corridor neighbours to offer beyond the cameras the incident itself names. */
-  MAX_NEIGHBOURS: 4,
+  /** How many corridor neighbors to offer beyond the cameras the incident itself names. */
+  MAX_NEIGHBORS: 4,
   /** What the arbiter puts under a camera when it says the stillness in front of it is stopped traffic. The same level a road-relevant dispatch code gets, because that is what it is, an incident nobody has reported yet. A floor rather than a score, for the same reason an incident is one: the thing that makes it worth watching is exactly the thing that makes the picture stop changing. */
   GRIDLOCK_FLOOR: 0.6,
   /** How long a gate answer keeps its floor before the camera has to earn one again. Short, because a standstill that has drained is an ordinary camera again and nothing in the telemetry would say so. */
@@ -90,7 +90,7 @@ export interface CameraTelemetry {
 }
 
 /** A camera reachable in one hop along the corridor, and which way the traffic runs. */
-export interface Neighbour {
+export interface Neighbor {
   uid: number;
   roadway: string;
   location: string;
@@ -98,7 +98,7 @@ export interface Neighbour {
   side: 'upstream' | 'downstream' | 'nearby';
   length_m: number;
   tt_s: number;
-  /** Directed graph hops from the camera this neighbour was found from. One is adjacent. */
+  /** Directed graph hops from the camera this neighbor was found from. One is adjacent. */
   hops: number;
   /** How long a queue tail standing at the incident would take to reach this camera, from the road distance and the stopping-wave speed. Null for anything that is not upstream, where the quantity has no meaning. */
   wave_s: number | null;
@@ -155,7 +155,7 @@ export type GateAsk = (state: unknown) => Promise<GateAskResult>;
 /** One camera the zero-motion gate has fired on, with the corridor around it. The caller assembles this so that this file never reaches into the poller. */
 export interface GateCandidate {
   camera: CameraTelemetry;
-  neighbours: Neighbour[];
+  neighbors: Neighbor[];
   /** Whether any dispatch record already names this camera. A standstill next to a reported crash is explained; one with nothing reported near it is the case this gate exists for. */
   incidentNearby: boolean;
   /** What the detector counted in the frame the gate fired on. Null when there is no detector or it could not count this frame, and the question is then asked from telemetry alone, as it was before the detector existed. */
@@ -253,12 +253,12 @@ export class JevArbiter {
   }
 
   /** Asks about anything worth asking about, and returns at once. A verdict lands for the next ranking rather than this one, which is the point: nothing waits on a network call to draw a wall. */
-  consider(incidents: Incident[], telemetry: (uid: number) => CameraTelemetry | null, neighbours: (uid: number) => Neighbour[], now = Date.now() / 1000): void {
+  consider(incidents: Incident[], telemetry: (uid: number) => CameraTelemetry | null, neighbors: (uid: number) => Neighbor[], now = Date.now() / 1000): void {
     if (!this.ask) return;
     for (const incident of incidents) {
       const evidence = JevArbiter.evidence(incident, telemetry);
       if (!this.shouldAsk(incident, evidence, now)) continue;
-      void this.askAbout(incident, evidence, telemetry, neighbours, now);
+      void this.askAbout(incident, evidence, telemetry, neighbors, now);
     }
   }
 
@@ -303,7 +303,7 @@ export class JevArbiter {
     return true;
   }
 
-  private async askAbout(incident: Incident, evidence: string, telemetry: (uid: number) => CameraTelemetry | null, neighbours: (uid: number) => Neighbour[], now: number): Promise<void> {
+  private async askAbout(incident: Incident, evidence: string, telemetry: (uid: number) => CameraTelemetry | null, neighbors: (uid: number) => Neighbor[], now: number): Promise<void> {
     const ask = this.ask;
     if (!ask) return;
     const key = JevArbiter.key(incident);
@@ -312,7 +312,7 @@ export class JevArbiter {
     if (cameras.length === 0) return;
     // Not one of them has returned a picture yet, which happens in the first minutes of a run. This guard is load-bearing rather than thrifty: asked about a record whose every camera reads "no picture yet", the model scores the screen rubric on its lower levels, because those levels ask for a camera showing something. Measured against the live feed with the guard bypassed, eight real records all came back between 0.3 and 1.1 of 3 whatever their code said, including two open roadblocks. A floor must not be lowered for a gap in our own coverage. Neither asked nor marked, so it goes out on a later pass once there is something to look at.
     if (!cameras.some((camera) => camera.diff !== null)) return;
-    const extra = corridorOptions(cameras, neighbours);
+    const extra = corridorOptions(cameras, neighbors);
     const options = choiceOptions(incident, cameras, extra);
     const state = buildState(incident, cameras, extra, now, telemetry);
 
@@ -489,7 +489,7 @@ export class JevArbiter {
       const at = Date.now() / 1000;
       for (const [uid, verdict] of verdicts) this.reviews.set(uid, { ...verdict, at });
       // The shadow record: both rankings of the same cameras at the same moment, whether or not the look was confident enough to move the wall. This is what the look is evaluated from, rather than from the bounded factor the wall applies.
-      // Ties in either ranking are broken by camera id, which favours neither, so a tie never counts as the two agreeing.
+      // Ties in either ranking are broken by camera id, which favors neither, so a tie never counts as the two agreeing.
       const equationOrder = [...leaders].sort((a, b) => b.equation - a.equation || a.camera.uid - b.camera.uid).map((candidate) => candidate.camera.uid);
       const lookOrder = [...verdicts].sort((a, b) => b[1].level - a[1].level || a[0] - b[0]).map(([uid]) => uid);
       if (this.failing) console.log('jev recovered');
@@ -536,12 +536,12 @@ export class JevArbiter {
     if (!verdict || now - verdict.at > JEV.REVIEW_HOLD_S) return null;
     if (verdict.levels < 2) return null;
     const acted = verdict.confidence >= JEV.ACT_CONFIDENCE;
-    const normalised = verdict.level / (verdict.levels - 1);
+    const normalized = verdict.level / (verdict.levels - 1);
     return {
       level: round(verdict.level, 2),
       levels: verdict.levels,
       confidence: round(verdict.confidence, 2),
-      factor: acted ? round(1 + JEV.REVIEW_SWING * (2 * normalised - 1), 3) : 1,
+      factor: acted ? round(1 + JEV.REVIEW_SWING * (2 * normalized - 1), 3) : 1,
       acted,
       at: round(verdict.at, 1),
       model: verdict.model,
@@ -585,8 +585,8 @@ export class JevArbiter {
     } else gated.push('cleared');
 
     if (verdict.scoreConfidence >= JEV.ACT_CONFIDENCE && verdict.scoreLevels > 1) {
-      const normalised = verdict.score / (verdict.scoreLevels - 1);
-      multiplier *= 1 + JEV.SCORE_SWING * (2 * normalised - 1);
+      const normalized = verdict.score / (verdict.scoreLevels - 1);
+      multiplier *= 1 + JEV.SCORE_SWING * (2 * normalized - 1);
     } else gated.push('screen');
 
     if (verdict.supported >= JEV.NOUL_THRESHOLD) multiplier *= JEV.SUPPORTED_LIFT;
@@ -621,7 +621,7 @@ export class JevArbiter {
   }
 
   /** The arbitration as it stands, for the pane. Assembled on request and holding no reference to anything the scorer uses. */
-  snapshot(incidents: Incident[], hasPicture: (uid: number) => boolean, context: { watching: number; feedsRead: number; prioritised: number }, isServable: (uid: number) => boolean): JevSnapshot {
+  snapshot(incidents: Incident[], hasPicture: (uid: number) => boolean, context: { watching: number; feedsRead: number; prioritized: number }, isServable: (uid: number) => boolean): JevSnapshot {
     const live = new Map(incidents.map((incident) => [incident.id, incident]));
     const linked = incidents.filter((incident) => incident.cameras.length > 0);
     const relevant = linked.filter((incident) => incident.road_relevant || incident.implies_closure);
@@ -664,7 +664,7 @@ export class JevArbiter {
       },
       watching_regions: context.watching,
       feeds_read: context.feedsRead,
-      prioritised_cameras: context.prioritised,
+      prioritized_cameras: context.prioritized,
       live_incidents: incidents.length,
       linked_incidents: linked.length,
       relevant_incidents: relevant.length,
@@ -675,7 +675,7 @@ export class JevArbiter {
     };
   }
 
-  /** A confident neighbour choice adds a view without taking one away from the named scene. All other verdict gates still apply to its multiplier. */
+  /** A confident neighbor choice adds a view without taking one away from the named scene. All other verdict gates still apply to its multiplier. */
   chosenQueue(incident: Incident, uid: number, recordFloor: number): number | null {
     const verdict = this.verdictFor(incident);
     if (!verdict || incident.cameras.includes(uid) || verdict.chosen !== uid || verdict.chosenConfidence < JEV.ACT_CONFIDENCE) return null;
@@ -716,33 +716,33 @@ export class JevArbiter {
 }
 
 /** The cameras the model may pick between, each with the one line that tells it apart. The state carries the detail; this map only has to make the labels distinguishable. */
-export function choiceOptions(incident: Incident, cameras: CameraTelemetry[], neighbours: Neighbour[]): Record<string, string> {
+export function choiceOptions(incident: Incident, cameras: CameraTelemetry[], neighbors: Neighbor[]): Record<string, string> {
   const options: Record<string, string> = {};
   for (const camera of cameras) {
     options[String(camera.uid)] = `Named by the record. ${camera.roadway}, ${camera.location}, ${String(Math.round(distanceKm(camera.lat, camera.lon, incident.lat, incident.lon) * 1000))} m from the reported location.`;
   }
-  for (const neighbour of neighbours) {
-    const where = neighbour.side === 'upstream' ? 'on the approach to it' : neighbour.side === 'downstream' ? 'past it' : 'nearby but off the corridor';
-    options[String(neighbour.uid)] = `Not named by the record, ${where}. ${neighbour.roadway}, ${neighbour.location}, ${String(Math.round(neighbour.length_m))} m along the road.`;
+  for (const neighbor of neighbors) {
+    const where = neighbor.side === 'upstream' ? 'on the approach to it' : neighbor.side === 'downstream' ? 'past it' : 'nearby but off the corridor';
+    options[String(neighbor.uid)] = `Not named by the record, ${where}. ${neighbor.roadway}, ${neighbor.location}, ${String(Math.round(neighbor.length_m))} m along the road.`;
   }
-  // Insertion order is the cameras the record names first, so a truncation drops the furthest speculative neighbour rather than the scene itself.
+  // Insertion order is the cameras the record names first, so a truncation drops the furthest speculative neighbor rather than the scene itself.
   return Object.fromEntries(Object.entries(options).slice(0, JEV.MAX_OPTIONS));
 }
 
-/** The corridor neighbours worth offering, without repeating a camera the incident already names. */
-function corridorOptions(cameras: CameraTelemetry[], neighbours: (uid: number) => Neighbour[]): Neighbour[] {
+/** The corridor neighbors worth offering, without repeating a camera the incident already names. */
+function corridorOptions(cameras: CameraTelemetry[], neighbors: (uid: number) => Neighbor[]): Neighbor[] {
   const already = new Set(cameras.map((camera) => camera.uid));
-  const found = new Map<number, Neighbour>();
+  const found = new Map<number, Neighbor>();
   for (const camera of cameras) {
-    for (const neighbour of neighbours(camera.uid)) {
-      if (already.has(neighbour.uid)) continue;
-      const held = found.get(neighbour.uid);
-      if (!held || neighbour.length_m < held.length_m) found.set(neighbour.uid, neighbour);
+    for (const neighbor of neighbors(camera.uid)) {
+      if (already.has(neighbor.uid)) continue;
+      const held = found.get(neighbor.uid);
+      if (!held || neighbor.length_m < held.length_m) found.set(neighbor.uid, neighbor);
     }
   }
   // Upstream first: a queue forms on the approach, so those are the cameras most likely to be showing something the named camera is not.
   const rank = { upstream: 0, downstream: 1, nearby: 2 };
-  return [...found.values()].sort((a, b) => (a.side === b.side ? a.length_m - b.length_m : rank[a.side] - rank[b.side])).slice(0, JEV.MAX_NEIGHBOURS);
+  return [...found.values()].sort((a, b) => (a.side === b.side ? a.length_m - b.length_m : rank[a.side] - rank[b.side])).slice(0, JEV.MAX_NEIGHBORS);
 }
 
 /** How long ago, in words.
@@ -776,8 +776,8 @@ export function picture(camera: Pick<CameraTelemetry, 'diff' | 'baseline'>): { s
   return { summary, frame_difference: round(diff, 4), usual: round(baseline, 4), times_usual: round(ratio, 2) };
 }
 
-/** The whole of what Jev is told: named fields, nothing the questions do not use, and the dispatcher's own words carried verbatim and labelled as theirs. */
-export function buildState(incident: Incident, cameras: CameraTelemetry[], neighbours: Neighbour[], now: number, telemetry: (uid: number) => CameraTelemetry | null = () => null): Record<string, unknown> {
+/** The whole of what Jev is told: named fields, nothing the questions do not use, and the dispatcher's own words carried verbatim and labeled as theirs. */
+export function buildState(incident: Incident, cameras: CameraTelemetry[], neighbors: Neighbor[], now: number, telemetry: (uid: number) => CameraTelemetry | null = () => null): Record<string, unknown> {
   return {
     dispatch_record: {
       agency_code: incident.type,
@@ -806,8 +806,8 @@ export function buildState(incident: Incident, cameras: CameraTelemetry[], neigh
         newest_frame: camera.lastTs === null ? 'none yet' : ago(Math.max(0, now - camera.lastTs)),
       };
     }),
-    nearby_cameras_on_the_same_corridor: neighbours.map((neighbour) => {
-      const camera = telemetry(neighbour.uid);
+    nearby_cameras_on_the_same_corridor: neighbors.map((neighbor) => {
+      const camera = telemetry(neighbor.uid);
       const state = picture(camera ?? { diff: null, baseline: null });
       return {
         picture: state.summary,
@@ -815,15 +815,15 @@ export function buildState(incident: Incident, cameras: CameraTelemetry[], neigh
         usual_frame_difference_this_hour: state.usual,
         times_its_usual: state.times_usual,
         newest_frame: camera?.lastTs == null ? 'none yet' : ago(Math.max(0, now - camera.lastTs)),
-        camera_id: String(neighbour.uid),
-        road: neighbour.roadway,
-        view: neighbour.location,
-        side: neighbour.side === 'upstream' ? 'on the approach to the reported location' : neighbour.side === 'downstream' ? 'past the reported location' : 'nearby, off the corridor',
-        road_distance: `${String(Math.round(neighbour.length_m))} m`,
-        driving_time: `${String(Math.round(neighbour.tt_s))} seconds`,
-        junctions_away: neighbour.hops,
+        camera_id: String(neighbor.uid),
+        road: neighbor.roadway,
+        view: neighbor.location,
+        side: neighbor.side === 'upstream' ? 'on the approach to the reported location' : neighbor.side === 'downstream' ? 'past the reported location' : 'nearby, off the corridor',
+        road_distance: `${String(Math.round(neighbor.length_m))} m`,
+        driving_time: `${String(Math.round(neighbor.tt_s))} seconds`,
+        junctions_away: neighbor.hops,
         // Only upstream carries this, because only upstream is where a queue grows.
-        a_queue_at_the_incident_would_reach_here_in: neighbour.wave_s === null ? null : ago(neighbour.wave_s).replace(' ago', ''),
+        a_queue_at_the_incident_would_reach_here_in: neighbor.wave_s === null ? null : ago(neighbor.wave_s).replace(' ago', ''),
       };
     }),
   };
@@ -833,7 +833,7 @@ export function buildState(incident: Incident, cameras: CameraTelemetry[], neigh
  *
  * The corridor is included because it is the evidence that separates the two answers. Traffic standing still at this camera while the cameras behind it on the same road are also slowing is a queue. The same stillness with the approach moving normally is an empty road or a dead picture. */
 export function buildGateState(candidate: GateCandidate, now: number): Record<string, unknown> {
-  const { camera, neighbours, incidentNearby, vehicles } = candidate;
+  const { camera, neighbors, incidentNearby, vehicles } = candidate;
   const state = picture(camera);
   return {
     camera: {
@@ -852,13 +852,13 @@ export function buildGateState(candidate: GateCandidate, now: number): Record<st
       vehicles_a_detector_counted_in_this_picture: vehicles === null ? 'not counted' : vehicles.vehicles,
       vehicle_types_counted: vehicles === null ? null : vehicles.by_class,
     },
-    cameras_on_the_same_corridor: neighbours.map((neighbour) => ({
-      camera_id: String(neighbour.uid),
-      road: neighbour.roadway,
-      view: neighbour.location,
-      side: neighbour.side === 'upstream' ? 'on the approach to this camera' : neighbour.side === 'downstream' ? 'past this camera' : 'nearby, off the corridor',
-      road_distance: `${String(Math.round(neighbour.length_m))} m`,
-      junctions_away: neighbour.hops,
+    cameras_on_the_same_corridor: neighbors.map((neighbor) => ({
+      camera_id: String(neighbor.uid),
+      road: neighbor.roadway,
+      view: neighbor.location,
+      side: neighbor.side === 'upstream' ? 'on the approach to this camera' : neighbor.side === 'downstream' ? 'past this camera' : 'nearby, off the corridor',
+      road_distance: `${String(Math.round(neighbor.length_m))} m`,
+      junctions_away: neighbor.hops,
     })),
   };
 }
@@ -919,7 +919,7 @@ export const REVIEW_RUBRIC = {
   ],
 } as const;
 
-/** The two questions asked about a still picture. Both Nouls, because each one is a single yes or no about a state of the world, and neither of them is a judgement about the wall.
+/** The two questions asked about a still picture. Both Nouls, because each one is a single yes or no about a state of the world, and neither of them is a judgment about the wall.
  *
  * They are not exclusive and are not asked to be. A frozen feed answered yes takes precedence in code, in `gateFloor`, rather than in the rubric, because a model asked to rank its own two answers is being asked to do the recombination this project already does with weights it can see. */
 export const GATE_RUBRICS = {

@@ -177,7 +177,7 @@ export function nextEvalPair(candidates: Candidate[], recent: Set<number>, rando
     for (let i = 0; i < pool.length; i++) for (let j = i + 1; j < pool.length; j++) if (disagree(pool[i]!, pool[j]!)) split.push([pool[i]!, pool[j]!]);
     if (split.length > 0) {
       const pair = split[Math.floor(random() * split.length)]!;
-      // Sides shuffled, so neither ranking's favourite always sits on the left.
+      // Sides shuffled, so neither ranking's favorite always sits on the left.
       return { pair: random() < 0.5 ? pair : [pair[1], pair[0]], stratum: 'disagree' };
     }
   }

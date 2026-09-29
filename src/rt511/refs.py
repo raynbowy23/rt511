@@ -9,11 +9,11 @@ STATE_PREFIXES = ("AK", "AZ", "CA", "CT", "FL", "GA", "IA", "ID", "KY", "LA", "M
 
 TOKEN_RE = re.compile(r"\b(I|IH|US|USH|SR|SH|STH|CR|CTH|" + "|".join(STATE_PREFIXES) + r")[\s-]*(\d+)((?:\s*/\s*\d+)*)", re.IGNORECASE)
 PREFIX_ALIASES = {"IH": "I", "USH": "US", "STH": "SR", "SH": "SR", "CTH": "CR", **{p: "SR" for p in STATE_PREFIXES}}
-"""State route prefixes all normalise to SR, because a camera name and an OSM tag rarely agree on the spelling: Wisconsin publishes "WIS 30" while OpenStreetMap tags the same road "WI 30"."""
+"""State route prefixes all normalize to SR, because a camera name and an OSM tag rarely agree on the spelling: Wisconsin publishes "WIS 30" while OpenStreetMap tags the same road "WI 30"."""
 
 
 def ref_tokens(text: str | None) -> frozenset[str]:
-    """Normalised route tokens found in a camera name or an OSM ref tag."""
+    """Normalized route tokens found in a camera name or an OSM ref tag."""
     if not text:
         return frozenset()
     out: set[str] = set()

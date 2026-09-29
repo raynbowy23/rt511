@@ -58,7 +58,7 @@ test('unwatched anchors ignore stretch and visibility while other cameras stay i
   assert.equal(p.isRadar(1), false);
 });
 
-test('a radar trip schedules corridor neighbours in an unwatched region at the source period', (t) => {
+test('a radar trip schedules corridor neighbors in an unwatched region at the source period', (t) => {
   t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 1_000_000 });
   const p = makePoller();
   t.after(() => p.stop());

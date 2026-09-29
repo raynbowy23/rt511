@@ -2,7 +2,7 @@
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 8;
-// Above this the source pixels are large enough that smoothing turns them to mush, so nearest-neighbour reads better than an upscale blur. Wisconsin publishes 352x240, which reaches that point quickly.
+// Above this the source pixels are large enough that smoothing turns them to mush, so nearest-neighbor reads better than an upscale blur. Wisconsin publishes 352x240, which reaches that point quickly.
 const PIXELATE_AT = 2.2;
 
 export class Ptz {
@@ -72,7 +72,7 @@ export class Ptz {
     event.preventDefault();
     const rect = this.viewport.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
-    // Cursor position relative to the centre, which is where the transform origin sits.
+    // Cursor position relative to the center, which is where the transform origin sits.
     const px = event.clientX - rect.left - rect.width / 2;
     const py = event.clientY - rect.top - rect.height / 2;
     const next = clamp(this.scale * Math.exp(-event.deltaY * 0.0016), MIN_SCALE, MAX_SCALE);

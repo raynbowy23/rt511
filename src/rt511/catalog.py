@@ -33,7 +33,7 @@ class Camera:
 
     @property
     def at_intersection(self) -> bool:
-        """True when the name joins two roads with an ampersand, which is how the city-operated cameras describe a signalised junction. A freeway mainline camera is never at one. Wisconsin writes interchanges as "US 12/18 at Whitney Way" instead, which is a grade separation and not an intersection, so the ampersand stays a reliable marker."""
+        """True when the name joins two roads with an ampersand, which is how the city-operated cameras describe a signalized junction. A freeway mainline camera is never at one. Wisconsin writes interchanges as "US 12/18 at Whitney Way" instead, which is a grade separation and not an intersection, so the ampersand stays a reliable marker."""
         return " & " in self.location
 
     @property
@@ -60,7 +60,7 @@ def _nearest(region: Region, points: list, lat_of, lon_of) -> list:
 
 
 async def _fetch_feed_catalog(region: Region, source: Source) -> list[Camera]:
-    """A region's cameras from its agency's published feed. The feed is read whole, because none of them can be asked for a bounding box, and then cut to the region: inside its box, nearest the centre first, up to its limit."""
+    """A region's cameras from its agency's published feed. The feed is read whole, because none of them can be asked for a bounding box, and then cut to the region: inside its box, nearest the center first, up to its limit."""
     async with httpx.AsyncClient(headers={"User-Agent": USER_AGENT}, timeout=60.0, follow_redirects=True) as http:
         cams = await feed_cameras(http, source)
     kept = _nearest(region, cams, lambda c: c.lat, lambda c: c.lon)

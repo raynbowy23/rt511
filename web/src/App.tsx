@@ -86,11 +86,11 @@ export function App(): ReactElement {
 
   // Loads the graph, the national index and the region list, retrying with a widening gap so an unattended screen recovers from a backend restart on its own. The cancel flag is what keeps React's doubled development mount from running two retry chains.
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     let timer = 0;
     const attempt = async (retryMs: number): Promise<void> => {
       const [regions, graph, national] = await Promise.all([getRegions(), getGraph(), getNational()]);
-      if (cancelled) return;
+      if (canceled) return;
       if (!graph) {
         setPoll((current) => ({ ...current, ok: false }));
         timer = window.setTimeout(() => void attempt(Math.min(RETRY_MAX_MS, retryMs * 2)), retryMs);
@@ -104,7 +104,7 @@ export function App(): ReactElement {
     };
     void attempt(RETRY_MS);
     return () => {
-      cancelled = true;
+      canceled = true;
       if (timer !== 0) window.clearTimeout(timer);
     };
   }, []);
@@ -272,14 +272,14 @@ export function App(): ReactElement {
   // Polls the camera state and hands the same snapshot to every view that needs it.
   useEffect(() => {
     if (!boot || level === 'board' || level === 'home') return;
-    let cancelled = false;
+    let canceled = false;
     const run = async (): Promise<void> => {
       // A tab nobody can see asks for nothing, so the server lets the city's cameras slow down and, once the viewer has been gone a couple of minutes, stop.
       if (document.hidden) return;
       // Naming the city keeps its cameras polled on a server that was started without one. At the country level nothing is named, so nothing is polled.
       // The cameras on screen go with the poll: the server polls those at the source's own rate and lets the rest of the city tick over slowly. At the country level nothing is named and nothing is polled.
       const state = await getCameras(level === 'national' ? null : region, level === 'wall' ? visibleCameras.current : []);
-      if (cancelled) return;
+      if (canceled) return;
       if (!state) {
         setPoll((current) => ({ ...current, ok: false }));
         return;
@@ -289,7 +289,7 @@ export function App(): ReactElement {
     void run();
     const timer = window.setInterval(() => void run(), POLL_MS);
     return () => {
-      cancelled = true;
+      canceled = true;
       window.clearInterval(timer);
     };
   }, [boot, level, region]);
@@ -299,11 +299,11 @@ export function App(): ReactElement {
       setIncidents(null);
       return;
     }
-    let cancelled = false;
+    let canceled = false;
     let retry = 0;
     const run = async (): Promise<void> => {
       const next = await getIncidents(region);
-      if (cancelled) return;
+      if (canceled) return;
       setIncidents(next);
       // `idle` means the server has not read the feed because this city was not being watched yet, which is the ordinary state for the first second or two after opening one. Ask again shortly rather than leaving the map blank for a minute.
       if (next?.status === 'idle') retry = window.setTimeout(() => void run(), 5000);
@@ -311,7 +311,7 @@ export function App(): ReactElement {
     void run();
     const timer = window.setInterval(() => void run(), INCIDENT_POLL_MS);
     return () => {
-      cancelled = true;
+      canceled = true;
       window.clearInterval(timer);
       if (retry !== 0) window.clearTimeout(retry);
     };
@@ -462,7 +462,7 @@ export function App(): ReactElement {
   );
   const ranks = useWallRanking(wallCameras, statesById, RERANK_MS, personalScore);
 
-  // Attention spreading along the roads, for the city map: which cameras the scorer is looking at closely because a neighbour saw something, read every ten seconds while the map is on screen, and which carry a queue floor from an incident or stopped traffic further down the road, read from the poll the map already has.
+  // Attention spreading along the roads, for the city map: which cameras the scorer is looking at closely because a neighbor saw something, read every ten seconds while the map is on screen, and which carry a queue floor from an incident or stopped traffic further down the road, read from the poll the map already has.
   const [promotions, setPromotions] = useState<AttentionFlow[]>([]);
   const mapShown = level === 'map' && region !== null;
   useEffect(() => {
@@ -470,16 +470,16 @@ export function App(): ReactElement {
       setPromotions([]);
       return;
     }
-    let cancelled = false;
+    let canceled = false;
     const run = async (): Promise<void> => {
       const scores = await getScores();
-      if (cancelled || !scores) return;
+      if (canceled || !scores) return;
       setPromotions(scores.graph_promoted.map((item) => ({ from: item.because, to: item.uid, reason: item.reason, strength: 0.7 })));
     };
     void run();
     const timer = window.setInterval(() => void run(), 10_000);
     return () => {
-      cancelled = true;
+      canceled = true;
       window.clearInterval(timer);
     };
   }, [mapShown]);
@@ -522,14 +522,14 @@ export function App(): ReactElement {
   const withFrames = scope.filter((state) => state.frames > 0).length;
   const status = poll.ok ? `${withFrames} of ${scope.length} cameras live · ${Math.round(poll.intervalS)}s snapshots` : 'backend unreachable, retrying';
 
-  // The strip lists the cities this server can show, with the centre the national index carries so "nearest" is a computation.
+  // The strip lists the cities this server can show, with the center the national index carries so "nearest" is a computation.
   const cities: City[] = useMemo(() => {
     if (!boot) return [];
-    const centres = new Map((boot.national?.regions ?? []).map((r) => [r.key, r.center]));
+    const centers = new Map((boot.national?.regions ?? []).map((r) => [r.key, r.center]));
     return boot.regions.map((meta) => ({
       key: meta.region,
       name: meta.region_name ?? meta.region,
-      center: centres.get(meta.region) ?? null,
+      center: centers.get(meta.region) ?? null,
       served: true,
     }));
   }, [boot]);
@@ -563,7 +563,7 @@ export function App(): ReactElement {
   const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
   const liveIncidents: Incident[] = incidents?.status === 'ok' ? incidents.incidents : [];
   const shownIncident = liveIncidents.find((item) => item.id === openIncident) ?? null;
-  /** The incidents within a kilometre and a half of the camera being watched, which is the same radius the server used to attach cameras to incidents. */
+  /** The incidents within a kilometer and a half of the camera being watched, which is the same radius the server used to attach cameras to incidents. */
   const nearbyIncidents = cameraId === null ? [] : liveIncidents.filter((item) => item.cameras.includes(cameraId));
 
   const footerContext =

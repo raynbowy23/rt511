@@ -40,8 +40,8 @@ interface Marker {
   sky: SkyRegion | null;
 }
 
-/** The sunset wave's colour for a median camera brightness. Cameras expose for the scene, so daylight sits around 0.45 and a lit night street around 0.15; the ramp spans that rather than 0..1, and runs through the one phosphor, from an ember at night through a dusk orange to a pale day gold. */
-function skyColour(brightness: number): [number, number, number] {
+/** The sunset wave's color for a median camera brightness. Cameras expose for the scene, so daylight sits around 0.45 and a lit night street around 0.15; the ramp spans that rather than 0..1, and runs through the one phosphor, from an ember at night through a dusk orange to a pale day gold. */
+function skyColor(brightness: number): [number, number, number] {
   const t = Math.min(1, Math.max(0, (brightness - 0.15) / 0.3));
   const stops: Rgb[] = [[120, 38, 16], PHOSPHOR.mid, PHOSPHOR.hot];
   const scaled = t * (stops.length - 1);
@@ -134,7 +134,7 @@ export class NationalView {
     fitButton.title = 'Frame the whole country (double-click the map does the same)';
     fitButton.addEventListener('click', () => this.fit(true));
 
-    // What the colours mean: the density ramp for the catalogue, and the two marker states. Without it amber reads as "dense" rather than "live".
+    // What the colors mean: the density ramp for the catalog, and the two marker states. Without it amber reads as "dense" rather than "live".
     const legend = document.createElement('div');
     legend.className = 'map-legend national-legend';
     for (const [cls, text] of [
@@ -209,20 +209,20 @@ export class NationalView {
   private buildMarkers(): void {
     for (const region of this.data.regions) {
       const source = this.data.sources[region.source];
-      const centre = region.center ?? centreOfBox(region.bbox);
-      if (!centre) continue;
+      const center = region.center ?? centreOfBox(region.bbox);
+      if (!center) continue;
       // A city's name ends with its state, which names its slab; a name that does not is looked up by position.
       const code = region.name.split(', ').pop() ?? '';
       let slab = this.layout.slabs.findIndex((item) => item.code === code);
-      if (slab === -1) slab = this.layout.slabOf(centre[1], centre[0]);
+      if (slab === -1) slab = this.layout.slabOf(center[1], center[0]);
       if (slab === -1) continue;
-      const at = this.layout.place(centre[1], centre[0], this.layout.slabs[slab]!.code);
+      const at = this.layout.place(center[1], center[0], this.layout.slabs[slab]!.code);
       if (!at) continue;
       this.markers.push({ region, slab, x: at[0], y: at[1], live: 0, activity: 0, indexed: this.countInBox(region, source), sky: null });
     }
   }
 
-  /** How many catalogued cameras fall inside a region's box. It is what a configured-but-unserved region can honestly show in place of a polled count, which the backend reports as zero. */
+  /** How many cataloged cameras fall inside a region's box. It is what a configured-but-unserved region can honestly show in place of a polled count, which the backend reports as zero. */
   private countInBox(region: NationalRegion, source: NationalResponse['sources'][string] | undefined): number {
     if (!source || !region.bbox) return 0;
     const [south, west, north, east] = region.bbox;
@@ -240,7 +240,7 @@ export class NationalView {
     const served = this.data.regions.filter((r) => r.served).length;
     const summary = document.createElement('div');
     summary.className = 'national-summary';
-    // The honest headline: most of what this view draws is catalogue, not coverage.
+    // The honest headline: most of what this view draws is catalog, not coverage.
     summary.innerHTML = `<b>${served} of ${this.data.regions.length}</b> regions polled in this run<br>${totalCameras.toLocaleString()} cameras indexed across ${this.data.covered_states.length} states<br><span class="national-summary-note">Only the states with cameras, lifted out and set west to east, sizes eased toward each other.</span>`;
     this.list.appendChild(summary);
 
@@ -349,7 +349,7 @@ export class NationalView {
     this.drawOverlay();
   }
 
-  /** The sky over each served city, from `/api/sky`. It paints a halo behind each marker, so the evening reads as a wave of colour moving west. */
+  /** The sky over each served city, from `/api/sky`. It paints a halo behind each marker, so the evening reads as a wave of color moving west. */
   setSky(regions: SkyRegion[]): void {
     const byKey = new Map(regions.map((region) => [region.key, region]));
     for (const marker of this.markers) {
@@ -605,7 +605,7 @@ export class NationalView {
     view.cy = clamp(view.cy, minY, maxY);
   }
 
-  /** Glides the view onto a box, as a zoom that feels even: the scale changes geometrically while the centre slides. */
+  /** Glides the view onto a box, as a zoom that feels even: the scale changes geometrically while the center slides. */
   private flyTo(box: Box): void {
     const view = this.view;
     if (!view || this.zooming) return;
@@ -633,7 +633,7 @@ export class NationalView {
     this.zoomFrame = requestAnimationFrame(step);
   }
 
-  /** Flies into a city, then hands over to it. The scale grows geometrically, which is how a zoom feels even, while the centre slides onto the city's marker; the country fades in the last stretch so the city map, fading in behind it, takes over rather than replacing it. Without motion, or with no view yet, it hands over at once. */
+  /** Flies into a city, then hands over to it. The scale grows geometrically, which is how a zoom feels even, while the center slides onto the city's marker; the country fades in the last stretch so the city map, fading in behind it, takes over rather than replacing it. Without motion, or with no view yet, it hands over at once. */
   private enter(key: string): void {
     if (this.zooming) return;
     const marker = this.markers.find((item) => item.region.key === key);
@@ -808,7 +808,7 @@ export class NationalView {
     const denominator = Math.log(1 + Math.min(peak, 24));
     for (const [key, count] of counts) {
       const t = Math.min(1, Math.log(1 + count) / denominator);
-      // From a dim ember for one camera to the phosphor's hottest for a metro. Polled cities are marked by their rings on the overlay, not by colour, so dense never reads as live.
+      // From a dim ember for one camera to the phosphor's hottest for a metro. Polled cities are marked by their rings on the overlay, not by color, so dense never reads as live.
       const r = Math.round(PHOSPHOR.dim[0] + (PHOSPHOR.hot[0] - PHOSPHOR.dim[0]) * t);
       const g = Math.round(PHOSPHOR.dim[1] + (PHOSPHOR.hot[1] - PHOSPHOR.dim[1]) * t);
       const b = Math.round(PHOSPHOR.dim[2] + (PHOSPHOR.hot[2] - PHOSPHOR.dim[2]) * t);
@@ -828,7 +828,7 @@ export class NationalView {
     ctx.textAlign = 'center';
     for (const i of this.drawOrder()) {
       const slab = this.layout.slabs[i]!;
-      const [sx, sy] = this.toScreen(slab.centre[0], slab.box.maxY);
+      const [sx, sy] = this.toScreen(slab.center[0], slab.box.maxY);
       if (sx < -200 || sy < -40 || sx > this.width + 200 || sy > this.height + 60) continue;
       const hovered = i === this.hoveredSlab;
       const y = sy - this.raised(i) + SLAB_DEPTH_PX + 16;
@@ -872,9 +872,9 @@ export class NationalView {
         ctx.stroke();
       }
 
-      // The sunset wave: a soft halo in the colour of the city's sky, behind everything else the marker draws.
+      // The sunset wave: a soft halo in the color of the city's sky, behind everything else the marker draws.
       if (marker.sky?.brightness != null) {
-        const [r, g, b] = skyColour(marker.sky.brightness);
+        const [r, g, b] = skyColor(marker.sky.brightness);
         const halo = ctx.createRadialGradient(sx, sy, radius, sx, sy, radius + 14);
         halo.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.6)`);
         halo.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);

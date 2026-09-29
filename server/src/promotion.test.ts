@@ -7,13 +7,13 @@ import type { Client } from './client.js';
 import type { CatalogCamera } from './config.js';
 import { CORRIDOR, promotionTrigger, selectPromotions, type HeldTrigger } from './corridor.js';
 import { Router, type Ctx } from './http.js';
-import type { Neighbour } from './jev.js';
+import type { Neighbor } from './jev.js';
 import { Poller, SLOW_PERIOD_S, VISIBLE_TTL_S, BUDGET } from './poller.js';
 import { testRoot } from './testroot.js';
 
 const camera = (id: number): CatalogCamera => ({ id, region: 'test', source: 'test', image_path: '', roadway: 'I 10', direction: null, location: `camera ${id}`, lat: 30, lon: -84, video_url: null, video_auth: false, link_id: null, source_system: 'test', mile_marker: null });
 const axes = (over: Partial<AttentionAxes> = {}): AttentionAxes => ({ anomaly: 0.1, spectacle: 0.1, incident_floor: 0, incident_floor_base: 0, incident: null, jev: null, queue_floor: 0, queue: null, scale_prior: 0.5, scale_prior_source: 'class', scale_amplifier: 1, baseline: 0.01, baseline_sd: null, baseline_n: TUNING.AMBIGUOUS_MIN_SAMPLES, ambiguous_zero: false, gate: null, ...over });
-const neighbour = (uid: number, side: Neighbour['side'] = 'upstream', length_m = 100, hops = 1): Neighbour => ({ uid, side, length_m, hops, wave_s: 100, tt_s: 10, roadway: 'I 10', location: `camera ${uid}` });
+const neighbor = (uid: number, side: Neighbor['side'] = 'upstream', length_m = 100, hops = 1): Neighbor => ({ uid, side, length_m, hops, wave_s: 100, tt_s: 10, roadway: 'I 10', location: `camera ${uid}` });
 
 function poller(): Poller {
   return new Poller(new Map([['test', { source: { poll_period_s: 60 } } as Client]]), new Map([1, 2, 3].map((id) => [id, camera(id)])));
@@ -77,17 +77,17 @@ test('cold profiles, ordinary movement and inferred queues cannot trigger', () =
 
 test('selection orders by strength then side then distance and deduplicates before capping', () => {
   const held = new Map<number, HeldTrigger>([[1, { at: 100, reason: 'incident', strength: 0.8 }], [2, { at: 100, reason: 'movement', strength: 1 }]]);
-  const corridor = new Map([[1, [neighbour(10)]], [2, [neighbour(11, 'nearby', 1), neighbour(12, 'downstream', 1), neighbour(13, 'upstream', 200), neighbour(14, 'upstream', 100), neighbour(14), neighbour(99, 'upstream', 1, 3)]]]);
+  const corridor = new Map([[1, [neighbor(10)]], [2, [neighbor(11, 'nearby', 1), neighbor(12, 'downstream', 1), neighbor(13, 'upstream', 200), neighbor(14, 'upstream', 100), neighbor(14), neighbor(99, 'upstream', 1, 3)]]]);
   assert.deepEqual(selectPromotions(held, corridor, 100).map((p) => p.uid), [14, 13, 12, 11, 10]);
-  corridor.set(2, Array.from({ length: 50 }, (_, i) => neighbour(i + 100)));
+  corridor.set(2, Array.from({ length: 50 }, (_, i) => neighbor(i + 100)));
   const promoted = selectPromotions(held, corridor, 100);
   assert.equal(promoted.length, CORRIDOR.PROMOTE_MAX);
   assert.ok(promoted.every((p) => p.because === 2 && p.reason === 'movement'));
 });
 
-test('a single trigger holds neighbours for five minutes then releases them without mutation', () => {
+test('a single trigger holds neighbors for five minutes then releases them without mutation', () => {
   const held = new Map<number, HeldTrigger>([[1, { at: 100, reason: 'still', strength: 0.6 }]]);
-  const corridor = new Map([[1, [neighbour(2)]]]);
+  const corridor = new Map([[1, [neighbor(2)]]]);
   assert.equal(selectPromotions(held, corridor, 100 + CORRIDOR.PROMOTE_HOLD_S - 0.001).length, 1);
   assert.deepEqual(selectPromotions(held, corridor, 100 + CORRIDOR.PROMOTE_HOLD_S), []);
   assert.equal(held.size, 1);
@@ -146,7 +146,7 @@ test('scores report applied graph promotions read-only and watch zero clears onl
   assert.equal(priority.mock.callCount(), count);
 });
 
-/** Found on live Florida data. Ordered by trigger strength alone, the two strongest triggers' two-hop neighbourhoods used the whole cap and every other event had nothing looked at. */
+/** Found on live Florida data. Ordered by trigger strength alone, the two strongest triggers' two-hop neighborhoods used the whole cap and every other event had nothing looked at. */
 test('every trigger gets its adjacent cameras before any trigger gets a second hop', () => {
   const now = 1_000;
   const strong = 1000;
@@ -155,10 +155,10 @@ test('every trigger gets its adjacent cameras before any trigger gets a second h
     [strong, { reason: 'incident', strength: 1, at: now }],
     [weak, { reason: 'movement', strength: 0.5, at: now }],
   ]);
-  const corridor = new Map<number, Neighbour[]>([
+  const corridor = new Map<number, Neighbor[]>([
     // The strong trigger sits in an interchange: one adjacent camera and a crowd two hops out, more than the cap on its own.
-    [strong, [neighbour(1001, 'upstream', 300, 1), ...Array.from({ length: CORRIDOR.PROMOTE_MAX + 5 }, (_, i) => neighbour(1100 + i, 'upstream', 900 + i, 2))]],
-    [weak, [neighbour(2001, 'upstream', 400, 1)]],
+    [strong, [neighbor(1001, 'upstream', 300, 1), ...Array.from({ length: CORRIDOR.PROMOTE_MAX + 5 }, (_, i) => neighbor(1100 + i, 'upstream', 900 + i, 2))]],
+    [weak, [neighbor(2001, 'upstream', 400, 1)]],
   ]);
   const chosen = selectPromotions(held, corridor, now).map((promotion) => promotion.uid);
   assert.equal(chosen.length, CORRIDOR.PROMOTE_MAX);

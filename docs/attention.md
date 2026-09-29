@@ -2,7 +2,7 @@
 
 How rt511 decides which camera is worth looking at. This is the design record: what was decided, why, what is built, and what is still open.
 
-The measurements quoted below were taken in September 2026 on the sources the project used then, a vendor 511 platform and a state highway patrol's dispatch feed, which have since been retired in favour of agencies' published feeds (see `docs/sources.md`). They are kept because they are what the design decisions were made on. Where they describe what runs today, the Status table at the end is current.
+The measurements quoted below were taken in September 2026 on the sources the project used then, a vendor 511 platform and a state highway patrol's dispatch feed, which have since been retired in favor of agencies' published feeds (see `docs/sources.md`). They are kept because they are what the design decisions were made on. Where they describe what runs today, the Status table at the end is current.
 
 ## The problem
 
@@ -13,7 +13,7 @@ Attention here is genuinely multi-objective, and the objectives conflict:
 - A crash at 3am on an empty rural road **matters enormously and looks like nothing**.
 - A downtown junction at rush hour **looks wonderful and is completely unremarkable**.
 
-Optimise for one and you lose the other. The original version scored only "how much did this picture change", which silently chose the second and would never have shown you the crash.
+Optimize for one and you lose the other. The original version scored only "how much did this picture change", which silently chose the second and would never have shown you the crash.
 
 ## Three axes
 
@@ -66,7 +66,7 @@ Why hour-of-week rather than a flat baseline: rush hour should not read as anoma
 
 **Scale prior.** Ranking cameras against each other needs an absolute sense of road size, or a rural lane at twice its norm outranks an interstate at 1.5 times its norm. Florida publishes annual average daily traffic as open data, so those cameras use `log10(1 + AADT)`, mapped onto 0..1 between 1,000 and 200,000 vehicles a day. Everywhere else uses lanes times posted speed from OpenStreetMap where lanes are tagged, and a road-class table where they are not. On Phoenix's all-freeway network that took the prior from 3 distinct values to 9, and it tracks Florida's published counts at a Spearman correlation of 0.48 over 548 cameras, so real counts stay preferred wherever they exist.
 
-**Spectacle's absolute term is currently off (`α = 0`).** Frame difference is a normalised ratio over a thumbnail, not a count of anything, so there is no absolute measure of traffic volume until a detector exists. The amplifier carries the scale information meanwhile. The term is wired and waiting.
+**Spectacle's absolute term is currently off (`α = 0`).** Frame difference is a normalized ratio over a thumbnail, not a count of anything, so there is no absolute measure of traffic volume until a detector exists. The amplifier carries the scale information meanwhile. The term is wired and waiting.
 
 ## The structural problem: zero-motion ambiguity
 
@@ -109,7 +109,7 @@ It is an **arbiter, not a calculator**. It must not sit in the continuous path, 
 | Noul | Does the camera evidence support the reported location? |
 | Noul | Has this likely cleared? |
 | Score | How much should this take over the screen, on a 0–3 rubric |
-| Choice | Which neighbouring camera best shows the queue tail |
+| Choice | Which neighboring camera best shows the queue tail |
 | Noul | Is this still camera stopped traffic rather than an empty road |
 | Noul | Has this camera's feed frozen |
 | Score | How much does each of a city's eight leading cameras deserve attention, judged side by side, on a 0–3 rubric |
@@ -126,7 +126,7 @@ Incidents come from Ohio's feed alone at present, a few dozen live at a typical 
 
 The queue-tail case is the clearest illustration of why a graph plus a model beats either alone. Dispatch reports a crash at a mile marker. The nearest camera shows stopped emergency vehicles. The interesting picture is the shockwave a mile upstream, and choosing that camera needs both the corridor topology and a judgment about which candidate is showing the advancing tail.
 
-The candidate set comes from walking the directed graph backwards against the traffic, up to three hops and five kilometres of road, and each candidate is offered with its road distance, its hop count, and how long a tail would take to reach it at 15 km/h. Both bounds are needed. Three hops alone reaches 18.7 km through a Miami interchange, which is further than a queue gets inside the life of the floor that raised the question.
+The candidate set comes from walking the directed graph backwards against the traffic, up to three hops and five kilometers of road, and each candidate is offered with its road distance, its hop count, and how long a tail would take to reach it at 15 km/h. Both bounds are needed. Three hops alone reaches 18.7 km through a Miami interchange, which is further than a queue gets inside the life of the floor that raised the question.
 
 ## Deliberate non-goals
 
@@ -150,7 +150,7 @@ The candidate set comes from walking the directed graph backwards against the tr
 | Corridor queue-tail candidates | live, directed walk in `server/src/app.ts` |
 | Queue floor carried upstream along the graph | live, `server/src/corridor.ts` and `server/src/attention.ts` |
 | National radar and top-30 board | live, `server/src/radar.ts`, `server/src/board.ts`, `web/src/components/Board.tsx` |
-| Neighbour promotion over the graph | live, `server/src/corridor.ts` |
+| Neighbor promotion over the graph | live, `server/src/corridor.ts` |
 | Wall ranked by attention | live, `web/src/hooks/useWallRanking.ts` |
 | Scores pane, by city and by camera, with Jev reviews folded underneath | live, `web/src/components/ScoresPane.tsx` |
 | Incident cameras held awake while the pane is open | live, capped at 24 |

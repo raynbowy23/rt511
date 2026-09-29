@@ -15,14 +15,14 @@ export function Highlights({ region, onSelect }: { region?: string | undefined; 
   const [rows, setRows] = useState<{ current: Highlight[]; previous: Highlight[]; revision: number }>({ current: [], previous: [], revision: 0 });
   const [now, setNow] = useState(Date.now() / 1000);
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     let pending = false;
     const run = async (): Promise<void> => {
       if (document.hidden || pending) return;
       pending = true;
       const response = await getHighlights(region);
       pending = false;
-      if (cancelled || !response) return;
+      if (canceled || !response) return;
       const next = response.highlights.slice(0, 5);
       setRows((old) => JSON.stringify(old.current) === JSON.stringify(next) ? old : { current: next, previous: old.current, revision: old.revision + 1 });
     };
@@ -31,7 +31,7 @@ export function Highlights({ region, onSelect }: { region?: string | undefined; 
     const tick = window.setInterval(() => setNow(Date.now() / 1000), 30_000);
     const resume = (): void => { if (!document.hidden) { setNow(Date.now() / 1000); void run(); } };
     document.addEventListener('visibilitychange', resume);
-    return () => { cancelled = true; window.clearInterval(poll); window.clearInterval(tick); document.removeEventListener('visibilitychange', resume); };
+    return () => { canceled = true; window.clearInterval(poll); window.clearInterval(tick); document.removeEventListener('visibilitychange', resume); };
   }, [region]);
   useEffect(() => {
     if (!rows.previous.length) return;

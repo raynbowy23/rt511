@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactElement } from 'react';
 import type { RegionMeta } from '../api';
 
-/** Road data is served under the Open Database Licence and the line is fixed by that licence; the map frame shows the same string, which `/api/roads` returns with the geometry. */
+/** Road data is served under the Open Database License and the line is fixed by that license; the map frame shows the same string, which `/api/roads` returns with the geometry. */
 const ROADS_CREDIT = 'Road data © OpenStreetMap contributors (ODbL)';
 
 export interface CameraCredit {
@@ -16,7 +16,7 @@ export interface CameraCredit {
 export interface Credits {
   /** One entry per agency whose cameras are being served. */
   cameras: CameraCredit[];
-  /** Published traffic counts joined to the cities being served, with where their licence is written down. */
+  /** Published traffic counts joined to the cities being served, with where their license is written down. */
   counts: { attribution: string; terms_url: string }[];
   /** Natural Earth, for the state outlines on the country map. */
   states: string;

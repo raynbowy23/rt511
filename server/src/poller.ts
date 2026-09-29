@@ -27,7 +27,7 @@ export const DEFAULT_RING = 10;
 /** Frames kept per camera for the replay scrub. Each one is the snapshot as the site sent it, tens to a couple of hundred kilobytes, so this number multiplies by however many cameras are polled: ten frames across 669 cameras is roughly half a gigabyte at the top end. Ten gives about ten minutes of replay, since a picture changes about once a minute. Raise it with --ring if you have the memory and want longer history. */
 export const DIFF_HISTORY = 24;
 
-/** A camera in a watched city that nobody can see still needs the occasional frame, because the map colours its nodes by activity and a stale activity score is a lie. Ten minutes keeps that honest at a tenth of the cost. */
+/** A camera in a watched city that nobody can see still needs the occasional frame, because the map colors its nodes by activity and a stale activity score is a lie. Ten minutes keeps that honest at a tenth of the cost. */
 export const SLOW_PERIOD_S = 600;
 
 /** What one server asks of one agency, whatever the size of the wall: at most one on-screen picture every ON_SCREEN_S, and one off-screen picture every OFF_SCREEN_S. A wall of forty cameras then refreshes each tile every three minutes or so, and a wall of ten every minute, so the load on the agency stays about what one person watching its own 511 site puts on it. The camera open in the panel is outside the budget and keeps its source's own rate, as the agency's site would show it. */
@@ -61,7 +61,7 @@ export interface Frame {
 export type PollResult = 'fresh' | 'unchanged' | 'not_modified' | 'unavailable';
 /** `unchanged` means the server handed us a fresh timestamp but identical bytes, so the next regeneration time is known. `not_modified` means a 304, which tells us nothing about when the next one is due. The two need different schedules. */
 
-/** Greyscale 64x48 thumbnail, its mean brightness, its contrast, and the mean absolute difference against the previous one.
+/** Grayscale 64x48 thumbnail, its mean brightness, its contrast, and the mean absolute difference against the previous one.
  *
  * Contrast is the standard deviation of the thumbnail's luma. Rain on the lens, fog and low cloud all flatten a picture, so a whole city's cameras losing contrast together is the sky page's hint that the weather has turned. It is measured here because the thumbnail already exists and costs nothing more to read.
  *
@@ -92,7 +92,7 @@ export async function analyze(data: Buffer, prevThumb: Float32Array | null): Pro
     // Bilinear, matching PIL's BILINEAR in the Python this replaces.
     .resize(THUMB_W, THUMB_H, { fit: 'fill', kernel: 'linear' })
     .removeAlpha()
-    .toColourspace('srgb')
+    .toColorspace('srgb')
     .raw()
     .toBuffer({ resolveWithObject: true });
 
@@ -147,7 +147,7 @@ export class CameraSlot {
   errors = 0;
   last_error: string | null = null;
   last_modified_seen: string | null = null;
-  /** The newest frame's greyscale thumbnail, kept only to difference the next frame against. */
+  /** The newest frame's grayscale thumbnail, kept only to difference the next frame against. */
   lastThumb: Float32Array | null = null;
   /** Wall-clock of every frame appended, for the freshness report. */
   readonly freshAt: number[] = [];
@@ -168,7 +168,7 @@ export class CameraSlot {
     return this.frames.length > 0 ? (this.frames[this.frames.length - 1] as Frame) : null;
   }
 
-  /** How busy this camera looks right now on a 0 to 1 scale, relative to its own recent behaviour rather than to other cameras.
+  /** How busy this camera looks right now on a 0 to 1 scale, relative to its own recent behavior rather than to other cameras.
    *
    * A quiet rural camera and a downtown intersection have frame differences an order of magnitude apart, so an absolute threshold would leave the wall permanently showing the same few busy cameras. Scoring each camera against its own median puts them on equal footing: sitting at the median reads as 0.5, twice the median saturates.
    *
@@ -232,7 +232,7 @@ export class Poller {
     const added = ids.filter((id) => !before.has(id));
     added.forEach((id, i) => {
       const slot = this.cameras.get(id);
-      if (!slot || this.watching.has(slot.camera.region) || slot.polling || this.prioritised(id)) return;
+      if (!slot || this.watching.has(slot.camera.region) || slot.polling || this.prioritized(id)) return;
       const spacing = RADAR.RADAR_PERIOD_S * (i + 1) / added.length;
       const remaining = slot.lastPollAt === null ? 0 : slot.lastPollAt + RADAR.RADAR_PERIOD_S - Date.now() / 1000;
       this.schedule(slot, Math.max(spacing, remaining));
@@ -265,13 +265,13 @@ export class Poller {
   /** What the viewer can actually see, per region, with the time it was last stated. */
   private readonly visible = new Map<string, { ids: Set<number>; at: number }>();
 
-  /** Independent claims keep the pane and graph from cancelling each other's attention, and expiry releases cameras when a caller stops restating its claim. */
+  /** Independent claims keep the pane and graph from canceling each other's attention, and expiry releases cameras when a caller stops restating its claim. */
   private readonly priority = new Map<string, { ids: Set<number>; expires: number }>();
 
   /** Newly promoted cameras are pulled forward so an existing slow sleep does not delay the first useful picture. */
   setPriority(source: string, ids: number[], ttlS = VISIBLE_TTL_S): void {
     const now = Date.now() / 1000;
-    const before = new Set(ids.filter((uid) => this.prioritised(uid)));
+    const before = new Set(ids.filter((uid) => this.prioritized(uid)));
     const after = new Set(ids);
     this.priority.set(source, { ids: after, expires: now + ttlS });
     for (const id of after) {
@@ -285,7 +285,7 @@ export class Poller {
     }
   }
 
-  private prioritised(uid: number): boolean {
+  private prioritized(uid: number): boolean {
     const now = Date.now() / 1000;
     return [...this.priority.values()].some((claim) => now < claim.expires && claim.ids.has(uid));
   }
@@ -313,7 +313,7 @@ export class Poller {
 
   /** Which tier a camera is in right now. */
   tierOf(slot: CameraSlot): Tier {
-    if (this.prioritised(slot.uid)) return 'fast';
+    if (this.prioritized(slot.uid)) return 'fast';
     if (!this.watching.has(slot.camera.region)) return this.radar.has(slot.uid) ? 'radar' : 'idle';
     const seen = this.visible.get(slot.camera.region);
     if (!seen || Date.now() / 1000 - seen.at > VISIBLE_TTL_S) return 'slow';
@@ -334,8 +334,8 @@ export class Poller {
     if (tier === 'radar') return RADAR.RADAR_PERIOD_S;
     const counts = this.budgetCounts();
     const source = slot.camera.source;
-    // A camera held up by an incident or a neighbour's alarm is exempt from the stretch, since its stillness may be the thing worth seeing, but it shares the on-screen budget like any tile.
-    if (this.prioritised(slot.uid)) return Math.max(base, (counts.fast.get(source) ?? 1) * BUDGET.ON_SCREEN_S);
+    // A camera held up by an incident or a neighbor's alarm is exempt from the stretch, since its stillness may be the thing worth seeing, but it shares the on-screen budget like any tile.
+    if (this.prioritized(slot.uid)) return Math.max(base, (counts.fast.get(source) ?? 1) * BUDGET.ON_SCREEN_S);
     const floor = tier === 'fast' ? Math.max(base, (counts.fast.get(source) ?? 1) * BUDGET.ON_SCREEN_S) : Math.max(SLOW_PERIOD_S, (counts.slow.get(source) ?? 1) * BUDGET.OFF_SCREEN_S);
     return Math.max(floor, base * slot.stretch);
   }

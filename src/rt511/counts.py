@@ -23,11 +23,11 @@ from .sources import USER_AGENT, Source, get_source
 PAGE = 2000
 """Records per query. Both layers wired up publish a maximum of 2,000."""
 MATCH_MAX_M = 150.0
-"""How far a camera may sit from a counted segment and still be counted as on it. Generous because the published geometry is a centreline and cameras stand beside the road, sometimes on a bridge above it."""
+"""How far a camera may sit from a counted segment and still be counted as on it. Generous because the published geometry is a centerline and cameras stand beside the road, sometimes on a bridge above it."""
 SAME_ROAD_DEG = 40.0
 """How closely a counted segment must lie along the carriageway a camera was snapped to before they are believed to be the same road. Without this an interstate camera at an interchange takes the count of the local road crossing beneath it: in the first state this was built for, a camera on an interstate came back at 1,800 vehicles a day, the side road's figure, against the interstate's 43,000.
 
-Compared as an axis rather than a direction. The published geometry is an undirected centreline, so the same road appears at 290 degrees or 110 depending on which end it was drawn from, and treating those as different roads rejects the correct match every other time."""
+Compared as an axis rather than a direction. The published geometry is an undirected centerline, so the same road appears at 290 degrees or 110 depending on which end it was drawn from, and treating those as different roads rejects the correct match every other time."""
 
 
 def _axis_offset(a: float, b: float) -> float:

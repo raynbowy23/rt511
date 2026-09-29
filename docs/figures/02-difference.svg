@@ -19,7 +19,7 @@
 <path d="M 198 197 L 268 174" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
 <rect x="268" y="112" width="200" height="80" rx="7" fill="#f4f7fa" stroke="#96a4b5"/>
 <text x="368" y="137" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Downscale to 64 x 48</text>
-<text x="368" y="154" text-anchor="middle" font-size="12" fill="#5d6b7d">greyscale</text>
+<text x="368" y="154" text-anchor="middle" font-size="12" fill="#5d6b7d">grayscale</text>
 <text x="368" y="171" text-anchor="middle" font-size="12" fill="#5d6b7d">one thumbnail per frame</text>
 <path d="M 468 152 L 540 152" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
 <rect x="540" y="112" width="330" height="80" rx="7" fill="#f4f7fa" stroke="#96a4b5"/>

@@ -172,13 +172,13 @@ export function loadRegions(root: string): Map<string, RegionRecord> {
   for (const [i, value] of entries.entries()) {
     const rec = obj(value, `regions.json[${i}]`);
     const where = `regions.json[${i}]`;
-    const centre = rec.center === null || rec.center === undefined ? null : arr(rec.center, `${where}.center`);
+    const center = rec.center === null || rec.center === undefined ? null : arr(rec.center, `${where}.center`);
     regions.set(str(rec.key, `${where}.key`), {
       key: str(rec.key, `${where}.key`),
       name: str(rec.name, `${where}.name`),
       source: str(rec.source, `${where}.source`),
       bbox: bbox(rec.bbox, `${where}.bbox`),
-      center: centre === null ? null : [num(centre[0], `${where}.center[0]`), num(centre[1], `${where}.center[1]`)],
+      center: center === null ? null : [num(center[0], `${where}.center[0]`), num(center[1], `${where}.center[1]`)],
       radius_km: nullableNum(rec.radius_km, `${where}.radius_km`),
       limit: nullableNum(rec.limit, `${where}.limit`),
       time_zone: typeof rec.time_zone === 'string' && rec.time_zone ? rec.time_zone : null,
@@ -187,7 +187,7 @@ export function loadRegions(root: string): Map<string, RegionRecord> {
   return regions;
 }
 
-/** The centre to draw a region at. Regions created from a city carry a real centre; the two built-in ones do not, so the middle of the bounding box stands in rather than every caller re-deriving it. */
+/** The center to draw a region at. Regions created from a city carry a real center; the two built-in ones do not, so the middle of the bounding box stands in rather than every caller re-deriving it. */
 export function centroid(region: RegionRecord): [number, number] {
   if (region.center) return region.center;
   const [south, west, north, east] = region.bbox;
@@ -266,7 +266,7 @@ export interface AadtRecord {
   year: number | null;
   county: string | null;
   truck_pct: number | null;
-  /** Metres from the camera to the count segment it was joined to. Measured across the five published files: median 7.8, ninetieth percentile 41.5, largest 138.6. */
+  /** Meters from the camera to the count segment it was joined to. Measured across the five published files: median 7.8, ninetieth percentile 41.5, largest 138.6. */
   distance_m: number;
   /** Whether the segment's direction agreed with the camera's. */
   aligned: boolean;
@@ -279,7 +279,7 @@ export interface AadtTable {
   region: string;
   source: string;
   attribution: string;
-  /** Where the count layer's licence is written down. Shown with the attribution, because a licence like CC BY is only met when the credit is visible. */
+  /** Where the count layer's license is written down. Shown with the attribution, because a license like CC BY is only met when the credit is visible. */
   terms_url: string;
   cameras: Map<number, AadtRecord>;
 }
@@ -366,7 +366,7 @@ export function loadStates(root: string): StatesFile {
   return { attribution: typeof data.attribution === 'string' ? data.attribution : '', states };
 }
 
-/** Road polylines grouped by highway class, from the cached Overpass extract the graph was built from. There is no tile layer anywhere in this project, so the map background is drawn from this. Coordinates are [lat, lon] rounded to five decimals, about a metre. */
+/** Road polylines grouped by highway class, from the cached Overpass extract the graph was built from. There is no tile layer anywhere in this project, so the map background is drawn from this. Coordinates are [lat, lon] rounded to five decimals, about a meter. */
 export function roadBackground(path: string): Record<string, LatLon[][]> {
   if (!existsSync(path)) return {};
   const data = obj(readJson(path), path);

@@ -4,7 +4,7 @@ import { latOf, lonOf, type LatLon } from '@rt511/shared';
 import { measure, pointAt, roadPath, type AttentionFlow, type FlowReason, type Link } from './flows';
 import { prefersReducedMotion } from './motion';
 
-/** Road colours and stroke weights, in screen pixels, in the control room's phosphor, dimmed to a warm brown the camera graph sits on top of rather than competes with. Weight is held in screen pixels so a motorway stays a motorway at every zoom. */
+/** Road colors and stroke weights, in screen pixels, in the control room's phosphor, dimmed to a warm brown the camera graph sits on top of rather than competes with. Weight is held in screen pixels so a motorway stays a motorway at every zoom. */
 const ROAD_STYLE: Record<RoadClass, { color: string; width: number }> = {
   motorway: { color: '#4a3414', width: 3 },
   motorway_link: { color: '#3e2c12', width: 1.5 },
@@ -19,7 +19,7 @@ const ROAD_STYLE: Record<RoadClass, { color: string; width: number }> = {
   unclassified: { color: '#1f170a', width: 0.8 },
 };
 
-/** Edge colours by kind, in the one phosphor at different strengths: a bright freeway, a dim street, a pale ramp, a dashed dark nearby. The kinds have to be tellable apart at a glance, which is the whole point of drawing the graph rather than a heat map. Nearby edges join sites you cannot drive between and have zero length, so they are dashed and drawn last. */
+/** Edge colors by kind, in the one phosphor at different strengths: a bright freeway, a dim street, a pale ramp, a dashed dark nearby. The kinds have to be tellable apart at a glance, which is the whole point of drawing the graph rather than a heat map. Nearby edges join sites you cannot drive between and have zero length, so they are dashed and drawn last. */
 const EDGE_STYLE: Record<EdgeKind, { width: number; color: string; alpha: number; dash?: [number, number] }> = {
   freeway: { width: 4, color: '#ffb43c', alpha: 0.9 },
   street: { width: 2.5, color: '#b87a28', alpha: 0.85 },
@@ -28,17 +28,17 @@ const EDGE_STYLE: Record<EdgeKind, { width: number; color: string; alpha: number
 };
 
 const EDGE_KINDS: EdgeKind[] = ['street', 'ramp', 'freeway', 'nearby'];
-/** The colour of attention by what set it moving, as RGB for mixing with an alpha: the incident red the map already uses, a deep orange for stopped traffic, and the phosphor's palest for unusual movement. */
-const FLOW_COLOUR: Record<FlowReason, string> = { incident: '255, 84, 60', still: '255, 138, 30', movement: '255, 230, 180' };
+/** The color of attention by what set it moving, as RGB for mixing with an alpha: the incident red the map already uses, a deep orange for stopped traffic, and the phosphor's palest for unusual movement. */
+const FLOW_COLOR: Record<FlowReason, string> = { incident: '255, 84, 60', still: '255, 138, 30', movement: '255, 230, 180' };
 /** How fast a pulse travels along the road on screen. */
 const FLOW_SPEED_PX = 70;
 
-/** A site is coloured by what it sits on, bright on a freeway and dim on a street, and burns towards the phosphor's hottest as its camera gets busy. */
+/** A site is colored by what it sits on, bright on a freeway and dim on a street, and burns towards the phosphor's hottest as its camera gets busy. */
 const NODE_FREEWAY = [255, 180, 60] as const;
 const NODE_STREET = [184, 122, 40] as const;
 const NODE_HOT = [255, 232, 176] as const;
 
-/** Background colour behind a node's halo. Matching the canvas background is what separates a dot from the line it sits on. */
+/** Background color behind a node's halo. Matching the canvas background is what separates a dot from the line it sits on. */
 const MAP_BG = '#080603';
 
 /** Activity at which a node starts warming towards amber, matching the wall's threshold for a hot tile. */
@@ -51,8 +51,8 @@ const MAX_PITCH = 1.05;
 const HIT_RADIUS_PX = 14;
 /** Incident markers are drawn larger than camera nodes and take a larger target, since they sit on top of them. */
 const INCIDENT_HIT_PX = 18;
-const INCIDENT_COLOUR = '#ff543c';
-// Twenty-four times the framing zoom puts a couple of kilometres across the view, which is as deep as this data rewards: past that there is nothing but empty space between the ways.
+const INCIDENT_COLOR = '#ff543c';
+// Twenty-four times the framing zoom puts a couple of kilometers across the view, which is as deep as this data rewards: past that there is nothing but empty space between the ways.
 const MAX_ZOOM_FACTOR = 24;
 
 const regionOf = (siteId: string): string => {
@@ -597,7 +597,7 @@ export class MapView {
     return best;
   }
 
-  /** World to screen as the six numbers a canvas transform takes. Rotation turns the world about the view centre; pitch squashes it vertically afterwards, so a tilted map keeps its horizon horizontal. */
+  /** World to screen as the six numbers a canvas transform takes. Rotation turns the world about the view center; pitch squashes it vertically afterwards, so a tilted map keeps its horizon horizontal. */
   private matrix(view: View): [number, number, number, number, number, number] {
     const cos = Math.cos(view.bearing);
     const sin = Math.sin(view.bearing);
@@ -624,7 +624,7 @@ export class MapView {
     return [(d * x - c * y) / det, (a * y - b * x) / det];
   }
 
-  /** Keeps the region on screen: the centre may not leave its bounding box, so panning can never lose the map. */
+  /** Keeps the region on screen: the center may not leave its bounding box, so panning can never lose the map. */
   private clampView(layer: RegionLayer): void {
     const view = layer.view;
     if (!view) return;
@@ -721,7 +721,7 @@ export class MapView {
     this.fxFrame = requestAnimationFrame(step);
   }
 
-  /** Pulses travelling from the camera the attention comes from to the one it reaches, three to a road, over a faint trace of the road itself, and a ring opening at the far end. `t` below zero only clears. */
+  /** Pulses traveling from the camera the attention comes from to the one it reaches, three to a road, over a faint trace of the road itself, and a ring opening at the far end. `t` below zero only clears. */
   private drawFlows(t: number): void {
     const ctx = this.fxCtx;
     const dpr = this.fx.width / Math.max(1, this.width);
@@ -738,10 +738,10 @@ export class MapView {
       if (flow.layer !== layer.key) continue;
       const line = measure(flow.points.map((point) => this.toScreen(view, lonOf(point) * layer.kx, -latOf(point))));
       if (line.length < 4) continue;
-      const colour = FLOW_COLOUR[flow.reason];
+      const color = FLOW_COLOR[flow.reason];
       const bright = 0.55 + 0.45 * Math.min(1, Math.max(0, flow.strength));
       // The road the attention travels, as a faint glow.
-      ctx.strokeStyle = `rgba(${colour}, ${0.14 * bright})`;
+      ctx.strokeStyle = `rgba(${color}, ${0.14 * bright})`;
       ctx.lineWidth = 3;
       ctx.beginPath();
       line.xs.forEach((x, i) => (i === 0 ? ctx.moveTo(x, line.ys[i]!) : ctx.lineTo(x, line.ys[i]!)));
@@ -749,20 +749,20 @@ export class MapView {
       const pulses = this.still ? 1 : 3;
       for (let k = 0; k < pulses; k++) {
         // Pulses keep a steady speed on screen, so a long road takes longer to cross than a short one, the way a queue would.
-        const travelled = this.still ? line.length * 0.6 : ((seconds * FLOW_SPEED_PX) / line.length + k / pulses) % 1;
-        const distance = this.still ? travelled : travelled * line.length;
+        const traveled = this.still ? line.length * 0.6 : ((seconds * FLOW_SPEED_PX) / line.length + k / pulses) % 1;
+        const distance = this.still ? traveled : traveled * line.length;
         // A comet: a soft halo and a white-hot core at the head, and a short tail of shrinking points behind it along the road.
         for (let tail = 6; tail >= 1; tail--) {
           const [x, y] = pointAt(line, distance - tail * 4);
-          ctx.fillStyle = `rgba(${colour}, ${bright * 0.5 * (1 - tail / 7)})`;
+          ctx.fillStyle = `rgba(${color}, ${bright * 0.5 * (1 - tail / 7)})`;
           ctx.beginPath();
           ctx.arc(x, y, 2.6 - tail * 0.3, 0, Math.PI * 2);
           ctx.fill();
         }
         const [hx, hy] = pointAt(line, distance);
         const halo = ctx.createRadialGradient(hx, hy, 0, hx, hy, 10);
-        halo.addColorStop(0, `rgba(${colour}, ${0.75 * bright})`);
-        halo.addColorStop(1, `rgba(${colour}, 0)`);
+        halo.addColorStop(0, `rgba(${color}, ${0.75 * bright})`);
+        halo.addColorStop(1, `rgba(${color}, 0)`);
         ctx.fillStyle = halo;
         ctx.beginPath();
         ctx.arc(hx, hy, 10, 0, Math.PI * 2);
@@ -775,7 +775,7 @@ export class MapView {
       // A ring opening where the attention lands, once every couple of seconds.
       const [ex, ey] = pointAt(line, line.length);
       const phase = this.still ? 0.35 : (seconds / 1.8 + line.length / 997) % 1;
-      ctx.strokeStyle = `rgba(${colour}, ${bright * (1 - phase)})`;
+      ctx.strokeStyle = `rgba(${color}, ${bright * (1 - phase)})`;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(ex, ey, 7 + phase * 16, 0, Math.PI * 2);
@@ -783,7 +783,7 @@ export class MapView {
     }
   }
 
-  /** Incidents as a ring with a cross, in a colour nothing else on this map uses. Deliberately not a bigger, brighter camera node: it is a different kind of thing and should not be mistaken for a busy camera. */
+  /** Incidents as a ring with a cross, in a color nothing else on this map uses. Deliberately not a bigger, brighter camera node: it is a different kind of thing and should not be mistaken for a busy camera. */
   private drawIncidents(ctx: CanvasRenderingContext2D, layer: RegionLayer, view: View): void {
     for (const incident of this.incidents) {
       const [sx, sy] = this.toScreen(view, incident.lon * layer.kx, -incident.lat);
@@ -801,7 +801,7 @@ export class MapView {
 
       ctx.beginPath();
       ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-      ctx.strokeStyle = INCIDENT_COLOUR;
+      ctx.strokeStyle = INCIDENT_COLOR;
       ctx.lineWidth = active ? 2.4 : 1.8;
       ctx.stroke();
 
@@ -810,7 +810,7 @@ export class MapView {
       ctx.lineTo(sx + radius * 0.45, sy);
       ctx.moveTo(sx, sy - radius * 0.45);
       ctx.lineTo(sx, sy + radius * 0.45);
-      ctx.strokeStyle = INCIDENT_COLOUR;
+      ctx.strokeStyle = INCIDENT_COLOR;
       ctx.lineWidth = 1.6;
       ctx.stroke();
 
@@ -823,17 +823,17 @@ export class MapView {
     }
   }
 
-  /** Nodes are batched by colour: one path for every halo, then one path per fill colour, instead of three or four path operations per site. At 262 sites redrawn on every frame of a pan that difference is most of the node cost. */
+  /** Nodes are batched by color: one path for every halo, then one path per fill color, instead of three or four path operations per site. At 262 sites redrawn on every frame of a pan that difference is most of the node cost. */
   private drawNodes(ctx: CanvasRenderingContext2D, layer: RegionLayer, view: View): void {
     const halos = new Path2D();
     const fills = new Map<string, { path: Path2D; stroke: string }>();
     const decorate: { entry: MapSite; sx: number; sy: number; radius: number }[] = [];
 
-    const add = (colour: string, stroke: string, sx: number, sy: number, radius: number): void => {
-      let group = fills.get(colour);
+    const add = (color: string, stroke: string, sx: number, sy: number, radius: number): void => {
+      let group = fills.get(color);
       if (!group) {
         group = { path: new Path2D(), stroke };
-        fills.set(colour, group);
+        fills.set(color, group);
       }
       group.path.moveTo(sx + radius, sy);
       group.path.arc(sx, sy, radius, 0, Math.PI * 2);
@@ -846,7 +846,7 @@ export class MapView {
       const kindRgb = entry.site.is_freeway ? NODE_FREEWAY : NODE_STREET;
       const cams = entry.site.cameras.length;
 
-      // A site the poller does not serve still belongs to the graph, and leaving it out makes the network look sparser than it is. It is drawn in its own kind's colour but smaller and dimmer, because it is not clickable and must not look like it is.
+      // A site the poller does not serve still belongs to the graph, and leaving it out makes the network look sparser than it is. It is drawn in its own kind's color but smaller and dimmer, because it is not clickable and must not look like it is.
       if (entry.live.length === 0) {
         const radius = 2.4 + 0.9 * Math.sqrt(cams);
         halos.moveTo(sx + radius + 1.6, sy);
@@ -859,9 +859,9 @@ export class MapView {
       const activity = state?.activity ?? null;
       const hasFrames = (state?.frames ?? 0) > 0;
       const heat = activity ?? 0;
-      // Only the genuinely busy end of the scale warms towards amber. Interpolating blue to amber across the whole range runs straight through grey, which made a middling camera look dead rather than middling.
+      // Only the genuinely busy end of the scale warms towards amber. Interpolating blue to amber across the whole range runs straight through gray, which made a middling camera look dead rather than middling.
       const warm = heat <= HOT_FROM ? 0 : (heat - HOT_FROM) / (1 - HOT_FROM);
-      // Quantised so that a wall of cameras collapses into a handful of fill colours rather than one per node.
+      // Quantized so that a wall of cameras collapses into a handful of fill colors rather than one per node.
       const rgb = kindRgb.map((c, i) => Math.round((c + ((NODE_HOT[i] as number) - c) * warm) / 8) * 8);
       const hovered = this.hovered === entry;
       const active = entry.site.id === this.activeSite;
@@ -879,15 +879,15 @@ export class MapView {
       if (hovered || active) decorate.push({ entry, sx, sy, radius });
     }
 
-    // The halo is the background colour: it is what lifts a node off the edge running under it.
+    // The halo is the background color: it is what lifts a node off the edge running under it.
     ctx.fillStyle = MAP_BG;
     ctx.globalAlpha = 0.82;
     ctx.fill(halos);
     ctx.globalAlpha = 1;
 
     ctx.lineWidth = 1.4;
-    for (const [colour, group] of fills) {
-      ctx.fillStyle = colour;
+    for (const [color, group] of fills) {
+      ctx.fillStyle = color;
       ctx.fill(group.path);
       if (!group.stroke) continue;
       ctx.strokeStyle = group.stroke;

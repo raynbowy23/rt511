@@ -100,7 +100,7 @@ class Snapper:
         self.tree = STRtree(lines)
 
     def snap(self, lat: float, lon: float, refs: frozenset[str] = frozenset(), direction: str | None = None, avoid_mainline: bool = False) -> Snap | None:
-        """Best segment for a camera within SNAP_MAX_M, scored rather than nearest-wins. `avoid_mainline` is for cameras known to sit at a signalised intersection, which a motorway carriageway can otherwise win by a few meters where it passes overhead."""
+        """Best segment for a camera within SNAP_MAX_M, scored rather than nearest-wins. `avoid_mainline` is for cameras known to sit at a signalized intersection, which a motorway carriageway can otherwise win by a few meters where it passes overhead."""
         p = Point(*self.frame.to_xy(lat, lon))
         best: tuple[float, int] | None = None
         for i in map(int, self.tree.query(p.buffer(SNAP_MAX_M))):

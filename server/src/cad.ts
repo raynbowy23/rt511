@@ -28,7 +28,7 @@ export interface CadSource {
   auth: { env: string; header: string; format: string } | null;
 }
 
-/** An agency's own incident codes, plus this project's judgement about which of them describe something happening to a road. The labels are the agency's; the two sets are ours. */
+/** An agency's own incident codes, plus this project's judgment about which of them describe something happening to a road. The labels are the agency's; the two sets are ours. */
 export interface CodeTable {
   agency: string;
   signal: Record<string, string>;
@@ -171,7 +171,7 @@ export interface CameraPositions {
   lon: number[];
 }
 
-/** The cameras close enough to show an incident, nearest first. Nothing within the radius means an empty list: offering the nearest camera eight kilometres away would be worse than offering none. */
+/** The cameras close enough to show an incident, nearest first. Nothing within the radius means an empty list: offering the nearest camera eight kilometers away would be worse than offering none. */
 export function camerasNear(incident: RawIncident, cameras: CameraPositions): number[] {
   // A degree of latitude is about 111 km everywhere, so this box is a cheap filter before the real distance.
   const pad = CAMERA_RADIUS_KM / 111;

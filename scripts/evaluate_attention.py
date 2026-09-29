@@ -114,7 +114,7 @@ def held_out_person(all_votes: list[Vote], evaluated: list[Vote]) -> Ranker:
 
 
 def hits(votes: list[Vote], ranker: Ranker) -> list[int]:
-    """One entry per choice the ranker could decide: 1 when it favoured the camera the person picked."""
+    """One entry per choice the ranker could decide: 1 when it favored the camera the person picked."""
     out = []
     for vote in votes:
         preference = ranker(vote)

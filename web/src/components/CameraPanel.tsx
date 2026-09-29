@@ -78,11 +78,11 @@ export function CameraPanel({
     setFocusTs(null);
     setPollPeriod(null);
     if (!camera || !wantsFocus) return;
-    let cancelled = false;
+    let canceled = false;
     let timer = 0;
     const run = async (): Promise<void> => {
       const response = await getLive(camera.id);
-      if (cancelled) return;
+      if (canceled) return;
       setFocusPeriod(response?.period_s ?? null);
       setPollPeriod(response?.poll_s ?? null);
       if (response?.ts) setFocusTs(response.ts);
@@ -91,7 +91,7 @@ export function CameraPanel({
     };
     void run();
     return () => {
-      cancelled = true;
+      canceled = true;
       window.clearTimeout(timer);
     };
   }, [camera, wantsFocus]);

@@ -34,15 +34,15 @@ export function NightShift({ camera, timeZone = null }: { camera: Camera | null;
   useEffect(() => {
     setCount(null);
     if (!camera || !dark) return;
-    let cancelled = false;
+    let canceled = false;
     const run = async (): Promise<void> => {
       const response = await getCount(camera.id);
-      if (!cancelled) setCount(response);
+      if (!canceled) setCount(response);
     };
     void run();
     const timer = window.setInterval(() => void run(), EVERY_MS);
     return () => {
-      cancelled = true;
+      canceled = true;
       window.clearInterval(timer);
     };
   }, [camera, dark]);

@@ -1,4 +1,4 @@
-"""Offline checks for the published-feed readers: that each reader keeps only what its licence covers and that ids stay stable."""
+"""Offline checks for the published-feed readers: that each reader keeps only what its license covers and that ids stay stable."""
 
 import asyncio
 import base64
@@ -77,7 +77,7 @@ class Feeds(unittest.TestCase):
         src = source("arcgis", {"layer": "https://example.gov/FeatureServer/0", "fields": {"image": "snapshot", "location": "description", "roadway": "highway"}, "image_prefixes": ["https://www.trimarc.org/images/milestone/"]})
         cams = run(handler, src)
         self.assertEqual(seen_offsets, ["0", "2"])
-        self.assertEqual(len(cams), 1, "Indiana's images and the dead snapshot path are not covered by KYTC's licence")
+        self.assertEqual(len(cams), 1, "Indiana's images and the dead snapshot path are not covered by KYTC's license")
         self.assertEqual(cams[0].roadway, "I-65", "the route comes from the name when the route field is empty")
 
     def test_duplicate_listings_of_one_camera_collapse(self):

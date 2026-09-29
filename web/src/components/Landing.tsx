@@ -5,7 +5,7 @@ import { PHOSPHOR, rgba } from '../retro';
 import { prefersReducedMotion } from '../motion';
 import { period } from '../format';
 
-/** The front page: the states with cameras, lifted out and floating in a row, every camera a point of light coloured by where the sun is on it right now, and a single way in. Clicking anywhere on the picture opens the map. The sources and their terms are one quiet click away, and the disclaimer is in the footer as on every page. */
+/** The front page: the states with cameras, lifted out and floating in a row, every camera a point of light colored by where the sun is on it right now, and a single way in. Clicking anywhere on the picture opens the map. The sources and their terms are one quiet click away, and the disclaimer is in the footer as on every page. */
 export function Landing({
   national,
   disclaimer,
@@ -53,7 +53,7 @@ export function Landing({
   );
 }
 
-/** Colours for the three kinds of light, all in the one phosphor, and the sun elevation that separates them. Civil twilight, six degrees either side of the horizon, is the band that reads as sunset. */
+/** Colors for the three kinds of light, all in the one phosphor, and the sun elevation that separates them. Civil twilight, six degrees either side of the horizon, is the band that reads as sunset. */
 const LIGHT = {
   day: PHOSPHOR.hot,
   dusk: [255, 138, 30],
@@ -61,7 +61,7 @@ const LIGHT = {
   DUSK_DEG: 6,
 } as const;
 
-/** The picture itself. Positions are projected once and colour is re-read from the sun once a minute. Between those the lights breathe in a dozen groups, each on its own slow cycle, so the country looks alive rather than printed. */
+/** The picture itself. Positions are projected once and color is re-read from the sun once a minute. Between those the lights breathe in a dozen groups, each on its own slow cycle, so the country looks alive rather than printed. */
 function CameraSky({ national, onClick }: { national: NationalResponse; onClick: () => void }): ReactElement {
   const canvas = useRef<HTMLCanvasElement>(null);
   /** Whether the pointer is over the country, which is the only place a click opens the map. */
@@ -90,7 +90,7 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
     const DEPTH = 8;
     const { minX, minY, maxX, maxY } = layout.bounds;
 
-    // One soft dot per colour, drawn once and stamped thousands of times, which is far cheaper than a gradient per point.
+    // One soft dot per color, drawn once and stamped thousands of times, which is far cheaper than a gradient per point.
     const sprite = (rgb: readonly number[]): HTMLCanvasElement => {
       const size = 32;
       const dot = document.createElement('canvas');
@@ -246,7 +246,7 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
 
     const draw = (t: number): void => {
       lift += ((over ? 1 : 0) - lift) * 0.1;
-      // Grown about its own centre and raised a few pixels, both in device pixels since the layers are drawn at that resolution.
+      // Grown about its own center and raised a few pixels, both in device pixels since the layers are drawn at that resolution.
       const grow = 1 + 0.03 * (still ? 0 : lift);
       const cx = (minX + maxX) / 2 * scale + offsetX;
       const cy = (minY + maxY) / 2 * scale + offsetY;

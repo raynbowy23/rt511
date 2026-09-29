@@ -114,13 +114,13 @@ export function planTrips(topo: Topology, region: string): Trip[] {
       const seen = new Set([start.id]);
       const stops: TripStop[] = [{ camera: topo.cameraAt(start.id)!, site: start, distance_m: 0, leg_m: 0, leg_s: 0 }];
       let at = start;
-      let travelled = 0;
+      let traveled = 0;
       for (;;) {
         const next = nextOnRoute(topo, at, route, region, seen);
         if (!next) break;
         seen.add(next.site.id);
-        travelled += next.length_m;
-        stops.push({ camera: topo.cameraAt(next.site.id)!, site: next.site, distance_m: travelled, leg_m: next.length_m, leg_s: next.tt_s });
+        traveled += next.length_m;
+        stops.push({ camera: topo.cameraAt(next.site.id)!, site: next.site, distance_m: traveled, leg_m: next.length_m, leg_s: next.tt_s });
         at = next.site;
       }
       if (stops.length >= MIN_STOPS) chains.push(stops);

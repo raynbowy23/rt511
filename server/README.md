@@ -16,7 +16,7 @@ The wire contract is in `../shared`, imported by this server and by `../web`, so
 
 ## What the port had to preserve
 
-These are measured behaviours, not implementation details, and each one cost real observation. They are ported as they were found.
+These are measured behaviors, not implementation details, and each one cost real observation. They are ported as they were found.
 
 **Poll scheduling is not a clock.** Some image hosts regenerate a snapshot on demand once its cache has expired and stamp `Last-Modified` with the time of the request that regenerated it, so a poll landing even slightly early makes the edge re-cache the stale image for another whole period. The next poll is scheduled at the newest `Last-Modified` plus the source's period plus a four second margin, clamped to at least ten seconds and at most a period plus the margin. A 304 carries no new timestamp, so it retries sparsely. A camera serving the placeholder backs off for five minutes. Cameras start at staggered offsets across the period rather than all at once.
 
@@ -42,7 +42,7 @@ Every ranking writes its top thirty to `out/attention-<date>.jsonl`, one line pe
 
 ## The arbiter
 
-`jev.ts` asks TypeSafe's Jev about incidents, never about cameras. An incident is asked about once, cached against the record's own content because the feed publishes no update timestamp, and re-asked only if the dispatcher edits it or ten minutes pass. Four questions go in one call: whether the camera pictures support the report, whether it has probably cleared, how much of a wall it deserves on a four-level rubric, and which camera shows it best, with the corridor's upstream neighbours offered alongside the cameras the record names.
+`jev.ts` asks TypeSafe's Jev about incidents, never about cameras. An incident is asked about once, cached against the record's own content because the feed publishes no update timestamp, and re-asked only if the dispatcher edits it or ten minutes pass. Four questions go in one call: whether the camera pictures support the report, whether it has probably cleared, how much of a wall it deserves on a four-level rubric, and which camera shows it best, with the corridor's upstream neighbors offered alongside the cameras the record names.
 
 It modulates and never replaces. `incidentFloor` computes the deterministic floor first, and that number is carried on the wire beside the adjusted one as `incident_floor_base`. An answer below its gate does nothing at all, a confident one moves the floor inside bounds `JEV` sets, and the only answer allowed to take a floor away is the model saying the incident has already cleared, which is the answer to a roadblock the feed has been listing since April.
 

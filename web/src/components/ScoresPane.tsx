@@ -17,7 +17,7 @@ function Sparkline({ points, now }: { points: Point[]; now: number }): ReactElem
 function CameraExplanation({ camera, tuning }: { camera: ScoreCamera; tuning: ScoresResponse['tuning'] }): ReactElement {
   const a = camera.axes;
   return <>
-    <p>The wall compares greyscale snapshots a minute apart and averages pixel change.</p>
+    <p>The wall compares grayscale snapshots a minute apart and averages pixel change.</p>
     {/* No picture yet is not a still picture, and the server keeps the two apart on purpose, so the explanation must not print a movement of zero for a camera it has not seen move or stand still. */}
     {a.anomaly === null ? (
       <p>This camera has not returned two pictures yet, so there is no movement to measure. That is not the same as a still picture. Until it has, its score comes from the floors alone.</p>
@@ -47,14 +47,14 @@ export function ScoresPane({ open, onOpen, region, onRegion, onCamera }: {
   const polledAt = useRef(Date.now());
   useEffect(() => {
     if (!open) return;
-    let cancelled = false;
+    let canceled = false;
     let pending = false;
     const run = async (): Promise<void> => {
       if (pending) return;
       pending = true;
       const next = await getScores();
       pending = false;
-      if (cancelled) return;
+      if (canceled) return;
       setFailed(next === null);
       if (!next) return;
       const now = Date.now();
@@ -74,14 +74,14 @@ export function ScoresPane({ open, onOpen, region, onRegion, onCamera }: {
     };
     void run();
     const timer = window.setInterval(() => void run(), 5000);
-    return () => { cancelled = true; window.clearInterval(timer); };
+    return () => { canceled = true; window.clearInterval(timer); };
   }, [open]);
   const cameras = data?.cameras.filter((camera) => region === null || camera.region === region).sort((a, b) => b.attention - a.attention).slice(0, 15) ?? [];
   return <aside className={`arbiter${open ? ' is-open' : ''}`} aria-label="Scores">
     <button type="button" className="arb-tab" onClick={() => onOpen(!open)} aria-expanded={open}><span className="arb-tab-text">SCORES</span></button>
     {open && <div className="arb-body">
       <header className="arb-head"><h2>Scores</h2></header>
-      {!!data?.graph_promoted?.length && <p className="arb-caption"><HoverCard content={<p>When one camera shows an incident, stopped traffic or unusual movement, cameras around it on the road graph are fetched with the cameras on screen rather than with the rest of the city, for five minutes after the change was last seen.</p>}>{data.graph_promoted.length} cameras watched closely because a neighbour changed</HoverCard></p>}
+      {!!data?.graph_promoted?.length && <p className="arb-caption"><HoverCard content={<p>When one camera shows an incident, stopped traffic or unusual movement, cameras around it on the road graph are fetched with the cameras on screen rather than with the rest of the city, for five minutes after the change was last seen.</p>}>{data.graph_promoted.length} cameras watched closely because a neighbor changed</HoverCard></p>}
       <div className="score-toggle" aria-label="Score view">{(['cities', 'cameras'] as const).map((choice) => <button key={choice} type="button" aria-pressed={view === choice} onClick={() => {
         setView(choice);
         try { localStorage.setItem('rt511.scores.view', choice); } catch { /* Storage is optional for the view choice. */ }
@@ -103,7 +103,7 @@ export function ScoresPane({ open, onOpen, region, onRegion, onCamera }: {
           <p className="arb-caption">{region === null && `${data.regions.find((city) => city.key === camera.region)?.name ?? camera.region} · `}{camera.roadway}</p>
           <HoverCard content={<CameraExplanation camera={camera} tuning={data.tuning} />}><span className="score-number">{number(camera.attention)}</span></HoverCard>
           <span className={`score-driver is-${camera.driver}`}>{driverLabel[camera.driver]}</span>
-          {data.graph_promoted?.some(({ uid }) => uid === camera.id) && <p className="arb-caption">Watched because a neighbour changed</p>}
+          {data.graph_promoted?.some(({ uid }) => uid === camera.id) && <p className="arb-caption">Watched because a neighbor changed</p>}
           <Sparkline points={history.current.get(`c${camera.id}`) ?? []} now={polledAt.current} />
           <p className="score-breakdown"><span className={camera.driver === 'movement' ? 'is-winner' : ''}>{a.anomaly === null ? 'no picture yet' : <>movement {number(movement)} x road {number(a.scale_amplifier)}{a.review?.acted && <> x second look {number(a.review.factor)}</>} = {number(movement * a.scale_amplifier * (a.review?.factor ?? 1))}</>}</span> · <span className={camera.driver === 'incident' ? 'is-winner' : ''}>incident floor {number(a.incident_floor)}</span> · <span className={camera.driver === 'queue' ? 'is-winner' : ''}>queue floor {number(a.queue_floor)}{a.queue && ` behind ${a.queue.source === 'standstill' ? 'stopped traffic at ' : ''}${a.queue.incident}, ${(a.queue.length_m / 1000).toFixed(1)} km downstream`}</span>{a.gate && <> · <span className={camera.driver === 'still' ? 'is-winner' : ''}>still-traffic floor {number(a.gate.floor)}</span></>}</p>
         </article>;

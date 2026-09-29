@@ -41,7 +41,7 @@ class Source:
     max_requests_per_s: float | None = None
     """The most requests a second this project will ever send the source, set at or below whatever the agency publishes."""
     counts: dict = field(default_factory=dict)
-    """The agency's published traffic-count layer, its field names, licence and attribution, where one is joined. Empty for sources without one."""
+    """The agency's published traffic-count layer, its field names, license and attribution, where one is joined. Empty for sources without one."""
     auth: dict = field(default_factory=dict)
     """How a user's own key is found and sent: the environment variable holding it, then either a header and the header's format or a query parameter, and where to register. Empty for sources that need none."""
     local: bool = False

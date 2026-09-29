@@ -1,6 +1,6 @@
 """Find where cameras actually cluster, so choosing a region is evidence rather than guesswork.
 
-The national index has a position for every camera but no notion of place. Binning those positions and merging neighbouring bins into metro-sized groups answers the only question that matters when adding a region: where are there enough cameras to be worth watching."""
+The national index has a position for every camera but no notion of place. Binning those positions and merging neighboring bins into metro-sized groups answers the only question that matters when adding a region: where are there enough cameras to be worth watching."""
 
 import json
 import time
@@ -14,7 +14,7 @@ from .regions import distance_km
 from .sources import USER_AGENT
 
 CELL_DEG = 0.20
-"""About 20 km of latitude. Small enough to separate neighbouring metros, large enough that a corridor does not shatter into fragments."""
+"""About 20 km of latitude. Small enough to separate neighboring metros, large enough that a corridor does not shatter into fragments."""
 MERGE_KM = 30.0
 MIN_CELL = 12
 
@@ -55,7 +55,7 @@ def find_metros(root: Path, min_cameras: int = 40) -> list[Metro]:
 
 
 def name_metros(metros: list[Metro]) -> None:
-    """Reverse-geocode each centre through Nominatim, one a second as its usage policy requires. Optional, because the positions alone are enough to create a region."""
+    """Reverse-geocode each center through Nominatim, one a second as its usage policy requires. Optional, because the positions alone are enough to create a region."""
     for m in metros:
         params = urllib.parse.urlencode({"lat": round(m.lat, 4), "lon": round(m.lon, 4), "format": "jsonv2", "zoom": 10})
         req = urllib.request.Request(f"https://nominatim.openstreetmap.org/reverse?{params}", headers={"User-Agent": USER_AGENT})

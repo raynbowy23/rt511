@@ -14,8 +14,8 @@ export const PHOSPHOR = {
   red: [255, 84, 60],
 } as const satisfies Record<string, Rgb>;
 
-export function rgba(colour: Rgb, alpha: number): string {
-  return `rgba(${colour[0]}, ${colour[1]}, ${colour[2]}, ${alpha.toFixed(3)})`;
+export function rgba(color: Rgb, alpha: number): string {
+  return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha.toFixed(3)})`;
 }
 
 /** The same monospace stack as the stylesheet's `--font`, for text drawn on a canvas. */

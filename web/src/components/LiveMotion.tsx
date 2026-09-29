@@ -9,13 +9,13 @@ const WIDTH = 64;
 const HEIGHT = 48;
 const WINDOW = 60;
 const WARMUP = 10;
-/** One tenth of a grey level across the image suppresses tiny codec fluctuations without imposing the much larger noise floor used for snapshots a minute apart. This is a live measurement floor, never the server baseline. */
+/** One tenth of a gray level across the image suppresses tiny codec fluctuations without imposing the much larger noise floor used for snapshots a minute apart. This is a live measurement floor, never the server baseline. */
 const EPSILON = 0.1 / 255;
-/** One hundredth of a grey level averaged across the image filters near-identical readbacks while staying ten times below the scoring floor so small real changes can still count. */
+/** One hundredth of a gray level averaged across the image filters near-identical readbacks while staying ten times below the scoring floor so small real changes can still count. */
 const DUPLICATE_THRESHOLD = 0.01 / 255;
 const STALL_MS = 5000;
 
-/** The measurement itself, shared by the two ways a picture arrives: a video frame sampled every second, or a new snapshot from an agency that refreshes every few seconds. It keeps the greyscale of the last accepted picture, a window of recent changes, and the scores for the line, all in fixed arrays so a sample allocates nothing but its readback. */
+/** The measurement itself, shared by the two ways a picture arrives: a video frame sampled every second, or a new snapshot from an agency that refreshes every few seconds. It keeps the grayscale of the last accepted picture, a window of recent changes, and the scores for the line, all in fixed arrays so a sample allocates nothing but its readback. */
 class MotionTrack {
   private readonly previous = new Float64Array(WIDTH * HEIGHT);
   private readonly current = new Float64Array(WIDTH * HEIGHT);
@@ -40,9 +40,9 @@ class MotionTrack {
     let difference = 0;
     for (let i = 0; i < this.previous.length; i++) {
       const offset = i * 4;
-      const grey = (0.299 * pixels[offset]! + 0.587 * pixels[offset + 1]! + 0.114 * pixels[offset + 2]!) / 255;
-      difference += Math.abs(grey - this.previous[i]!);
-      this.current[i] = grey;
+      const gray = (0.299 * pixels[offset]! + 0.587 * pixels[offset + 1]! + 0.114 * pixels[offset + 2]!) / 255;
+      difference += Math.abs(gray - this.previous[i]!);
+      this.current[i] = gray;
     }
     const diff = difference / this.previous.length;
     if (this.havePrevious && diff < DUPLICATE_THRESHOLD) return { kind: 'duplicate' };
@@ -272,11 +272,11 @@ export function LiveMotion({ video, axes, active, still = null }: { video: HTMLV
     const readout = label.current;
     const trace = line.current;
     if (!stillSrc || !readout || !trace || !stillReady.current) return;
-    let cancelled = false;
+    let canceled = false;
     const picture = new Image();
     picture.decoding = 'async';
     picture.onload = () => {
-      if (cancelled) return;
+      if (canceled) return;
       const canvas = document.createElement('canvas');
       canvas.width = WIDTH;
       canvas.height = HEIGHT;
@@ -291,7 +291,7 @@ export function LiveMotion({ video, axes, active, still = null }: { video: HTMLV
     };
     picture.src = stillSrc;
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [stillSrc, spanS]);
 
@@ -301,9 +301,9 @@ export function LiveMotion({ video, axes, active, still = null }: { video: HTMLV
     <div className="hero-motion">
       <div><HoverCard content={() => <>
         {stillMode ? (
-          <p>Each time the agency publishes a new picture, every {every}, the browser compares it with the previous one on a small greyscale copy and averages how much the pixels changed.</p>
+          <p>Each time the agency publishes a new picture, every {every}, the browser compares it with the previous one on a small grayscale copy and averages how much the pixels changed.</p>
         ) : (
-          <p>Every second the browser compares the newest new video frame with the previous one on a small greyscale copy and averages how much the pixels changed.</p>
+          <p>Every second the browser compares the newest new video frame with the previous one on a small grayscale copy and averages how much the pixels changed.</p>
         )}
         <p>Change is compared with this camera’s typical change over its last {WINDOW} new {stillMode ? 'pictures' : 'frames'}. Matching typical scores {ANOMALY_AT_BASELINE} and twice typical saturates. Repeated {stillMode ? 'pictures' : 'frames'} are skipped.</p>
         <p>The road factor multiplies movement and runs from {SCALE_AMPLIFIER_MIN} for a quiet street to {SCALE_AMPLIFIER_MAX} for a major interstate. A higher incident, queue or stopped traffic floor wins.</p>

@@ -33,7 +33,7 @@ import { Diary, DIARY } from './diary.js';
 import { readSky } from './sky.js';
 import { Pulse } from './pulse.js';
 import { localDay } from './jsonlog.js';
-import { JEV, JevArbiter, createAsk, createGateAsk, createReviewAsk, type CameraTelemetry, type GateCandidate, type Neighbour, type ReviewCandidate } from './jev.js';
+import { JEV, JevArbiter, createAsk, createGateAsk, createReviewAsk, type CameraTelemetry, type GateCandidate, type Neighbor, type ReviewCandidate } from './jev.js';
 import { Poller } from './poller.js';
 import { RADAR, selectRadarAnchors } from './radar.js';
 import { buildBoard } from './board.js';
@@ -47,7 +47,7 @@ const UID_BLOCK = 10_000_000;
  * One camera with a picture is all a record needs to become askable, and two gives it a second chance when the first is a frozen feed. The overall cap is what keeps an open pane at well under one request a second even on a feed listing a hundred records, which matters because none of this is worth costing a state transportation department anything. */
 const JEV_WATCH_PER_INCIDENT = 2;
 const JEV_WATCH_MAX = 24;
-/** How far outside a city's own box an incident still counts as that city's, in degrees: about five kilometres. */
+/** How far outside a city's own box an incident still counts as that city's, in degrees: about five kilometers. */
 const INCIDENT_MARGIN = 0.05;
 
 export interface AppOptions {
@@ -110,7 +110,7 @@ export function createApp(options: AppOptions): App {
     const source = sources[region.source];
     if (!source) throw new Error(`unknown source ${region.source}`);
     // The project is built on these services' public data, so every view points back to the official source.
-    // Published traffic counts carry a licence of their own, and a credit like CC BY is only met when it is visible, so the region's count attribution travels with its camera attribution.
+    // Published traffic counts carry a license of their own, and a credit like CC BY is only met when it is visible, so the region's count attribution travels with its camera attribution.
     const counts = loadAadt(root, region.key);
     Object.assign(graph.meta, { source: region.source, source_name: source.name, site_url: source.base_url, states: [...source.states], attribution: source.attribution, license: source.license, terms_url: source.terms_url, notice: source.notice, counts_attribution: counts?.attribution ?? '', counts_terms_url: counts?.terms_url ?? '', time_zone: region.time_zone ?? source.time_zone });
     graphs.set(region.key, graph);
@@ -266,7 +266,7 @@ export function createApp(options: AppOptions): App {
         radius_km: r.radius_km,
         built: existsSync(graphPath(root, r.key)),
         served: served.has(r.key),
-        catalogued: catalogued(root, r.key),
+        cataloged: cataloged(root, r.key),
         cameras: selected.filter((c) => c.region === r.key).length,
       })),
     };
@@ -329,7 +329,7 @@ export function createApp(options: AppOptions): App {
       period_s: feed.source.poll_period_s,
       attribution: feed.source.attribution,
       source_name: feed.source.name,
-      // A margin of a twentieth of a degree, about five kilometres, so an incident just outside the box still shows for a city it plainly concerns.
+      // A margin of a twentieth of a degree, about five kilometers, so an incident just outside the box still shows for a city it plainly concerns.
       incidents: feed.within(south - INCIDENT_MARGIN, west - INCIDENT_MARGIN, north + INCIDENT_MARGIN, east + INCIDENT_MARGIN),
     } satisfies IncidentsResponse;
   });
@@ -368,7 +368,7 @@ export function createApp(options: AppOptions): App {
       {
         watching: poller.watchedRegions().length,
         feedsRead,
-        prioritised: poller.tierCounts().fast,
+        prioritized: poller.tierCounts().fast,
       },
       // Whether this server could ever see the record at all. Dispatch records are matched against every camera the source publishes, and a server running one city holds a small fraction of them, so a record can be near a camera that exists and still be invisible here.
       (uid) => {
@@ -592,7 +592,7 @@ export function createApp(options: AppOptions): App {
           ambiguousZero: true,
           lastTs: state.last_ts,
         },
-        neighbours: (corridor.get(state.id) ?? []).slice(0, JEV.MAX_NEIGHBOURS),
+        neighbors: (corridor.get(state.id) ?? []).slice(0, JEV.MAX_NEIGHBORS),
         incidentNearby: byCamera.has(state.id),
         vehicles: evidence?.count ?? null,
       });
@@ -657,7 +657,7 @@ export function createApp(options: AppOptions): App {
   router.get('/api/live/:id', ({ params }): LiveResponse => {
     const uid = Number(params.id);
     const slot = slotFor(params.id as string);
-    // The camera in the panel is the one camera the viewer is certainly looking at, whether or not its tile is on screen, so it is held on its source's own period rather than left on the slow tier the map view puts the rest of the city on. One claim per camera, so two viewers with different panels open do not take turns cancelling each other.
+    // The camera in the panel is the one camera the viewer is certainly looking at, whether or not its tile is on screen, so it is held on its source's own period rather than left on the slow tier the map view puts the rest of the city on. One claim per camera, so two viewers with different panels open do not take turns canceling each other.
     poller.setPriority(`panel:${String(uid)}`, [uid]);
     const period = focus.claim(uid, slot.camera);
     const held = focus.frame(uid);
@@ -771,11 +771,11 @@ export function createApp(options: AppOptions): App {
  *
  * Upstream is the direction a queue grows, so it is the direction worth walking. An edge arriving at a site comes from where the traffic approaching it does, which makes that site upstream; the walk follows those edges backwards for up to CORRIDOR.MAX_UPSTREAM_HOPS and CORRIDOR.MAX_UPSTREAM_M of road, accumulating road distance rather than straight-line distance. Both bounds are needed. Hops alone run to 18 km through a ramp-dense interchange, which is further than a queue reaches inside the life of the floor that sent the query. Downstream and `nearby` are taken one hop only, because neither is a place a queue tail can be.
  *
- * Road distance is the point of doing this on the graph at all. Two cameras 400 m apart in a straight line may be on opposite carriageways of a divided highway, on a frontage road, or on a crossing street, and a Euclidean neighbourhood cannot tell any of those from the camera half a mile back on the same pavement. The graph can, because its edges are the pavement.
+ * Road distance is the point of doing this on the graph at all. Two cameras 400 m apart in a straight line may be on opposite carriageways of a divided highway, on a frontage road, or on a crossing street, and a Euclidean neighborhood cannot tell any of those from the camera half a mile back on the same pavement. The graph can, because its edges are the pavement.
  *
  * A `nearby` edge is the graph saying two sites are close without a road between them, so it carries no traffic direction. The separate promotion lookup walks two hops on every side to request pictures without expanding queue inference or the candidates offered to Jev. */
-export function buildCorridor(keys: string[], graphs: Map<string, Graph>, byId: Map<number, CatalogCamera>, promotion = false): Map<number, Neighbour[]> {
-  const out = new Map<number, Neighbour[]>();
+export function buildCorridor(keys: string[], graphs: Map<string, Graph>, byId: Map<number, CatalogCamera>, promotion = false): Map<number, Neighbor[]> {
+  const out = new Map<number, Neighbor[]>();
   const waveMs = (CORRIDOR.WAVE_SPEED_KMH * 1000) / 3600;
   for (const key of keys) {
     const graph = graphs.get(key);
@@ -803,7 +803,7 @@ export function buildCorridor(keys: string[], graphs: Map<string, Graph>, byId: 
       link(downstream, edge.src, forward);
     }
     /** Breadth-first along one direction, keeping the shortest road distance to each site reached and never revisiting the site it started from. */
-    const walk = (from: string, adjacency: Map<string, Step[]>, maxHops: number, maxMetres: number): Map<string, { hops: number; length_m: number; tt_s: number }> => {
+    const walk = (from: string, adjacency: Map<string, Step[]>, maxHops: number, maxMeters: number): Map<string, { hops: number; length_m: number; tt_s: number }> => {
       const reached = new Map<string, { hops: number; length_m: number; tt_s: number }>();
       let frontier = [{ id: from, hops: 0, length_m: 0, tt_s: 0 }];
       for (let hop = 0; hop < maxHops && frontier.length > 0; hop++) {
@@ -812,7 +812,7 @@ export function buildCorridor(keys: string[], graphs: Map<string, Graph>, byId: 
           for (const step of adjacency.get(at.id) ?? []) {
             if (step.id === from) continue;
             const total = { hops: at.hops + 1, length_m: at.length_m + step.length_m, tt_s: at.tt_s + step.tt_s };
-            if (total.length_m > maxMetres) continue;
+            if (total.length_m > maxMeters) continue;
             const held = reached.get(step.id);
             if (held && held.length_m <= total.length_m) continue;
             reached.set(step.id, total);
@@ -825,13 +825,13 @@ export function buildCorridor(keys: string[], graphs: Map<string, Graph>, byId: 
     };
     for (const site of graph.sites) {
       if (site.cameras.length === 0) continue;
-      const found: Neighbour[] = [];
-      for (const [adjacency, side, maxHops, maxMetres] of [
+      const found: Neighbor[] = [];
+      for (const [adjacency, side, maxHops, maxMeters] of [
         [upstream, 'upstream', promotion ? CORRIDOR.PROMOTE_HOPS : CORRIDOR.MAX_UPSTREAM_HOPS, CORRIDOR.MAX_UPSTREAM_M],
         [downstream, 'downstream', promotion ? CORRIDOR.PROMOTE_HOPS : 1, Infinity],
         [beside, 'nearby', promotion ? CORRIDOR.PROMOTE_HOPS : 1, Infinity],
       ] as const) {
-        for (const [id, reach] of walk(site.id, adjacency, maxHops, maxMetres)) {
+        for (const [id, reach] of walk(site.id, adjacency, maxHops, maxMeters)) {
           const other = sites.get(id);
           if (!other) continue;
           for (const uid of other.cameras) {
@@ -850,7 +850,7 @@ export function buildCorridor(keys: string[], graphs: Map<string, Graph>, byId: 
           }
         }
       }
-      for (const uid of site.cameras) out.set(uid, found.filter((neighbour) => neighbour.uid !== uid));
+      for (const uid of site.cameras) out.set(uid, found.filter((neighbor) => neighbor.uid !== uid));
     }
   }
   return out;
@@ -870,7 +870,7 @@ function renumber(graph: Graph, ordinal: Map<string, number>): void {
 }
 
 /** How many cameras this region's catalog holds, which is what a client wants to show for a region that exists but is not being polled in this run. */
-function catalogued(root: string, key: string): number {
+function cataloged(root: string, key: string): number {
   const path = catalogPath(root, key);
   if (!existsSync(path)) return 0;
   try {

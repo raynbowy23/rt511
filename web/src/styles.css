@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  /* An eighties security desk: one amber phosphor on near-black, in a few strengths. The canvas views take the same colours from retro.ts. */
+  /* An eighties security desk: one amber phosphor on near-black, in a few strengths. The canvas views take the same colors from retro.ts. */
   --bg: #080603;
   --bg-raise: #100b05;
   --tile-bg: #0b0804;
@@ -15,7 +15,7 @@
   --font: "IBM Plex Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --gap: 10px;
   --fade: 900ms;
-  /* The colour of a live stream and nothing else, so a red pill always means video, as a red REC lamp does on a recorder. */
+  /* The color of a live stream and nothing else, so a red pill always means video, as a red REC lamp does on a recorder. */
   --live: #ff3b30;
   /* The top bar's height, which the panels pinned under it follow. Two rows on a narrow screen. */
   --topbar-h: 52px;
@@ -1435,7 +1435,7 @@ body.is-expanded {
   border: 1px dashed rgba(150, 88, 22, 0.9);
 }
 
-/* The sunset wave's three stops, matching skyColour in national.ts. */
+/* The sunset wave's three stops, matching skyColor in national.ts. */
 .national-legend i.is-sky-day,
 .national-legend i.is-sky-dusk,
 .national-legend i.is-sky-night {
@@ -1903,7 +1903,7 @@ body[data-view='wall'] .stage {
 }
 
 /* Incidents ---------------------------------------------------------------
-   The one layer on the map that is about right now rather than about the network, so it carries a colour nothing else uses. */
+   The one layer on the map that is about right now rather than about the network, so it carries a color nothing else uses. */
 
 .incident-card {
   position: absolute;
@@ -3678,7 +3678,7 @@ body[data-view='home'] .stage.has-arbiter {
   font-size: 12px;
 }
 
-/* A bar either side of a centre line: right for what draws the person's eye, left for what turns it away. */
+/* A bar either side of a center line: right for what draws the person's eye, left for what turns it away. */
 .duel-bar {
   position: relative;
   height: 8px;

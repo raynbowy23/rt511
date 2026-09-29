@@ -13,7 +13,7 @@ import type { Incident } from '../../shared/src/index.js';
 import { incidentFloor, queueFloor, TUNING } from './attention.js';
 import { buildQueueIndex } from './corridor.js';
 import { round } from './config.js';
-import { JEV, JevArbiter, ago, buildGateState, buildReviewState, kendallTau, buildState, choiceOptions, createAsk, createGateAsk, picture, type AskResult, type CameraTelemetry, type GateAskResult, type GateCandidate, type Neighbour, type ReviewAsk, type ReviewCandidate } from './jev.js';
+import { JEV, JevArbiter, ago, buildGateState, buildReviewState, kendallTau, buildState, choiceOptions, createAsk, createGateAsk, picture, type AskResult, type CameraTelemetry, type GateAskResult, type GateCandidate, type Neighbor, type ReviewAsk, type ReviewCandidate } from './jev.js';
 
 const temporaryDirectories: string[] = [];
 function temporaryDirectory(prefix: string): string {
@@ -244,15 +244,15 @@ test('ages read as words', () => {
 
 test('the cameras the record names come before the speculative ones', () => {
   const named = [telemetry(30004214), telemetry(30004221)];
-  const neighbours: Neighbour[] = [
+  const neighbors: Neighbor[] = [
     { uid: 30004299, roadway: 'SR-836', location: 'at 97th Ave', side: 'upstream', length_m: 1200, tt_s: 48, hops: 1, wave_s: 288 },
     { uid: 30004300, roadway: 'SR-836', location: 'at 57th Ave', side: 'downstream', length_m: 900, tt_s: 36, hops: 1, wave_s: null },
   ];
-  const options = choiceOptions(incident(), named, neighbours);
+  const options = choiceOptions(incident(), named, neighbors);
   assert.deepEqual(Object.keys(options), ['30004214', '30004221', '30004299', '30004300']);
   assert.ok(options['30004214']?.startsWith('Named by the record.'));
   assert.ok(options['30004299']?.includes('on the approach to it'));
-  assert.ok(Object.keys(choiceOptions(incident(), named, Array.from({ length: 30 }, (_, i) => ({ ...(neighbours[0] as Neighbour), uid: 40000000 + i }))) ).length <= JEV.MAX_OPTIONS);
+  assert.ok(Object.keys(choiceOptions(incident(), named, Array.from({ length: 30 }, (_, i) => ({ ...(neighbors[0] as Neighbor), uid: 40000000 + i }))) ).length <= JEV.MAX_OPTIONS);
 });
 
 /** A response that is not the shape the questions asked for is a failure, not a verdict of zero. This is the one test that drives the real SDK, with its own fetch. */
@@ -365,7 +365,7 @@ const gateAnswer = (over: Partial<GateAskResult['verdict']> = {}): GateAskResult
 });
 
 function candidate(uid: number, over: Partial<CameraTelemetry> = {}): GateCandidate {
-  return { camera: telemetry(uid, over), neighbours: [], incidentNearby: false, vehicles: null };
+  return { camera: telemetry(uid, over), neighbors: [], incidentNearby: false, vehicles: null };
 }
 
 test('a confident standstill puts a floor under a still camera and a frozen feed does not', async () => {
@@ -446,7 +446,7 @@ test('the same still camera is not asked about again inside the re-ask window', 
 
 test('the gate state describes the corridor and carries no raw timestamps', () => {
   const state = buildGateState(
-    { camera: telemetry(9, { diff: 0.0005, baseline: 0.03 }), neighbours: [{ uid: 10, roadway: 'I-95', location: 'at NW 62nd St', side: 'upstream', length_m: 1500, tt_s: 60, hops: 2, wave_s: 360 }], incidentNearby: false, vehicles: null },
+    { camera: telemetry(9, { diff: 0.0005, baseline: 0.03 }), neighbors: [{ uid: 10, roadway: 'I-95', location: 'at NW 62nd St', side: 'upstream', length_m: 1500, tt_s: 60, hops: 2, wave_s: 360 }], incidentNearby: false, vehicles: null },
     1000 + 120,
   );
   const text = JSON.stringify(state);
@@ -562,7 +562,7 @@ test('the snapshot carries the answers over time and never causes a call', async
   arbiter.consider([incident()], (uid) => telemetry(uid, { lastTs: now }), noCameras, now + JEV.REASK_AFTER_S + 5);
   await arbiter.drain();
 
-  const snapshot = arbiter.snapshot([incident()], () => true, { watching: 1, feedsRead: 1, prioritised: 0 }, () => true);
+  const snapshot = arbiter.snapshot([incident()], () => true, { watching: 1, feedsRead: 1, prioritized: 0 }, () => true);
   assert.deepEqual(snapshot.gates, {
     noul_threshold: JEV.NOUL_THRESHOLD,
     act_confidence: JEV.ACT_CONFIDENCE,
@@ -578,7 +578,7 @@ test('the snapshot carries the answers over time and never causes a call', async
   assert.equal(snapshot.incidents[0]?.latest?.score, 3);
   // The multiplier in the series is the arithmetic the scorer applies, not a restatement of the answer.
   assert.equal(snapshot.incidents[0]?.latest?.multiplier, arbiter.modulate(incident(), 30004214, 0.5).influence?.multiplier);
-  arbiter.snapshot([incident()], () => true, { watching: 1, feedsRead: 1, prioritised: 0 }, () => true);
+  arbiter.snapshot([incident()], () => true, { watching: 1, feedsRead: 1, prioritized: 0 }, () => true);
   assert.equal(asked, 2, 'reading the pane asks nothing');
 });
 
@@ -587,21 +587,21 @@ test('a record nobody is reporting any more drops out of the snapshot', async ()
   const now = Date.now() / 1000;
   arbiter.consider([incident()], (uid) => telemetry(uid, { lastTs: now - 30 }), noCameras, now);
   await arbiter.drain();
-  assert.equal(arbiter.snapshot([incident()], () => true, { watching: 1, feedsRead: 1, prioritised: 0 }, () => true).incidents.length, 1);
-  assert.equal(arbiter.snapshot([], () => true, { watching: 1, feedsRead: 1, prioritised: 0 }, () => true).incidents.length, 0);
+  assert.equal(arbiter.snapshot([incident()], () => true, { watching: 1, feedsRead: 1, prioritized: 0 }, () => true).incidents.length, 1);
+  assert.equal(arbiter.snapshot([], () => true, { watching: 1, feedsRead: 1, prioritized: 0 }, () => true).incidents.length, 0);
 });
 
 test('the snapshot says how far each record got, so an empty pane can explain itself', async () => {
   const arbiter = makeArbiter(null, dir());
   const quiet = incident({ id: 'FHP-2', cameras: [] });
   const police = incident({ id: 'FHP-3', road_relevant: false, implies_closure: false });
-  const counts = arbiter.snapshot([incident(), quiet, police], (uid) => uid === 30004214, { watching: 1, feedsRead: 1, prioritised: 0 }, () => true);
+  const counts = arbiter.snapshot([incident(), quiet, police], (uid) => uid === 30004214, { watching: 1, feedsRead: 1, prioritized: 0 }, () => true);
   assert.equal(counts.live_incidents, 3);
   assert.equal(counts.linked_incidents, 2, 'one names no camera we serve');
   assert.equal(counts.relevant_incidents, 1, 'one is ordinary police business');
   assert.equal(counts.ready_incidents, 1);
   // The same records with nothing on screen yet, which is the ordinary reason the pane is empty.
-  assert.equal(arbiter.snapshot([incident(), quiet, police], () => false, { watching: 1, feedsRead: 1, prioritised: 0 }, () => true).ready_incidents, 0);
+  assert.equal(arbiter.snapshot([incident(), quiet, police], () => false, { watching: 1, feedsRead: 1, prioritized: 0 }, () => true).ready_incidents, 0);
 });
 
 test('records whose cameras this server does not hold are counted apart from the ones it is waiting on', () => {
@@ -611,7 +611,7 @@ test('records whose cameras this server does not hold are counted apart from the
   const counts = arbiter.snapshot(
     [here, elsewhere],
     () => false,
-    { watching: 1, feedsRead: 1, prioritised: 0 },
+    { watching: 1, feedsRead: 1, prioritized: 0 },
     (uid) => uid === 30004214,
   );
   assert.equal(counts.relevant_incidents, 2);
@@ -619,9 +619,9 @@ test('records whose cameras this server does not hold are counted apart from the
   assert.equal(counts.ready_incidents, 0);
 });
 
-const upstream: Neighbour = { uid: 30004299, roadway: 'SR-836', location: 'upstream', side: 'upstream', length_m: 1200, tt_s: 48, hops: 1, wave_s: 288 };
+const upstream: Neighbor = { uid: 30004299, roadway: 'SR-836', location: 'upstream', side: 'upstream', length_m: 1200, tt_s: 48, hops: 1, wave_s: 288 };
 
-test('a confident neighbour choice lifts its queue without demoting named views', async () => {
+test('a confident neighbor choice lifts its queue without demoting named views', async () => {
   const record = incident();
   const arbiter = makeArbiter(async () => answer({ chosen: upstream.uid }), dir());
   arbiter.consider([record], telemetry, () => [upstream], 1500);
@@ -638,7 +638,7 @@ test('a confident neighbour choice lifts its queue without demoting named views'
   assert.ok(result.value > queueFloor(upstream.uid, entries, 1500).value);
 });
 
-test('a low-confidence neighbour choice leaves graph floors and named views alone', async () => {
+test('a low-confidence neighbor choice leaves graph floors and named views alone', async () => {
   const record = incident();
   const arbiter = makeArbiter(async () => answer({ chosen: upstream.uid, chosenConfidence: JEV.ACT_CONFIDENCE - 0.01, scoreConfidence: 0, supported: 0 }), dir());
   arbiter.consider([record], telemetry, () => [upstream], 1500);
@@ -649,7 +649,7 @@ test('a low-confidence neighbour choice leaves graph floors and named views alon
   assert.deepEqual(queueFloor(upstream.uid, entries, 1500, (inc, uid, floor) => arbiter.chosenQueue(inc, uid, floor)), queueFloor(upstream.uid, entries, 1500));
 });
 
-test('a neighbour choice retains clearing, support and screen gates', async () => {
+test('a neighbor choice retains clearing, support and screen gates', async () => {
   const record = incident();
   const arbiter = makeArbiter(async () => answer({ chosen: upstream.uid, cleared: 1, scoreConfidence: 0, supported: 0 }), dir());
   arbiter.consider([record], telemetry, () => [upstream], 1500);
@@ -658,13 +658,13 @@ test('a neighbour choice retains clearing, support and screen gates', async () =
   assert.equal(arbiter.chosenQueue({ ...record, remarks: 'changed' }, upstream.uid, 0.9), null);
 });
 
-test('neighbours carry pictures or explicit missing pictures without epoch timestamps', () => {
+test('neighbors carry pictures or explicit missing pictures without epoch timestamps', () => {
   const state = buildState(incident(), [telemetry(30004214)], [upstream, { ...upstream, uid: 30004300 }], 1540, (uid) => uid === upstream.uid ? telemetry(uid) : null);
-  const neighbours = state.nearby_cameras_on_the_same_corridor as Record<string, unknown>[];
+  const neighbors = state.nearby_cameras_on_the_same_corridor as Record<string, unknown>[];
   const named = (state.cameras_the_record_names as Record<string, unknown>[])[0]!;
-  for (const key of ['picture', 'frame_difference', 'usual_frame_difference_this_hour', 'times_its_usual', 'newest_frame']) assert.equal(neighbours[0]?.[key], named[key]);
-  assert.equal(neighbours[1]?.picture, 'no picture yet');
-  assert.equal(neighbours[1]?.newest_frame, 'none yet');
+  for (const key of ['picture', 'frame_difference', 'usual_frame_difference_this_hour', 'times_its_usual', 'newest_frame']) assert.equal(neighbors[0]?.[key], named[key]);
+  assert.equal(neighbors[1]?.picture, 'no picture yet');
+  assert.equal(neighbors[1]?.newest_frame, 'none yet');
   assert.ok(!JSON.stringify(state).includes('1000'));
   assert.ok(!JSON.stringify(state).includes('900'));
   assert.equal(JEV.RUBRIC_VERSION, 5);
@@ -682,11 +682,11 @@ for (const [name, verdict, expected] of [
     const held = arbiter.gateFloor(1)!;
     assert.ok(Number.isFinite(held.at));
     const gate = (uid: number, now: number) => arbiter.gateFloor(uid, now);
-    const neighbours: Neighbour[] = [
+    const neighbors: Neighbor[] = [
       { uid: 2, roadway: 'I 10', location: 'approach', side: 'upstream', hops: 1, length_m: 1200, tt_s: 30, wave_s: 288 },
       { uid: 3, roadway: 'I 10', location: 'past', side: 'downstream', hops: 1, length_m: 1200, tt_s: 30, wave_s: null },
     ];
-    const index = buildQueueIndex([], new Map([[1, neighbours]]), new Map([[1, { lat: 30, lon: -84, location: 'I 10 at Main' }]]), gate, held.at);
+    const index = buildQueueIndex([], new Map([[1, neighbors]]), new Map([[1, { lat: 30, lon: -84, location: 'I 10 at Main' }]]), gate, held.at);
     const entries = index.get(2) ?? [];
     const result = queueFloor(2, entries, held.at + 144, undefined, gate);
     if (expected) {

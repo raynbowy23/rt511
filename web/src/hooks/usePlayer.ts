@@ -20,12 +20,12 @@ export function usePlayer(video: HTMLVideoElement | null, camera: Camera | null)
 
     const mine = ++generation.current;
     let hls: HlsType | null = null;
-    let cancelled = false;
+    let canceled = false;
     setLive(false);
     setMode('Loading');
 
     const onPlaying = (): void => {
-      if (cancelled || mine !== generation.current) return;
+      if (canceled || mine !== generation.current) return;
       setLive(true);
       setMode('Live');
     };
@@ -42,25 +42,25 @@ export function usePlayer(video: HTMLVideoElement | null, camera: Camera | null)
 
     void (async () => {
       if (!camera.has_video) {
-        if (!cancelled) setMode('Snapshots only');
+        if (!canceled) setMode('Snapshots only');
         return;
       }
       const { stream, reason } = await getStream(camera.id);
-      if (cancelled || mine !== generation.current) return;
+      if (canceled || mine !== generation.current) return;
       if (!stream) {
         setMode(modeForReason(reason));
         return;
       }
       // hls.js is most of the bundle and only a promoted camera needs it, so it arrives the first time one is opened.
       const { default: Hls } = await import('hls.js');
-      if (cancelled || mine !== generation.current) return;
+      if (canceled || mine !== generation.current) return;
 
       if (Hls.isSupported()) {
         // liveSyncDurationCount 2 keeps latency near two segments, which on a 6 s target duration is about as close to live as this source allows.
         const instance = new Hls({ liveSyncDurationCount: 2, enableWorker: true });
         hls = instance;
         instance.on(Hls.Events.ERROR, (_event, data) => {
-          if (!data.fatal || cancelled) return;
+          if (!data.fatal || canceled) return;
           instance.destroy();
           if (hls === instance) hls = null;
           setMode(modeForReason(null));
@@ -78,7 +78,7 @@ export function usePlayer(video: HTMLVideoElement | null, camera: Camera | null)
     })();
 
     return () => {
-      cancelled = true;
+      canceled = true;
       video.removeEventListener('playing', onPlaying);
       teardown();
     };

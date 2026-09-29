@@ -128,7 +128,7 @@ export class Client {
     return { fetched_at: Date.now() / 1000, last_modified: res.headers.get('last-modified'), data, content_type: ctype };
   }
 
-  /** One camera's picture out of its state's bulk document, fetching the document only when the copy held is older than the source's poll period. Every camera in the state reads the same copy, and a camera polled between fetches gets the picture it already has, which the poller recognises as unchanged by its bytes. */
+  /** One camera's picture out of its state's bulk document, fetching the document only when the copy held is older than the source's poll period. Every camera in the state reads the same copy, and a camera polled between fetches gets the picture it already has, which the poller recognizes as unchanged by its bytes. */
   private async bulkSnapshot(imagePath: string): Promise<SnapshotResult> {
     const [network, device] = imagePath.slice('compass:'.length).split('/') as [string, string];
     const doc = await this.bulkDocument(network);

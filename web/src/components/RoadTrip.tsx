@@ -2,8 +2,8 @@ import { useEffect, type ReactElement } from 'react';
 import type { Trip } from '../roadtrip';
 import type { RelayPick } from '../sunrelay';
 
-function km(metres: number): string {
-  return `${(metres / 1000).toFixed(1)} km`;
+function km(meters: number): string {
+  return `${(meters / 1000).toFixed(1)} km`;
 }
 
 /** The trips a city offers, longest first. Opened from the top bar; picking one starts it and closes the list. */

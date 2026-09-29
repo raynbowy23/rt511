@@ -51,7 +51,7 @@ def cmd_metros(args: argparse.Namespace) -> None:
         near = any(s == m.source and abs(la - m.lat) < 0.3 and abs(lo - m.lon) < 0.3 for s, la, lo in have)
         print(f"{m.cameras:7d}  {m.source:8s} {'yes' if src.has_video else 'no':5s}  {m.lat:9.4f},{m.lon:11.4f}  {(m.name or ''):24s} {'yes' if near else ''}")
     if not args.name:
-        print("\nRe-run with --name to reverse-geocode the centres through Nominatim (one a second).")
+        print("\nRe-run with --name to reverse-geocode the centers through Nominatim (one a second).")
 
 
 def cmd_city(args: argparse.Namespace) -> None:
@@ -59,7 +59,7 @@ def cmd_city(args: argparse.Namespace) -> None:
     save_region(region, ROOT)
     src = get_source(region.source)
     print(f"{region.name} -> region {region.key!r} on {src.name}")
-    print(f"  centre {region.center}, radius {region.radius_km} km, bbox {region.bbox}" + (f", keeping the {region.limit} nearest cameras" if region.limit else ""))
+    print(f"  center {region.center}, radius {region.radius_km} km, bbox {region.bbox}" + (f", keeping the {region.limit} nearest cameras" if region.limit else ""))
     print(f"\nNext:\n  uv run rt511 catalog --region {region.key}\n  uv run rt511 build --region {region.key}")
 
 
@@ -188,13 +188,13 @@ def main() -> None:
     mt = sub.add_parser("metros", help="show where cameras cluster nationally, to decide where a region is worth adding")
     mt.add_argument("--min", type=int, default=40, help="smallest cluster to report (default 40)")
     mt.add_argument("--top", type=int, default=25, help="how many to list (default 25)")
-    mt.add_argument("--name", action="store_true", help="reverse-geocode each centre to a place name")
+    mt.add_argument("--name", action="store_true", help="reverse-geocode each center to a place name")
     mt.set_defaults(func=cmd_metros)
 
     ci = sub.add_parser("city", help="create a region around a city, choosing the source that covers its state")
     ci.add_argument("city", help='e.g. "Des Moines, IA" or "Oakland, California"')
-    ci.add_argument("--radius", type=float, default=15.0, help="km around the city centre (default 15)")
-    ci.add_argument("--limit", type=int, default=80, help="keep only the N cameras nearest the centre (default 80, 0 for no cap)")
+    ci.add_argument("--radius", type=float, default=15.0, help="km around the city center (default 15)")
+    ci.add_argument("--limit", type=int, default=80, help="keep only the N cameras nearest the center (default 80, 0 for no cap)")
     ci.set_defaults(func=cmd_city)
 
     c = sub.add_parser("catalog", help="fetch a region's camera catalog from its source's published feed")

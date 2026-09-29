@@ -111,7 +111,7 @@ def build_road_graph(overpass: dict) -> nx.DiGraph:
 def road_background(overpass: dict) -> dict[str, list[list[list[float]]]]:
     """Road polylines grouped by highway class, for drawing a map background.
 
-    There is no tile layer anywhere in this project, so the map is drawn as vectors from the same cached extract the graph was built from. Coordinates are [lat, lon] and rounded to five decimals, about a metre, which is far finer than any map here needs."""
+    There is no tile layer anywhere in this project, so the map is drawn as vectors from the same cached extract the graph was built from. Coordinates are [lat, lon] and rounded to five decimals, about a meter, which is far finer than any map here needs."""
     roads: dict[str, list] = {}
     for way in overpass.get("elements", []):
         if way.get("type") != "way" or not way.get("geometry"):

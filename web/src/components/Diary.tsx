@@ -32,17 +32,17 @@ export function Diary({
   const [data, setData] = useState<DiaryResponse | null>(null);
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     const run = async (): Promise<void> => {
       const response = await getDiary(day);
-      if (!cancelled && response) setData(response);
+      if (!canceled && response) setData(response);
     };
     void run();
     // Only today's page grows, so only today's page is read again.
     const today = day === undefined;
     const timer = today ? window.setInterval(() => void run(), 60_000) : 0;
     return () => {
-      cancelled = true;
+      canceled = true;
       if (timer) window.clearInterval(timer);
     };
   }, [day]);

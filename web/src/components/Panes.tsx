@@ -49,16 +49,16 @@ export function NationalPane({
   // The sunset wave moves on the scale of minutes, so a minute between reads is plenty, and nothing is read while the map is hidden.
   useEffect(() => {
     if (!visible) return;
-    let cancelled = false;
+    let canceled = false;
     const run = async (): Promise<void> => {
       const [sky, pulse] = await Promise.all([getSky(), getPulse()]);
-      if (!cancelled && sky) view.current?.setSky(sky.regions);
-      if (!cancelled && pulse) view.current?.setPulse(pulse.regions);
+      if (!canceled && sky) view.current?.setSky(sky.regions);
+      if (!canceled && pulse) view.current?.setPulse(pulse.regions);
     };
     void run();
     const timer = window.setInterval(() => void run(), 60_000);
     return () => {
-      cancelled = true;
+      canceled = true;
       window.clearInterval(timer);
     };
   }, [visible, data]);

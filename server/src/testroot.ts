@@ -41,7 +41,7 @@ function build(root: string): void {
   }));
   writeFileSync(join(root, 'data', 'regions.json'), JSON.stringify(regions));
   for (const city of CITIES) {
-    // A camera every kilometre or so due north, one per site, joined into a single northbound freeway.
+    // A camera every kilometer or so due north, one per site, joined into a single northbound freeway.
     const points = Array.from({ length: FIXTURE_CAMERAS }, (_, i) => ({ id: i + 1, lat: city.lat - 0.18 + i * 0.009, lon: city.lon }));
     const catalog = points.map((p) => ({
       id: p.id,

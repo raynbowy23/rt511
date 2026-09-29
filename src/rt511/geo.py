@@ -43,7 +43,7 @@ def bearing_diff(a: float, b: float) -> float:
 
 
 def compass_of(bearing: float) -> str:
-    """Nearest cardinal direction for a bearing, in the N/E/S/W letters the feeds' direction codes are normalised to."""
+    """Nearest cardinal direction for a bearing, in the N/E/S/W letters the feeds' direction codes are normalized to."""
     return ["N", "E", "S", "W"][int(((bearing + 45) % 360) // 90)]
 
 

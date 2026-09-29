@@ -19,7 +19,7 @@ export const TUNING = {
   SHRINKAGE_K: 5,
   /** Frame difference equal to the baseline scores this, so an ordinary camera doing an ordinary thing sits in the middle of the range and twice the baseline saturates. Inherited from `activity` and kept identical on purpose: it is what makes the two agree exactly before any hourly history exists. */
   ANOMALY_AT_BASELINE: SCORE.ANOMALY_AT_BASELINE,
-  /** The two axes weigh the same. Anomaly alone is today's behaviour, spectacle alone would rank a quiet interstate above a busy side street forever, and there is no measurement yet that says either deserves more. */
+  /** The two axes weigh the same. Anomaly alone is today's behavior, spectacle alone would rank a quiet interstate above a busy side street forever, and there is no measurement yet that says either deserves more. */
   WEIGHT_ANOMALY: 0.5,
   WEIGHT_SPECTACLE: 0.5,
   /** How much of the spectacle term comes from absolute movement rather than movement relative to the camera's own baseline. Shipped at zero: there is no absolute measure of how many vehicles are in a frame in this project, only a mean absolute pixel difference, which varies with camera resolution, lens, weather and time of day and is not comparable between cameras. The term is wired so that a real volume measure can be weighed in by changing this one number, and until there is one it contributes nothing. */
@@ -51,7 +51,7 @@ export const TUNING = {
     residential: 0.2,
     service: 0.15,
   } as Record<string, number>,
-  /** A ramp carries a fraction of the road it serves, so `motorway_link` scores below `motorway`. A judgement rather than a measurement: nothing in the data says what the fraction is. */
+  /** A ramp carries a fraction of the road it serves, so `motorway_link` scores below `motorway`. A judgment rather than a measurement: nothing in the data says what the fraction is. */
   LINK_FACTOR: 0.7,
   /** A camera the graph builder could not place on a road at all. Scored as an ordinary street rather than as nothing, because an unplaced camera is usually a rest area or a bridge view, not a driveway. */
   DEFAULT_PRIOR: 0.3,
@@ -88,7 +88,7 @@ export interface ScalePriorFact {
   prior: number;
   source: ScalePriorSource;
   aadt: number | null;
-  /** Metres to the count segment, when the prior came from a count. */
+  /** Meters to the count segment, when the prior came from a count. */
   distance_m: number | null;
   aligned: boolean | null;
   highway: string | null;
@@ -400,7 +400,7 @@ interface IncidentQueueEntry {
   upstream: boolean;
 }
 
-/** Injected like Modulate so the scorer need not know how a neighbour was chosen. Null means no confident choice. */
+/** Injected like Modulate so the scorer need not know how a neighbor was chosen. Null means no confident choice. */
 export type ChosenQueue = (incident: Incident, uid: number, recordFloor: number) => number | null;
 
 /** The inferred floor rises as a queue could arrive, then decays with the record's half-life. Reach is a ramp because the wave speed is an uncited design setting and a hard arrival cutoff would imply false precision. */

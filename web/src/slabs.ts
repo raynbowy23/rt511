@@ -10,7 +10,7 @@ const TURN = (-22 * Math.PI) / 180;
 const SQUASH = 0.52;
 /** How much a state's size is eased toward the others. Zero keeps true relative size, where Vermont would be a speck beside California; one would make every state the same size. */
 const EASE = 0.35;
-/** The space between neighbouring slabs, as a share of the median slab width. */
+/** The space between neighboring slabs, as a share of the median slab width. */
 const GAP = 0.3;
 
 export interface Slab {
@@ -20,8 +20,8 @@ export interface Slab {
   rings: [number, number][][];
   box: Box;
   /** The middle of the top face, where the label hangs. */
-  centre: [number, number];
-  /** How high this slab floats at rest, in screen pixels. Neighbours differ so the row reads as loose pieces rather than a strip. */
+  center: [number, number];
+  /** How high this slab floats at rest, in screen pixels. Neighbors differ so the row reads as loose pieces rather than a strip. */
   float: number;
   cameras: number;
 }
@@ -29,7 +29,7 @@ export interface Slab {
 export interface SlabLayout {
   slabs: Slab[];
   bounds: Box;
-  /** Each catalogued camera's world position and slab index, in the order the sources list them. A camera outside every slab has index -1. */
+  /** Each cataloged camera's world position and slab index, in the order the sources list them. A camera outside every slab has index -1. */
   camX: Float64Array;
   camY: Float64Array;
   camSlab: Int16Array;
@@ -72,7 +72,7 @@ export function explode(national: NationalResponse): SlabLayout {
   const widths = locals.map((local, i) => (local.box.maxX - local.box.minX) * scales[i]!);
   const gap = median(widths) * GAP;
 
-  // Each state's own transform: centred on its box, eased in size, set along the row, then tilted with everything else.
+  // Each state's own transform: centered on its box, eased in size, set along the row, then tilted with everything else.
   const transforms: ((x: number, y: number) => [number, number])[] = [];
   let along = 0;
   locals.forEach((local, i) => {
@@ -87,7 +87,7 @@ export function explode(national: NationalResponse): SlabLayout {
   const slabs: Slab[] = locals.map((local, i) => {
     const rings = local.rings.map((ring) => ring.map(([x, y]) => transforms[i]!(x, y)));
     const box = boxOf(rings);
-    return { code: local.code, name: local.name, rings, box, centre: [(box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2], float: [6, 16, 10, 20, 8, 14, 4, 18][i % 8]!, cameras: 0 };
+    return { code: local.code, name: local.name, rings, box, center: [(box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2], float: [6, 16, 10, 20, 8, 14, 4, 18][i % 8]!, cameras: 0 };
   });
   const index = new Map(locals.map((local, i) => [local.code, i]));
 

@@ -24,11 +24,11 @@ class Region:
     center: tuple[float, float] | None = None
     radius_km: float | None = None
     limit: int | None = None
-    """Cap on cameras kept, nearest to the centre first. With twenty thousand cameras on offer, a wall wants the dozens nearest a place, not everything in range."""
+    """Cap on cameras kept, nearest to the center first. With twenty thousand cameras on offer, a wall wants the dozens nearest a place, not everything in range."""
 
     @property
     def centroid(self) -> tuple[float, float]:
-        """The centre to draw this region at. Regions created from a city carry a real centre; the two hand-written ones do not, so fall back to the middle of the bounding box rather than making every caller re-derive it."""
+        """The center to draw this region at. Regions created from a city carry a real center; the two hand-written ones do not, so fall back to the middle of the bounding box rather than making every caller re-derive it."""
         if self.center:
             return self.center
         s, w, n, e = self.bbox

@@ -30,10 +30,10 @@ export function Board({ cameras, activeId, onSelect, onData }: { cameras: Map<nu
     } catch {
       // Filters still work when the browser refuses storage.
     }
-    let cancelled = false;
+    let canceled = false;
     const run = async (): Promise<void> => {
       const next = await getBoard(filter.state, filter.region);
-      if (cancelled) return;
+      if (canceled) return;
       setOk(next !== null);
       if (next) setData(next);
       report.current(next?.cameras ?? [], next !== null);
@@ -41,7 +41,7 @@ export function Board({ cameras, activeId, onSelect, onData }: { cameras: Map<nu
     setData(null);
     void run();
     const timer = window.setInterval(() => void run(), BOARD_POLL_MS);
-    return () => { cancelled = true; window.clearInterval(timer); };
+    return () => { canceled = true; window.clearInterval(timer); };
   }, [filter]);
 
   const states = useMemo(() => new Map((data?.cameras ?? []).map((camera) => [camera.id, camera])), [data]);

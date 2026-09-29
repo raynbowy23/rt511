@@ -132,7 +132,7 @@ export interface Graph {
 export interface CameraState {
   id: number;
   region?: string | undefined;
-  /** How often this camera is actually being polled right now, in seconds, which is not the source default: a camera on screen runs at its source's period, one in a watched city that nobody can see runs slowly, and a camera with nothing happening in front of it is stretched further still. Staleness is judged against this number, so it has to be the effective one or perfectly good tiles grey out. */
+  /** How often this camera is actually being polled right now, in seconds, which is not the source default: a camera on screen runs at its source's period, one in a watched city that nobody can see runs slowly, and a camera with nothing happening in front of it is stretched further still. Staleness is judged against this number, so it has to be the effective one or perfectly good tiles gray out. */
   period_s: number;
   frames: number;
   polls: number;
@@ -144,7 +144,7 @@ export interface CameraState {
   last_modified?: string | null;
   brightness: number | null;
   diff: number | null;
-  /** 0..1 against this camera's own recent behaviour, or null before it has enough history and its region has none to lend. */
+  /** 0..1 against this camera's own recent behavior, or null before it has enough history and its region has none to lend. */
   activity: number | null;
   /** What the scorer thinks this camera is worth looking at, 0..1, or null while nothing is known about it yet. `activity` above is untouched by it and still means exactly what it always did. */
   attention: number | null;
@@ -267,7 +267,7 @@ export interface JevSnapshot {
   /** How many dispatch feeds have been read at least once. Zero with a region watched means the first read has not come back yet. */
   feeds_read: number;
   /** How many cameras are on the fast period right now, whether because they are on screen or because this pane asked for them. */
-  prioritised_cameras: number;
+  prioritized_cameras: number;
   /** Why the pane is empty, when it is. Each count is a narrower subset of the one above it, so the first that reads zero is the answer. */
   live_incidents: number;
   /** Records naming at least one camera this server serves. */
@@ -392,7 +392,7 @@ export interface NationalRegion {
   built: boolean;
   served: boolean;
   cameras: number;
-  catalogued?: number | undefined;
+  cataloged?: number | undefined;
 }
 
 export interface NationalResponse {
@@ -419,9 +419,9 @@ export interface Incident {
   cameras: number[];
   /** What the agency's code means, when a code table is configured for that feed. Null when it is not, in which case show the raw code. */
   label: string | null;
-  /** Whether this code describes something happening to a road rather than ordinary police business. This project's judgement, not the agency's. */
+  /** Whether this code describes something happening to a road rather than ordinary police business. This project's judgment, not the agency's. */
   road_relevant: boolean;
-  /** Whether the code itself implies the road is blocked. Also this project's judgement. */
+  /** Whether the code itself implies the road is blocked. Also this project's judgment. */
   implies_closure: boolean;
 }
 
@@ -536,7 +536,7 @@ export interface SkyRegion {
   name: string;
   lat: number;
   lon: number;
-  /** Degrees above the horizon at the city's centre, right now. */
+  /** Degrees above the horizon at the city's center, right now. */
   sun_elevation: number;
   /** Median mean luma, 0..1, or null when no camera there has a recent picture. */
   brightness: number | null;

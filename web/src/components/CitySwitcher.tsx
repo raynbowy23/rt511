@@ -28,7 +28,7 @@ function distanceKm(a: [number, number], b: [number, number]): number {
   return 2 * 6371.0088 * Math.asin(Math.sqrt(h));
 }
 
-/** The city strip over the map: the city you are in, then its nearest neighbours, then a menu holding every city.
+/** The city strip over the map: the city you are in, then its nearest neighbors, then a menu holding every city.
  *
  * Nearest rather than alphabetical because the cities you are most likely to want next are the ones near the one you are looking at, and because with eighteen of them alphabetical order puts Atlanta and Boise side by side for no reason. */
 export function CitySwitcher({
@@ -77,19 +77,19 @@ export function CitySwitcher({
 
   const { tabs, all } = useMemo(() => {
     const here = cities.find((city) => city.key === current) ?? cities[0];
-    const centre = here?.center ?? null;
+    const center = here?.center ?? null;
     const others = cities.filter((city) => city.key !== here?.key);
     const ranked =
-      centre === null
+      center === null
         ? others
         : [...others].sort((a, b) => {
-            // A city with no centre sorts last rather than pretending to be at the equator.
-            const da = a.center ? distanceKm(centre, a.center) : Number.POSITIVE_INFINITY;
-            const db = b.center ? distanceKm(centre, b.center) : Number.POSITIVE_INFINITY;
+            // A city with no center sorts last rather than pretending to be at the equator.
+            const da = a.center ? distanceKm(center, a.center) : Number.POSITIVE_INFINITY;
+            const db = b.center ? distanceKm(center, b.center) : Number.POSITIVE_INFINITY;
             return da - db;
           });
     const withDistance = [...cities]
-      .map((city) => ({ city, km: centre && city.center && city.key !== here?.key ? distanceKm(centre, city.center) : null }))
+      .map((city) => ({ city, km: center && city.center && city.key !== here?.key ? distanceKm(center, city.center) : null }))
       .sort((a, b) => a.city.name.localeCompare(b.city.name));
     return { tabs: here ? [here, ...ranked].slice(0, Math.max(1, slots)) : [], all: withDistance };
   }, [cities, current, slots]);

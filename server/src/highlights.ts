@@ -2,7 +2,7 @@ import type { CameraState, Highlight, HighlightKind, Incident } from '../../shar
 import { incidentFloor } from './attention.js';
 import type { CatalogCamera } from './config.js';
 import { promotionTrigger } from './corridor.js';
-import { ago, JEV, picture, type JevVerdict, type Neighbour } from './jev.js';
+import { ago, JEV, picture, type JevVerdict, type Neighbor } from './jev.js';
 
 /** Five events give an ambient wall a short ribbon that can be read without competing with its pictures. */
 export const HIGHLIGHTS_SIZE = 5;
@@ -15,7 +15,7 @@ export const QUEUE_MENTION_MIN = 0.1;
 
 const DIRECTIONS: Record<string, string> = { NB: 'northbound', SB: 'southbound', EB: 'eastbound', WB: 'westbound' };
 
-/** Dispatch feeds and camera catalogues write in capitals and shorthand. Route designators and ordinals are kept recognisable, direction codes are spelled out, and everything else becomes ordinary capitalisation, so "I-95 NB x[US-1/DOWNTOWN]" reads as "I-95 northbound at US-1 / Downtown". */
+/** Dispatch feeds and camera catalogs write in capitals and shorthand. Route designators and ordinals are kept recognizable, direction codes are spelled out, and everything else becomes ordinary capitalization, so "I-95 NB x[US-1/DOWNTOWN]" reads as "I-95 northbound at US-1 / Downtown". */
 const SMALL_WORDS = new Set(['at', 'and', 'of', 'the', 'to', 'on', 'in', 'near', 'by', 'from']);
 
 function word(raw: string): string {
@@ -97,14 +97,14 @@ export function composeBrief(event: HighlightCandidate, now: number): string {
 }
 
 /** All inputs are cached facts. Checking each record's deterministic floor keeps overlapping dispatch records separate even when only one wins a camera's axes. */
-export function selectHighlights(states: CameraState[], catalog: ReadonlyMap<number, CameraInfo>, incidents: readonly Incident[], verdicts: ReadonlyMap<string, JevVerdict>, gateTimes: ReadonlyMap<number, number>, now: number, region: string | null = null, corridor: ReadonlyMap<number, readonly Pick<Neighbour, 'uid' | 'side'>[]> = new Map()): Highlight[] {
+export function selectHighlights(states: CameraState[], catalog: ReadonlyMap<number, CameraInfo>, incidents: readonly Incident[], verdicts: ReadonlyMap<string, JevVerdict>, gateTimes: ReadonlyMap<number, number>, now: number, region: string | null = null, corridor: ReadonlyMap<number, readonly Pick<Neighbor, 'uid' | 'side'>[]> = new Map()): Highlight[] {
   const eligible = states.filter((state) => state.polls > 0 && state.attention !== null && state.axes !== null && catalog.has(state.id) && (region === null || catalog.get(state.id)!.region === region));
   const events: HighlightCandidate[] = [];
   for (const report of new Map(incidents.map((record) => [record.id, record])).values()) {
     const named = eligible.filter((state) => report.cameras.includes(state.id));
     if (!named.some((state) => state.axes!.incident_floor > 0 && incidentFloor({ uid: state.id, ...catalog.get(state.id)!, now }, [report]).value > 0)) continue;
     const best = named.sort((a, b) => b.attention! - a.attention! || a.id - b.id)[0]!;
-    const upstream = states.filter((state) => state.axes?.queue?.source === 'incident' && state.axes.queue.incident === `${report.type} at ${report.location}` && state.axes.queue_floor >= QUEUE_MENTION_MIN && catalog.has(state.id) && corridor.get(state.axes.queue.anchor)?.some((neighbour) => neighbour.uid === state.id && neighbour.side === 'upstream')).sort((a, b) => b.axes!.queue!.length_m - a.axes!.queue!.length_m)[0];
+    const upstream = states.filter((state) => state.axes?.queue?.source === 'incident' && state.axes.queue.incident === `${report.type} at ${report.location}` && state.axes.queue_floor >= QUEUE_MENTION_MIN && catalog.has(state.id) && corridor.get(state.axes.queue.anchor)?.some((neighbor) => neighbor.uid === state.id && neighbor.side === 'upstream')).sort((a, b) => b.axes!.queue!.length_m - a.axes!.queue!.length_m)[0];
     const verdict = verdicts.get(report.id);
     events.push({ kind: 'incident', state: best, camera: catalog.get(best.id)!, at: report.reported_at ?? best.last_ts ?? now, incident: report, ...(verdict ? { verdict } : {}), ...(upstream ? { queue: { location: catalog.get(upstream.id)!.location, length_m: upstream.axes!.queue!.length_m } } : {}) });
   }

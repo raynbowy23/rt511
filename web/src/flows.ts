@@ -2,7 +2,7 @@ import type { LatLon } from '@rt511/shared';
 
 /** Attention spreading along the road: from a camera that saw something to a camera it made worth watching.
  *
- * Two kinds reach the map. A promotion is the wall looking closely at a camera's road neighbours because that camera saw an incident, stopped traffic or unusual movement. A queue is a floor raised under a camera upstream of an incident or of stopped traffic, because the queue could reach it. Both are things the scorer already decides; this module only turns them into paths along the road graph so they can be drawn moving. */
+ * Two kinds reach the map. A promotion is the wall looking closely at a camera's road neighbors because that camera saw an incident, stopped traffic or unusual movement. A queue is a floor raised under a camera upstream of an incident or of stopped traffic, because the queue could reach it. Both are things the scorer already decides; this module only turns them into paths along the road graph so they can be drawn moving. */
 
 export type FlowReason = 'incident' | 'still' | 'movement';
 

@@ -227,7 +227,7 @@ function buildNational() {
         built: true,
         served: true,
         cameras: cameras.length,
-        catalogued: cameras.length,
+        cataloged: cameras.length,
       },
       {
         key: 'jacksonville-fl',
@@ -239,7 +239,7 @@ function buildNational() {
         built: true,
         served: false,
         cameras: 0,
-        catalogued: 0,
+        cataloged: 0,
       },
     ],
   };
@@ -488,7 +488,7 @@ const server = http.createServer((req, res) => {
   m = p.match(/^\/api\/stream\/(\d+)$/);
   if (m) {
     if (!cameras.some((c) => c.id === Number(m[1]))) return json(res, 404, { error: 'unknown camera' });
-    // The mock cannot synthesise video, so every camera answers as one that publishes no stream and the hero falls back to replay stills, which is the behaviour worth exercising.
+    // The mock cannot synthesize video, so every camera answers as one that publishes no stream and the hero falls back to replay stills, which is the behavior worth exercising.
     return json(res, 404, { error: 'camera publishes no stream' });
   }
 

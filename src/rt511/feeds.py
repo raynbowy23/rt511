@@ -126,7 +126,7 @@ async def _arcgis(http: httpx.AsyncClient, source: Source) -> list[FeedCamera]:
             lat, lon = _number(geom.get("y")), _number(geom.get("x"))
             if not image or lat is None or lon is None:
                 continue
-            # A layer can carry cameras another agency owns, whose images the publisher's licence cannot cover. Only images under the prefixes named in the source table are kept. The match ignores the scheme, because layers mix http and https for the same host.
+            # A layer can carry cameras another agency owns, whose images the publisher's license cannot cover. Only images under the prefixes named in the source table are kept. The match ignores the scheme, because layers mix http and https for the same host.
             if prefixes and not image.replace("http://", "https://", 1).startswith(prefixes):
                 continue
             video = attrs.get(fields["video"]) if "video" in fields else None
