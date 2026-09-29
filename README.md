@@ -1,18 +1,22 @@
 # rt511
 
-rt511 is a demonstration of attention. For every traffic camera location it asks one question, how much does this place deserve a person's attention right now, and it shows its working. The answer comes from a fixed equation over what each camera is doing against its own normal for the hour, how big its road is, and whether an incident or stopped traffic is holding it up. A reasoning model can take a second look at the leading cameras of a city, and you can say which camera you would rather watch, so the equation, the model and your own attention can be set side by side.
+rt511 is a demonstration of one way to decide where attention should go across a network of traffic cameras. For every camera location it asks how much that place deserves a person's attention right now, and it shows how it reached its answer.
 
-It is a research-flavoured toy, not a traffic-management tool. Nothing here claims to direct attention better than anything else, and the [whitepaper](docs/rt511_visual_attention_whitepaper.md) says what has and has not been measured.
+The answer is not meant to be the right one. It comes from an equation that sets out one direction for attention: a camera deserves more of it when it is doing something unusual for that hour, when its road carries a lot of traffic, and when an incident or stopped traffic is holding it up. Other directions are equally possible, and the project is built so that they can be set beside this one. A reasoning model can take a second look at the cameras the equation ranks highest, and you can say which of two cameras you would rather watch. The equation, the model and your own choices can then be compared on the same cameras.
 
-The cameras are real. rt511 reads only agencies whose written terms allow a third-party viewer to show their cameras, through the feeds they publish for that purpose: California, Iowa, Ohio, Oregon, Maine, New Hampshire and Vermont, 7,394 cameras in all. It is dressed as an eighties security desk, amber phosphor and scanlines, and opens on the covered states lifted out of the country and floating in a row, every camera a light lit by the sun that is on it right now. Step in to the map, pick a city, and you get its cameras laid out on the road network and ranked on a wall. Click one to watch it: a red LIVE badge where the agency streams video, a SNAPSHOT tag with its refresh where it publishes stills.
+It is a research-flavored demonstration, not a traffic-management tool, and it makes no claim to direct attention better than any alternative. The [whitepaper](docs/rt511_visual_attention_whitepaper.md) describes the design in full and states what has and has not been measured.
 
-![The front page: the seven covered states floating in a row, every camera a point of light coloured by the sun on it](docs/images/front-page.jpg)
+The cameras are real. rt511 reads only from agencies whose written terms allow a third-party viewer to show their cameras, and only through the feeds they publish for that purpose. That covers California, Iowa, Ohio, Oregon, Maine, New Hampshire and Vermont, 7,394 cameras in all.
+
+The interface is styled after an eighties security desk, with amber phosphor and scanlines. It opens on the covered states, lifted out of the country and floating in a row, with every camera shown as a light colored by where the sun is on it. From the map you pick a city, and its cameras are laid out on the road network and ranked on a wall. Clicking a camera opens it. A red LIVE badge marks a camera whose agency streams video, and a SNAPSHOT tag, with its refresh interval, marks one that publishes still pictures.
+
+![The front page: the seven covered states floating in a row, with every camera a point of light colored by the sun on it](docs/images/front-page.jpg)
 
 | The country map | A city's wall |
 | --- | --- |
 | ![The country map: each covered state a floating slab, west to east, with its cameras as lights and its cities as markers](docs/images/country-map.jpg) | ![A city's cameras ranked on the wall, each with its score, a SNAPSHOT tag and a countdown to its next picture](docs/images/wall.jpg) |
 
-The wall above is a synthetic city: its pictures are drawn by the repository's mock server, so no agency's camera image is stored in this repository, as the disclaimer promises. The front page and the country map contain no camera pictures at all.
+The wall shown above is a synthetic city whose pictures are drawn by the repository's mock server, so no agency's camera image is stored in this repository, as the disclaimer promises. The front page and the country map contain no camera pictures at all.
 
 ## Usage
 
@@ -21,13 +25,15 @@ The wall above is a synthetic city: its pictures are drawn by the repository's m
 You need Node 22 or newer with pnpm, and Python 3.12 or newer with [uv](https://docs.astral.sh/uv/).
 
 ```
-make setup     # dependencies, then a road graph for each of the 29 included cities (about half an hour, since the OpenStreetMap server is asked politely; run it again if it stops, built cities are kept)
+make setup     # installs the dependencies, then builds a road graph for each of the 29 included cities
 make start     # builds the wall and serves it
 ```
 
-Open http://127.0.0.1:8511 and pick a city. Every included city works without a key. Ohio and Oregon need your own free API key only to refresh their camera lists and, for Ohio, to read incidents; see [Setup](#setup).
+`make setup` takes about half an hour, because the OpenStreetMap server it downloads road networks from is asked for them politely, one at a time. If it stops partway, run it again. Cities that are already built are kept.
 
-### Setup
+When the server is running, open http://127.0.0.1:8511 and pick a city. Every included city works without a key. Ohio and Oregon need a free key of your own only to refresh their camera lists and, for Ohio, to read incidents, as described under [Setup and keys](#setup-and-keys).
+
+### Setup and keys
 
 ```
 uv sync
@@ -35,70 +41,75 @@ pnpm install
 cp .env.example .env
 ```
 
-Ohio and Oregon need your own free API key, which you register for yourself under each agency's terms: OHGO at https://publicapi.ohgo.com/docs/registration and TripCheck at https://apiportal.odot.state.or.us/. Put them in `.env` as `OHIODOT_API` and `OREGONDOT_API`. They are used to read the camera lists and, for Ohio, the incident feed; images need no key. The project never ships a key, and without one those two states are simply unavailable.
+Ohio and Oregon each need a free API key that you register for yourself under the agency's own terms, at https://publicapi.ohgo.com/docs/registration for OHGO and https://apiportal.odot.state.or.us/ for TripCheck. Put them in `.env` as `OHIODOT_API` and `OREGONDOT_API`. They are used to read the camera lists and, for Ohio, the incident feed. Images need no key. The project never ships a key, and without one those two states are simply unavailable.
 
-### Running it
+`JEV_API` in the same file is optional. It turns on the second look described below. Without it, the wall is ranked by the equation alone.
+
+### Running the wall
 
 ```
 pnpm start
 ```
 
-One command. It builds the server and the wall, then serves both on http://127.0.0.1:8511. Ctrl+C stops it and releases the port. You don't have to pick a city.
+This builds the server and the wall and then serves both on http://127.0.0.1:8511. Ctrl+C stops it and releases the port. You do not have to choose a city in advance.
 
-With no arguments every city you've built is loaded, so the national map and all the city maps work straight away, but **no camera is polled until you open one**. Open a city and its cameras start; leave it and they stop a couple of minutes later. A server nobody is looking at makes no requests at all.
+With no arguments, every city you have built is loaded, so the country map and every city map work straight away, but **no camera is polled until you open a city**. When you open a city its cameras start, and when you leave it they stop a couple of minutes later. A server that nobody is looking at makes no requests at all.
 
-Arguments pass through to the server:
+Arguments are passed through to the server:
 
 ```
 pnpm start --regions oakland-ca,des-moines-ia    poll these cities from the start
-pnpm start --cameras freeway                only freeway cameras
-pnpm start --port 8512                      somewhere else
-pnpm start --ring 30                        keep more replay history
+pnpm start --cameras freeway                     poll only freeway cameras
+pnpm start --port 8512                           serve on another port
+pnpm start --ring 30                             keep more replay history
 ```
 
-Naming cities polls them continuously whether or not anyone is watching, which is what you want for a screen left on.
+Naming cities with `--regions` polls them continuously whether or not anyone is watching, which is what you want for a screen that is left on.
 
-| Command | Does |
+| Command | What it does |
 | --- | --- |
-| `pnpm start` | build, then serve |
-| `pnpm serve` | serve without rebuilding |
-| `pnpm dev` | Vite with hot reload on 5173 and the API on 8511, together, one Ctrl+C stops both |
-| `pnpm build` | build only |
-| `pnpm check` | type-check everything |
+| `pnpm start` | Builds the server and the wall, then serves them. |
+| `pnpm serve` | Serves the last build without rebuilding. |
+| `pnpm dev` | Runs Vite with hot reload on port 5173 and the API on port 8511 together. One Ctrl+C stops both. |
+| `pnpm build` | Builds without serving. |
+| `pnpm check` | Type-checks every package. |
 
-The `Makefile` wraps all of these and the `uv run rt511` pipeline commands below. Run `make` to list them. `make up` runs the server and the detector together, and `make add-city CITY="Ames, IA"` creates, catalogs and builds a city in one step.
+The `Makefile` wraps these commands and the `uv run rt511` pipeline commands described under [Adding a city](#adding-a-city). Run `make` on its own to list every target. `make up` runs the server and the vehicle detector together, and `make add-city CITY="Ames, IA"` creates, catalogs and builds a city in one step.
 
-`pnpm dev` runs the two processes through `concurrently`, so their output is labelled `api` and `web` and interrupting it takes both down. The web side waits until the API answers, so a tab left open does not fill the log while the server compiles.
+`pnpm dev` runs its two processes through `concurrently`, so their output is labeled `api` and `web`, and interrupting it stops both. The web side waits until the API answers, so a browser tab left open does not fill the log with refused connections while the server is still compiling.
 
 ### What you can do
 
-**Which would you watch?** is the other half of the idea: people's attention. **Which?** in a city's top bar shows two of its cameras side by side, pictures only, and you pick the one you would rather watch, or skip. The wall's own score for each is revealed after you choose. Every choice is a comparison, and a Bradley–Terry model in your browser learns from them what draws your eye, over the same things the equation looks at: unusual movement, road size, an incident or a queue, stopped traffic, darkness, brightness and freeway or street. It asks about the pairs it is least sure of, so it learns quickly. The panel beside it shows what you weigh, how often you and the wall agree and where you disagree most, and after ten choices it can rank the wall by your attention instead of the equation. Your choices stay in the browser's local storage and are never sent anywhere; Export saves them as JSON.
+**Which would you watch?** brings in the other side of the idea, a person's own attention. The **Which?** button in a city's top bar shows two of its cameras side by side, as pictures only, and you pick the one you would rather watch, or skip the pair. In the default Learn mode, the wall's own score for each camera is revealed after you choose. Every choice is a comparison, and a Bradley–Terry model in your browser learns from those comparisons what draws your eye. It uses the same features the equation looks at: unusual movement, road size, an incident or a queue, stopped traffic, darkness, brightness, and whether the camera is on a freeway or a street. It asks about the pairs it is least sure of, so it learns quickly. The panel beside the pictures shows what you weigh, how often you and the wall agree, and where you disagree most. After ten choices, the wall can be ranked by your attention instead of the equation. Your choices stay in your browser's local storage and are never sent anywhere, and the Export button saves them as JSON.
 
-**Evaluate** switches Which? from learning your attention to judging the rankers against it. Pairs are drawn at random, and half the time from cameras the equation and the second look below put in opposite orders, and nothing is revealed while you choose; the running results show when you switch back to Learn. `uv run python scripts/evaluate_attention.py <export>.json --logs out` then scores each ranking on those blind choices.
+**Evaluate** switches Which? from learning your attention to comparing the rankings against it. Half of its pairs are drawn at random, and the other half from cameras that the equation and the second look place in opposite orders. Nothing is revealed while you choose, and the running results appear when you switch back to Learn. After exporting your choices, `uv run python scripts/evaluate_attention.py <export>.json --logs out` scores each ranking on those blind choices.
 
-**The second look** needs `JEV_API` in `.env`. While a city is open, Jev looks at its eight leading cameras together every few minutes and nudges each one's movement term between 0.75 and 1.25 times; it never changes an incident or stopped-traffic floor. Every look is logged beside the fixed equation's own order in `out/jev-<date>.jsonl`. Without a key the wall is ranked by the equation alone. How it all fits together is in [the whitepaper](docs/rt511_visual_attention_whitepaper.md).
+**The second look** needs `JEV_API` in `.env`. While a city is open, the Jev reasoning model looks at its eight highest-ranked cameras together every few minutes and scales each one's movement term by a factor between 0.75 and 1.25. It never changes the floor that an incident or stopped traffic puts under a camera. Every look is logged beside the equation's own order in `out/jev-<date>.jsonl`, so that the two rankings can be compared later. Without a key, the wall is ranked by the equation alone.
 
-**Attention spreading** is the scorer's reasoning made visible on a city's map. When a camera sees unusual movement, stopped traffic or an incident, the wall starts watching the cameras along its road more closely, and a camera upstream of an incident or stopped traffic gets a floor because the queue could reach it. Both are now drawn: small comets travel along the actual road from the camera that saw something to each camera it made worth watching, and a ring opens where they land, pale white for movement, deep orange for stopped traffic, red for an incident. Nothing new is decided for this; it shows what the scorer already does, from `/api/scores` and the queue floors in the poll. It stands still for anyone who asks for reduced motion.
+**Attention spreading** makes part of the scorer's reasoning visible on a city's map. When a camera sees unusual movement, stopped traffic or an incident, the wall starts watching the cameras along its road more closely, and a camera upstream of an incident or of stopped traffic gets a floor of its own, because a queue could reach it. Both are drawn as small comets that travel along the actual road from the camera that saw something to each camera it made worth watching, with a ring opening where they land. The comets are pale white for movement, deep orange for stopped traffic and red for an incident. Nothing new is decided for this display. It only shows what the scorer already does, using `/api/scores` and the queue floors in each poll, and it stays still for anyone who has asked their system for reduced motion.
 
-**Road trip** in the top bar drives a numbered route through the city you are in, camera by camera in driving order: I-235 across Des Moines or I-10 through Los Angeles. Each camera stays up for a few seconds, longer where it has live video and where the next one is further down the road, and at the end of the route the trip turns around and drives it back. A trip is written into the page address (`#…&trip=I-235:eastbound`), so a screen left running resumes it after a reload.
+**Road trip**, in the top bar, drives a numbered route through the city you are in, one camera at a time in driving order, for example I-235 across Des Moines or I-10 through Los Angeles. Each camera stays on screen for a few seconds, longer when it has live video or when the next camera is farther down the road. At the end of the route, the trip turns around and drives it back. The trip is written into the page address (`#…&trip=I-235:eastbound`), so a screen left running resumes it after a reload.
 
-**Sun relay** follows the sunset across the country. It shows whichever city the sun is setting over, stepping through that city's most interesting cameras, and hands off westward through the evening: Portland ME and Burlington first, Portland OR and Los Angeles last. Between sunsets it waits on the next one, and at night it waits on the first sunrise. `#relay` in the address resumes it.
+**Sun relay** follows the sunset across the country. It shows whichever city the sun is setting over, stepping through that city's most interesting cameras, and hands off westward through the evening, starting with Portland, Maine and Burlington and ending with Portland, Oregon and Los Angeles. Between sunsets it waits for the next one, and at night it waits for the first sunrise. `#relay` in the address resumes it.
 
-**Snow** is read from the pictures. Each frame's share of bright, colourless pixels is compared with that camera's own recent frames, and when at least three cameras in a city turn white together in daylight the city reads as snow: a white ring on the national map, and a diary entry that says so, "first snow of the season" the first time each winter. Iowa's rural weather-station cameras are where this earns its keep. Like the murky-sky hint beside it, it is a hint from pixels, not a weather report.
+**Snow** is read from the pictures. Each frame's share of bright, colorless pixels is compared with that camera's own recent frames, and when at least three cameras in a city turn white together in daylight, the city is marked as snowy. It gets a white ring on the country map and a diary entry, which says "first snow of the season" the first time each winter. Iowa's rural weather-station cameras are where this is most useful. Like the murky-sky hint beside it, it is a hint from pixels and not a weather report.
 
-**City pulse** is a small line under each city in the national list: how much its cameras moved, minute by minute, from midnight to midnight. Each minute is the median frame difference across the city's cameras with a recent picture, scaled to that city's own busiest minute, so a quiet city's rush hour shows as clearly as a big one's. It is numbers only, kept in `out/pulse-<date>.jsonl` so a restart keeps the day, and a city nobody has open is read from its sparse radar cameras.
+**City pulse** is a small line under each city in the country list that shows how much its cameras moved, minute by minute, from midnight to midnight. Each minute is the median frame difference across the city's cameras with a recent picture, scaled to that city's own busiest minute, so a quiet city's rush hour shows as clearly as a large city's. It is stored as numbers only, in `out/pulse-<date>.jsonl`, so a restart keeps the day, and a city that nobody has open is read from its sparse radar cameras.
 
-**Night shift** puts the vehicle detector's count on the open camera once the sun is down there, in the camera's own local time: "3:12 AM · 2 cars". It needs `make detect` running and shows nothing without it. The count is the same one the gate logs to `out/detector-<date>.jsonl`, taken once per frame, and it is display only: it never enters the attention score.
+**Night shift** shows the vehicle detector's count on the open camera once the sun has set where that camera is, in the camera's own local time, for example "3:12 AM · 2 cars". It needs the detector running and shows nothing without it. The count is the same one the zero-motion gate logs to `out/detector-<date>.jsonl`, taken once per frame, and it is for display only. It never enters the attention score.
 
-The optional vehicle detector runs as its own process next to the server. It counts vehicles in a frame the zero-motion gate has flagged and hands the count to the arbiter as evidence. It needs the YOLO26 weights in `data/models/` (see [License](#license)):
+### The vehicle detector
+
+The vehicle detector is optional and runs as its own process next to the server. It counts the vehicles in a frame that the zero-motion gate has flagged and hands the count to the reasoning model as evidence. It needs the YOLO26 weights in `data/models/`, which are not part of this repository (see [License](#license)).
 
 ```
-uv sync --extra detector
-uv run rt511 detect                         on 127.0.0.1:8513, the GPU when there is one
-uv run rt511 detect --device cpu            when the GPU is busy
+make detect        on 127.0.0.1:8513, using the GPU when there is one
+make detect-cpu    on the CPU, when the GPU is busy
 ```
 
-The server looks for it at startup and once a minute after that, so it can be started in either order. Set `RT511_DETECTOR_URL` in `.env` to point elsewhere. Without it, still cameras are asked about exactly as before.
+Both targets install the detector's optional dependencies the first time they run, which includes a large download of PyTorch. The same can be done by hand with `uv sync --extra detector` followed by `uv run rt511 detect`.
+
+The server looks for the detector at startup and once a minute after that, so the two can be started in either order. Set `RT511_DETECTOR_URL` in `.env` to point the server elsewhere. Without a detector, still cameras are asked about exactly as before, only without a vehicle count.
 
 ### Adding a city
 
@@ -108,103 +119,103 @@ uv run rt511 metros --top 20 --name
 uv run rt511 city "Des Moines, IA" --radius 12 --limit 60
 uv run rt511 catalog --region des-moines-ia
 uv run rt511 build --region des-moines-ia
-uv run rt511 counts --region des-moines-ia    # Iowa, where the agency publishes counts
+uv run rt511 counts --region des-moines-ia    # only where the agency publishes counts, as Iowa does
 ```
 
-`sources` lists the agencies this project reads, what each publishes, and its terms. `metros` shows where cameras actually cluster, so you can pick somewhere worth watching. `city` geocodes the name, works out which source covers that state, keeps the cameras nearest the centre, and saves the region. `catalog` reads their details from the agency's feed and `build` matches them to roads. `counts` joins the agency's published traffic counts, where it publishes them under terms that allow it, so the scorer knows how big each road is from a measurement rather than from road class. A city in a state with no source is refused.
+`sources` lists the agencies this project reads, what each one publishes, and its terms. `metros` shows where cameras cluster, so you can pick somewhere worth watching. `city` geocodes the name, works out which source covers that state, keeps the cameras nearest the center, and saves the region. `catalog` reads the cameras' details from the agency's feed, and `build` matches them to roads. `counts` joins the agency's published traffic counts, where it publishes them under terms that allow it, so the scorer knows how big each road is from a measurement rather than from its road class. A city in a state with no source is refused.
 
-California and Iowa publish open video for many of their cameras. The other states publish stills only.
+California and Iowa publish open video for many of their cameras. The other states publish still pictures only.
 
 ## What it contains
 
-### How it's put together
+### How it is put together
 
-`docs/architecture.md` has the full picture. In short:
+`docs/architecture.md` describes the whole system. In brief:
 
 | Directory | Language | Role |
 | --- | --- | --- |
-| `src/rt511/` | Python | Offline pipeline. Finds cameras, matches them to roads, builds graphs. You run it by hand. |
-| `server/` | TypeScript | The web service. Serves the API, the snapshots it holds in memory and the built wall. Video never passes through it. |
+| `src/rt511/` | Python | The offline pipeline. It finds cameras, matches them to roads and builds the graphs. You run it by hand. |
+| `server/` | TypeScript | The web service. It serves the API, the snapshots it holds in memory and the built wall. Video never passes through it. |
 | `web/` | React | The wall itself. |
-| `shared/` | TypeScript | Types shared by the server and the wall. |
+| `shared/` | TypeScript | The types shared by the server and the wall. |
 
-Python here is a batch tool, not a server. It uses shapely and networkx for geometry and shortest paths, and serves no HTML.
+Python is used here as a batch tool, not as a server. It uses shapely and networkx for geometry and shortest paths, and it serves no HTML.
 
 ### Nothing is recorded
 
-Worth saying first. A tool that watches hundreds of cameras could easily become an archive by accident. This one doesn't:
+A tool that watches hundreds of cameras could easily become an archive by accident, so it is worth being clear that this one does not.
 
-- **Video is never saved, and never touches the server.** Your browser loads the agency's own stream only while you have that camera open. Close it and the bytes are gone.
-- **Snapshots are never saved.** The last few frames per camera are held in memory so you can scrub back a few minutes. Restart the server and they're gone.
+- **Video is never saved and never passes through the server.** Your browser loads the agency's own stream only while you have that camera open, and when you close it the data is gone.
+- **Snapshots are never saved.** The last few frames of each camera are held in memory so that you can scrub back a few minutes. When the server restarts, they are gone.
 - **Nothing is shared.** The server listens on localhost only.
 
-The files on disk are all text, and none of them is a picture: the source table, camera lists read from the agencies' feeds, road geometry from OpenStreetMap, the graphs built from those, and text logs of the scorer's decisions under `out/`. The camera lists, the national index and everything in `out/` can be deleted and rebuilt with the pipeline.
+The files written to disk are all text, and none of them is a picture. They are the source table, the camera lists read from the agencies' feeds, road geometry from OpenStreetMap, the graphs built from those, and text logs of the scorer's decisions under `out/`. The camera lists, the national index and everything in `out/` can be deleted and rebuilt with the pipeline.
 
 ### What it costs to run
 
-The aim is that one person watching rt511 costs an agency about what one person watching its own 511 site does. Each server asks each agency for at most one on-screen picture every 5 seconds and one off-screen picture every 10 seconds, however big the wall: a wall of ten cameras refreshes each tile every minute, a wall of forty every three minutes or so, and cameras off screen every ten minutes or longer. No camera is asked more often than its agency refreshes it, every five minutes for Caltrans, which publishes that interval, and every minute elsewhere. Every request is conditional, so an unchanged picture costs a "not modified" reply of a few hundred bytes, and a picture that has stopped updating is asked about once a period, not sooner. A browser tab nobody can see asks for nothing, and a city nobody has open is not polled at all.
+The aim is that one person watching rt511 costs an agency about as much as one person watching that agency's own 511 site. Each server asks each agency for at most one on-screen picture every 5 seconds and one off-screen picture every 10 seconds, however large the wall is. As a result, a wall of ten cameras refreshes each tile every minute, a wall of forty every three minutes or so, and cameras that are off screen every ten minutes or longer. No camera is asked for pictures more often than its agency refreshes them, which is every five minutes for Caltrans, which publishes that interval, and every minute elsewhere. Every request is conditional, so an unchanged picture costs only a short "not modified" reply of a few hundred bytes, and a picture that has stopped updating is asked about once per period and not sooner. A browser tab that nobody can see asks for nothing, and a city that nobody has open is not polled at all.
 
-The camera open in the panel can go faster. Where an agency's pictures refresh quicker than the wall polls, that one camera is fetched at the agency's own rate for as long as the panel stays open: every 5 seconds in Ohio, which ODOT publishes. The panel crossfades from one picture to the next, and the badge says how often a new one arrives, as in "Snapshot · 5 s". A camera with video gets a red "Live" pill instead, on the panel and on its wall tile, so the two can be told apart at a glance. These pictures are kept apart from the replay and the scoring, which stay on the ordinary poll, and only the newest is held.
+The camera open in the panel can be refreshed faster. Where an agency's pictures refresh more quickly than the wall polls, that one camera is fetched at the agency's own rate for as long as the panel stays open, which is every 5 seconds in Ohio, as ODOT publishes. The panel crossfades from one picture to the next, and its badge says how often a new picture arrives, for example "Snapshot · 5 s". A camera with video gets a red "Live" pill instead, on the panel and on its wall tile, so the two kinds can be told apart at a glance. These faster pictures are kept separate from the replay and the scoring, which stay on the ordinary poll, and only the newest one is held.
 
 | What | How much |
 | --- | --- |
-| Snapshot requests | at most one every 5 s on screen and one every 10 s off screen per agency, plus the one camera open in the panel at the agency's own rate, only for cities someone has open |
-| Video | none from the server. The browser loads an agency's open stream only while you have that camera open |
-| Disk written | none, apart from text logs under `out/` |
+| Snapshot requests | At most one every 5 seconds on screen and one every 10 seconds off screen for each agency, plus the one camera open in the panel at the agency's own rate, and only for cities that someone has open. |
+| Video | None from the server. Your browser loads an agency's open stream only while you have that camera open. |
+| Disk writes | None, apart from text logs under `out/`. |
 
 #### Why some pictures are slow
 
-Slow pictures are the policy working, not a fault. rt511 asks each agency for pictures no faster than the agency makes them, and within a small budget per agency, so a viewer here costs the agency about what one person on its own 511 site does. You will notice it in three places:
+Slow pictures are the result of this policy, not a fault. rt511 asks each agency for pictures no faster than the agency makes them, and within a small budget for each agency, so that a viewer here costs the agency about as much as one person on its own 511 site. You will notice this in three places.
 
-- **A wall fills in over a few minutes.** Tiles arrive about one every 5 seconds per agency, so a city of forty cameras takes around three minutes before every tile has a picture, and a score needs two pictures, so scores follow a little after.
-- **A big wall refreshes slowly.** Each tile on screen is refreshed about every 5 seconds times the number of tiles from that agency, and never faster than the agency makes new pictures. Ten tiles refresh every minute; forty, every three minutes or so.
-- **Some agencies publish only a still every few minutes.** Nothing on this side can make those faster. Where an agency publishes live video, opening the camera plays the agency's own stream straight away.
+- **A wall fills in over a few minutes.** Tiles arrive at about one every 5 seconds for each agency, so a city of forty cameras takes around three minutes before every tile has a picture. A score needs two pictures, so scores appear a little after that.
+- **A large wall refreshes slowly.** Each tile on screen is refreshed about once every 5 seconds multiplied by the number of tiles from the same agency, and never faster than the agency makes new pictures. Ten tiles refresh every minute, and forty every three minutes or so.
+- **Some agencies publish only a still picture every few minutes.** Nothing on this side can make those faster. Where an agency publishes live video, opening the camera plays the agency's own stream straight away.
 
 <details>
-<summary>Where it is fast and where it is snapshot only</summary>
+<summary>Where it is fast, and where it is snapshots only</summary>
 
-| State | Live video | A new still from the agency | A tile on the wall | The camera you open |
+| State | Live video | A new picture from the agency | A tile on the wall | The camera you open |
 | --- | --- | --- | --- | --- |
-| California | yes, on 2,184 of 3,412 cameras | every 5 minutes, as Caltrans publishes | every 5 minutes, longer on a big wall | the agency's video straight away where published, otherwise the still every 5 minutes |
-| Iowa | yes, on 692 of 1,251 cameras | not published, polled every minute | every minute, longer on a big wall | the agency's video straight away where published, otherwise the still every minute |
-| Ohio | no | every 5 seconds, as ODOT publishes | every minute, longer on a big wall | a new still every 5 seconds |
-| Oregon | no | not published, about every 2 minutes when sampled | every minute, longer on a big wall | a new still every minute |
-| Maine, New Hampshire, Vermont | no | about every 2 minutes, in one document per state | every 5 minutes | a new still every 5 minutes |
+| California | Yes, on 2,184 of 3,412 cameras | Every 5 minutes, as Caltrans publishes | Every 5 minutes, or longer on a large wall | The agency's video straight away where it is published, otherwise the still picture every 5 minutes |
+| Iowa | Yes, on 692 of 1,251 cameras | Not published, so polled every minute | Every minute, or longer on a large wall | The agency's video straight away where it is published, otherwise the still picture every minute |
+| Ohio | No | Every 5 seconds, as ODOT publishes | Every minute, or longer on a large wall | A new still picture every 5 seconds |
+| Oregon | No | Not published, about every 2 minutes when sampled | Every minute, or longer on a large wall | A new still picture every minute |
+| Maine, New Hampshire, Vermont | No | About every 2 minutes, in one document per state | Every 5 minutes | A new still picture every 5 minutes |
 
-"Longer on a big wall" means about 5 seconds for every tile on screen from that agency. Counts and rates were measured against the live feeds in September 2026; see [Camera sources](docs/sources.md) for the detail.
+"Longer on a large wall" means about 5 seconds for every tile on screen from that agency. The counts and rates were measured against the live feeds in September 2026, and [docs/sources.md](docs/sources.md) gives the details.
 
 </details>
 
-Memory depends on what you run. Road and graph geometry is loaded once per city, roughly 40 MB each, and that's what lets the map draw without a tile server. The frame buffer is cameras times frames times snapshot size, and snapshots run 20 to 200 KB depending on the agency. Use `--ring` to trade replay history for memory; ten frames is about ten minutes.
+Memory use depends on what you run. Road and graph geometry is loaded once per city, at roughly 40 MB each, and that is what lets the map be drawn without a tile server. The frame buffer is the number of cameras times the number of frames kept times the snapshot size, and snapshots run from 20 to 200 KB depending on the agency. Use `--ring` to trade replay history for memory. Ten frames cover about ten minutes.
 
-Drawing costs nothing unless you're dragging the map. That matters for a screen left running. A busy city map takes about 34 ms per frame on a desktop CPU with no GPU, and scales with CPU speed, so a slow machine will feel it while panning and nowhere else.
+Drawing costs nothing unless you are dragging the map, which matters for a screen that is left running. A busy city map takes about 34 ms per frame on a desktop CPU with no GPU, and the time scales with CPU speed, so a slow machine will feel it while panning and nowhere else.
 
 ### Being a good guest
 
-Every request identifies the project and links to this repository in its User-Agent, and carries nothing else: no borrowed Referer, no token. Requests are capped per source. A camera returning a placeholder backs off for five minutes. The OpenStreetMap road extract is downloaded once per city and cached, since Overpass is run by volunteers.
+Every request identifies the project and links to this repository in its User-Agent, and it carries nothing else, with no borrowed Referer and no token. Requests are capped per source. A camera that returns a placeholder image is left alone for five minutes. The OpenStreetMap road extract is downloaded once per city and cached, since the Overpass servers are run by volunteers.
 
 ### Three levels of coverage
 
-These scale very differently, which is why the project doesn't just fetch everything:
+The three levels scale very differently, which is why the project does not simply fetch everything.
 
-| | Scope | Cost |
+| Level | Scope | Cost |
 | --- | --- | --- |
-| **Indexed** | every camera's position | one read of each source's feed, refreshed by hand |
-| **Catalogued** | one city's cameras in full detail | one read of its source's feed, once |
-| **Polled** | cameras being watched now | one request per camera per refresh period, while watched |
+| **Indexed** | Every camera's position | One read of each source's feed, refreshed by hand |
+| **Cataloged** | One city's cameras in full detail | One read of its source's feed, once |
+| **Polled** | The cameras being watched now | One request per camera per refresh period, while they are watched |
 
-Indexing is cheap and complete, so the national map shows every camera the sources publish. Cataloguing is a one-off. Polling is the one that has to stay small. Cities exist to bound it, and so does the road graph, since each city needs a multi-megabyte extract from Overpass.
+Indexing is cheap and complete, so the country map shows every camera the sources publish. Cataloging is done once. Polling is the level that has to stay small, and cities exist to bound it. The road graph bounds it too, since each city needs a road extract of several megabytes from Overpass.
 
 ### The camera graph
 
-Cameras are matched to roads and then to each other, which is what turns a list of cameras into a corridor you can follow.
+Cameras are matched to roads and then to each other, which is what turns a list of cameras into a corridor that can be followed.
 
-- **Sites** group cameras within 40 m of each other on the same carriageway. Motorway and surface cameras never share one.
-- **Matching is scored, not nearest-wins.** A camera's route number, taken from its roadway field, is the strongest signal available, and it's what separates a mainline camera from the frontage road beside it. Direction codes break the remaining tie between carriageways. Cameras named as an intersection give up their route number and are kept off the mainline, so a camera labelled with the freeway it sits beside does not land on the freeway half a mile away.
-- **A site with no direction code sits on both carriageways.** Iowa publishes no direction, so a camera would land on whichever side is nearer and consecutive cameras would end up facing opposite ways. When you can't tell which way a camera looks, the honest answer is that it covers the whole cross-section.
-- **Edges follow traffic.** Site B follows site A if the shortest path between them passes no other site, comes within 60 m of no other camera, and isn't more than 2.5 times the straight-line distance. Each edge carries its length, free-flow travel time, road classes and geometry.
-- **Kinds** are freeway, ramp, street, and nearby. Nearby joins two sites close enough to watch the same place with no way to drive between them: parallel one-way streets a block apart, a freeway camera and the arterial at its interchange, or the two carriageways of a divided highway.
-- **Validation** checks direction codes against the carriageway, mile marker order, and how many cameras naming a route ended up on it. A source that publishes no direction codes gets an empty direction check instead of a failure.
+- **Sites** group cameras within 40 m of each other on the same carriageway. Freeway cameras and surface-street cameras never share a site.
+- **Matching is scored rather than nearest-wins.** A camera's route number, taken from its roadway field, is the strongest signal available, and it is what separates a mainline camera from the frontage road beside it. Direction codes break the remaining tie between carriageways. Cameras named as an intersection give up their route number and are kept off the mainline, so that a camera labeled with the freeway it sits beside does not land on the freeway half a mile away.
+- **A site with no direction code sits on both carriageways.** Iowa publishes no directions, so a camera would otherwise land on whichever side is nearer, and consecutive cameras would end up facing opposite ways. When it cannot be known which way a camera looks, the honest answer is that it covers the whole cross-section.
+- **Edges follow the traffic.** Site B follows site A if the shortest path between them passes no other site, comes within 60 m of no other camera, and is no more than 2.5 times the straight-line distance. Each edge carries its length, its free-flow travel time, its road classes and its geometry.
+- **Edges come in four kinds**, freeway, ramp, street and nearby. A nearby edge joins two sites that are close enough to watch the same place but have no way to drive between them, such as parallel one-way streets a block apart, a freeway camera and the arterial at its interchange, or the two carriageways of a divided highway.
+- **Validation** checks direction codes against the carriageway, the order of mile markers, and how many of the cameras naming a route ended up on it. A source that publishes no direction codes gets an empty direction check rather than a failure.
 
 <details>
 <summary>Where each city stands</summary>
@@ -241,56 +252,56 @@ Cameras are matched to roads and then to each other, which is what turns a list 
 | Portland, OR | 80 | 78 | 256 | 37/40 | not published | 2 | 0 |
 | Burlington, VT | 9 | 6 | 4 | 9/9 | 0 of 9 | 3 | 0 |
 
-Routes matched counts the cameras that name a route and landed on it. Direction reversed counts cameras whose published direction points the opposite way to the carriageway they were matched to, out of those that publish one. Unplaced cameras had no road within 80 m and are still polled and watchable, only absent from the graph. Figures come from each city's latest build report in `out/`.
+"Routes matched" counts the cameras that name a route and were placed on it. "Direction reversed" counts the cameras whose published direction points the opposite way to the carriageway they were matched to, out of those that publish a direction. "Unplaced cameras" had no road within 80 m. They are still polled and can still be watched, and they are only missing from the graph. The figures come from each city's latest build report in `out/`.
 
 </details>
 
-Direction codes name the route's signed direction, not a compass bearing, so they sit some way off the carriageway's bearing even when correct: a median of 38° around Oakland. That's why the check only flags a near-reversal.
+Direction codes name the route's signed direction, not a compass bearing, so they differ from the carriageway's bearing even when they are correct, by a median of 38° around Oakland. That is why the check only flags a near-reversal.
 
 ## Theory
 
-How a camera's attention is worked out, in brief. The [whitepaper](docs/rt511_visual_attention_whitepaper.md) has every equation, constant and measurement, and [docs/attention.md](docs/attention.md) has the design notes.
+This section summarizes the direction for attention that the equation takes. It is one proposal, a set of assumptions made explicit so that they can be examined and compared with others, and not a finding about what people should watch. The [whitepaper](docs/rt511_visual_attention_whitepaper.md) gives every equation, constant and measurement, together with the literature each assumption draws on, and [docs/attention.md](docs/attention.md) holds the design notes.
 
-- **Anomaly.** Each picture is reduced to a small greyscale thumbnail and differenced against the last. That change is compared with what the camera usually does at this hour of the week, a baseline learned as it runs, so a camera doing exactly its usual scores 0.5 and twice its usual saturates. A camera with little history is capped until it has some.
-- **Road size.** How much traffic the road carries, from published counts where an agency releases them, otherwise from lanes and speed, otherwise from road class. It amplifies the movement term between 0.5 and 1.5 times, so a busy interstate outranks a quiet street doing the same thing.
-- **Consequence as a floor.** An incident, a queue that could have reached a camera from one downstream, or stopped traffic confirmed on a still picture each put a floor under the score rather than adding to it. A stopped freeway and an empty one look the same to a pixel difference, so no weighting of movement could protect the stopped one.
-- **The graph.** Cameras are matched to roads and joined into corridors that follow the traffic. Queues are carried upstream only, as far as a queue could have travelled since the report, and an event at one camera makes the wall look more closely at its neighbours.
-- **Episodic reasoning.** Jev, a typed reasoning model, is asked only about cases the arithmetic cannot settle: whether a still picture is stopped traffic, an empty road or a frozen feed, which camera best shows an incident, and a second look at a city's leading cameras judged side by side. Every answer is gated on its confidence, moves the score only within fixed bounds, and never lowers a floor.
-- **People's attention.** Which would you watch? fits a Bradley–Terry model to your choices over the same features, so your attention is stated in the equation's own terms. Evaluate mode collects blind choices to compare the fixed equation, the baseline, with the second look.
-- **Allocation.** The wall sizes tiles by rank with a little hysteresis, so cameras either side of a cut do not swap places on noise.
+- **Anomaly.** Each picture is reduced to a small grayscale thumbnail and compared with the previous one. The size of that change is set against what the camera usually does at the same hour of the week, a baseline that is learned while the system runs. A camera doing exactly what it usually does scores 0.5, and one changing twice as much as usual reaches the maximum. A camera with little history is capped until it has more, so that a new camera does not look remarkable simply because nothing is known about it.
+- **Road size.** How much traffic the road carries comes from published traffic counts where an agency releases them, otherwise from the number of lanes and the speed limit, and otherwise from the road's class. It scales the movement term by a factor between 0.5 and 1.5, so a busy interstate ranks above a quiet street that is doing the same thing.
+- **Consequence as a floor.** An incident, a queue that could have reached a camera from further down the road, or stopped traffic confirmed on a still picture each put a minimum under the camera's score rather than adding to it. A stopped freeway and an empty one look the same to a comparison of pixels, so no weighting of movement alone could keep the stopped one on the wall.
+- **The road graph.** Cameras are matched to roads and joined into corridors that follow the direction of traffic. A queue is carried upstream only, and only as far as it could have traveled since it was reported. When something happens at one camera, the wall looks more closely at that camera's neighbors.
+- **Occasional reasoning.** Jev, a reasoning model that answers typed questions, is consulted only for cases the arithmetic cannot settle. It is asked whether a still picture shows stopped traffic, an empty road or a frozen feed, which camera shows an incident best, and, in the second look, how the leading cameras of a city compare with one another. Each answer is used only when the model is confident, moves the score only within fixed bounds, and never lowers a floor.
+- **A person's attention.** Which would you watch? fits a Bradley–Terry model to your choices using the same features, so that your attention is expressed in the equation's own terms and the two can be compared. Evaluate mode collects blind choices for comparing the equation, which serves as the baseline, with the second look.
+- **Allocation.** The wall sizes its tiles by rank and applies a little hysteresis, so that cameras on either side of a size boundary do not swap places because of noise.
 
 ## Disclaimer
 
 rt511 is an independent, non-commercial, open-source project. It is not affiliated with, endorsed by, or operated by any transportation agency. Camera images and traffic data belong to the agencies credited below and are shown as published, without modification and without any warranty of accuracy, completeness or availability. Images are held in memory only and are never stored or redistributed. Do not use while driving.
 
-The same text is on screen whenever the wall is, and every camera shows the agency it comes from, the terms it is published under, and a link to those terms.
+The same text is shown on screen whenever the wall is, and every camera shows the agency it comes from, the terms it is published under, and a link to those terms.
 
 ## Camera sources
 
-rt511 reads cameras only from agencies whose published terms allow a third-party viewer to show them, and only through the feeds those agencies publish for the purpose. A state is added when its terms say yes, not when its cameras happen to be reachable.
+rt511 reads cameras only from agencies whose published terms allow a third-party viewer to show them, and only through the feeds those agencies publish for that purpose. A state is added when its terms permit it, not when its cameras merely happen to be reachable.
 
 | State | Agency and feed | Terms | Video |
 | --- | --- | --- | --- |
-| California | Caltrans Commercial Wholesale Web Portal (CWWP2) | [Public domain unless otherwise indicated](https://dot.ca.gov/conditions-of-use) | open HLS where published |
-| Iowa | Iowa DOT open-data Traffic Cameras layer | [CC BY 4.0](https://www.arcgis.com/home/item.html?id=c4063f200a7b4da5826e2ac86c677cf5) | open HLS where published |
-| Ohio | ODOT's OHGO Public API, your own key | [Public domain, per ODOT](https://publicapi.ohgo.com/docs/terms-of-use) | snapshots only |
-| Oregon | ODOT's TripCheck API, your own key | [Use with credit, mirroring and ODOT's disclaimer](https://www.tripcheck.com/Pages/API) | snapshots only |
-| Maine, New Hampshire, Vermont | Tri-State's New England Compass Developer Portal | [Use, reproduce and redistribute, crediting Tri-State](http://nec-por.ne-compass.com/DeveloperPortal/Home/Terms) | snapshots only |
+| California | Caltrans Commercial Wholesale Web Portal (CWWP2) | [Public domain unless otherwise indicated](https://dot.ca.gov/conditions-of-use) | Open HLS where published |
+| Iowa | Iowa DOT open-data Traffic Cameras layer | [CC BY 4.0](https://www.arcgis.com/home/item.html?id=c4063f200a7b4da5826e2ac86c677cf5) | Open HLS where published |
+| Ohio | ODOT's OHGO Public API, with your own key | [Public domain, per ODOT](https://publicapi.ohgo.com/docs/terms-of-use) | Snapshots only |
+| Oregon | ODOT's TripCheck API, with your own key | [Use with credit, mirroring and ODOT's disclaimer](https://www.tripcheck.com/Pages/API) | Snapshots only |
+| Maine, New Hampshire, Vermont | Tri-State's New England Compass Developer Portal | [Use, reproduce and redistribute, crediting Tri-State](http://nec-por.ne-compass.com/DeveloperPortal/Home/Terms) | Snapshots only |
 
-Oregon's terms require its disclaimer to be repeated wherever its cameras are credited, so it appears in full with every Oregon camera. Ohio's terms cap each key at a published request rate, and this project stays well under it. Maine, New Hampshire and Vermont publish every camera's picture in one document per state, 5 to 10 MB, so the server fetches it at most once every five minutes and only while a city there is open.
+Oregon's terms require its disclaimer to be repeated wherever its cameras are credited, so it appears in full with every Oregon camera. Ohio's terms cap each key at a published request rate, and this project stays well below it. Maine, New Hampshire and Vermont publish every camera's picture in a single document per state, of 5 to 10 MB, so the server fetches it at most once every five minutes and only while a city there is open.
 
-States that are not listed either publish no terms permitting a third-party viewer, limit their content to individual use, or grant permission only through an agreement each user would have to apply for. They are left out rather than read in a way their owner has not agreed to.
+States that are not listed either publish no terms that permit a third-party viewer, limit their content to individual use, or grant permission only through an agreement that each user would have to apply for. They are left out rather than read in a way their owners have not agreed to.
 
-Road geometry is © OpenStreetMap contributors under the ODbL. State boundaries come from Natural Earth and are public domain. There's deliberately no tile layer anywhere: the volunteer-run OpenStreetMap tile servers aren't meant to be an app's background, so roads are drawn as vectors from the cached extract instead.
+Road geometry is © OpenStreetMap contributors under the ODbL. State boundaries come from Natural Earth and are in the public domain. There is deliberately no map tile layer anywhere, because the volunteer-run OpenStreetMap tile servers are not meant to serve as an application's background. Roads are instead drawn as vectors from the cached extract.
 
 Each person runs their own copy on their own machine. Nothing is hosted, and no camera data passes through anyone else.
 
-If you have your own arrangement with an agency that is not listed, for instance a developer key whose terms need the agency's written consent before any public use, you can run it on your machine without it ever reaching a commit: see [Local sources](docs/sources.md#local-sources).
+If you have your own arrangement with an agency that is not listed, for instance a developer key whose terms require the agency's written consent before any public use, you can run it on your own machine without it ever reaching a commit. See [Local sources](docs/sources.md#local-sources).
 
 ## License
 
 rt511's own code is released under the MIT License, in `LICENSE`.
 
-That licence covers the code in this repository and nothing it reads. Camera imagery belongs to the state Departments of Transportation that publish it, road geometry is © OpenStreetMap contributors under the ODbL, and state boundaries come from Natural Earth in the public domain, as described above.
+That license covers the code in this repository and nothing it reads. Camera imagery belongs to the state departments of transportation that publish it, road geometry is © OpenStreetMap contributors under the ODbL, and state boundaries come from Natural Earth in the public domain, as described above.
 
-The optional vehicle detector is designed to run Ultralytics YOLO26, whose code and model weights are licensed under AGPL-3.0. Those weights are not part of this repository and are never committed. They live in the git-ignored `data/models/` folder, and without them the detector switches itself off and everything else runs exactly as before. If you run rt511 with the YOLO26 weights, that deployment has to meet the AGPL-3.0 terms, which include making the source of the running service available. MIT code can be combined with AGPL code, so this repository's source already satisfies that for an unmodified copy. If you need the whole stack under permissive licences, use a permissively licensed detector in place of YOLO26.
+The optional vehicle detector is designed to run Ultralytics YOLO26, whose code and model weights are licensed under AGPL-3.0. Those weights are not part of this repository and are never committed. They live in the git-ignored `data/models/` folder, and without them the detector switches itself off and everything else runs exactly as before. If you run rt511 with the YOLO26 weights, that deployment has to meet the terms of AGPL-3.0, which include making the source of the running service available. MIT code can be combined with AGPL code, so this repository's source already satisfies that requirement for an unmodified copy. If you need the whole stack under permissive licenses, use a permissively licensed detector in place of YOLO26.
