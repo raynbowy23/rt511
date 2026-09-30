@@ -2,7 +2,7 @@
 //
 // No pictures are drawn. Each camera is given a scripted series of frame differences, which is all the scorer reads from a picture, and the scenarios drive rt511's own scoring code from server/dist, so what is measured is the running implementation. Time is simulated, a week of ordinary history is laid down first so every camera has an hour-of-week profile, and nothing contacts an agency.
 //
-//   make bench-synthetic                 every ranking except Jev
+//   make bench-synthetic                 every ranking except Jev, at picture cadences of 15 s, 1, 2 and 5 minutes
 //   make bench-synthetic JEV=1           adds the Jev arm to the stopped-traffic scenario (paid calls, JEV_API from .env)
 //
 // Results are printed and written to out/bench/synthetic-<timestamp>.json.
@@ -25,7 +25,10 @@ const { JEV, buildGateState, createGateAsk } = await import(join(DIST, 'jev.js')
 const K = 8; // tiles on the wall
 const SEEDS = Number(process.env.SEEDS ?? 30);
 const JEV_SEEDS = Number(process.env.JEV_SEEDS ?? 5);
-const STEP_S = 60; // one picture a minute per camera
+const TICK_S = 15; // the simulation's clock; every cadence below is a whole number of ticks
+// How often each camera gets a new picture, in seconds: video sampled every 15 s as Iowa's streams allow, a picture a minute as Ohio's wall polls, every two minutes as Oregon's and New England's pictures change, and every five as Caltrans publishes.
+const CADENCES = (process.env.CADENCES ?? '15,60,120,300').split(',').map(Number);
+const MAIN_CADENCE = 60; // the one the full tables and the Jev arms use
 const LEAD_MIN = 10; // ordinary minutes before the event
 const WINDOW_MIN = 40; // minutes watched after it
 const WAVE_MS = (15 * 1000) / 3600; // stopping wave, 15 km/h in meters per second
@@ -167,8 +170,9 @@ function distanceM(a, b) {
   return Math.hypot(dx, dy);
 }
 
-async function run(scenario, seed, jevAsk) {
+async function run(scenario, seed, jevAsk, cadence) {
   const random = rng(seed * 7919 + scenario.key.length);
+  const every = cadence / TICK_S;
   const cams = scenarioCameras(scenario);
   const priors = new Map([...cams.values()].map((c) => [c.uid, { prior: c.prior, source: 'class', aadt: null, distance_m: null, aligned: null, highway: c.freeway ? 'motorway' : 'primary' }]));
   const tmp = join(REPO, 'out/bench/tmp');
@@ -228,7 +232,7 @@ async function run(scenario, seed, jevAsk) {
   const verdictsByArm = { 'equation-jev': new Map(), 'equation-jev-count': new Map() };
   const askedAtByArm = { 'equation-jev': new Map(), 'equation-jev-count': new Map() };
   // The confirmed arm answers "stopped" with certainty for the target from the minute after onset, and keeps answering it, as the arbiter re-asks every five minutes: the best any arbiter could do.
-  const confirmedGate = (uid, now) => (scenario.jev && scenario.targets.includes(uid) && now >= onset + STEP_S ? { value: JEV.GRIDLOCK_FLOOR, at: now, influence: { standstill: 1, frozen: 0, floor: JEV.GRIDLOCK_FLOOR, gated: [], model: 'confirmed' } } : null);
+  const confirmedGate = (uid, now) => (scenario.jev && scenario.targets.includes(uid) && now >= onset + TICK_S ? { value: JEV.GRIDLOCK_FLOOR, at: now, influence: { standstill: 1, frozen: 0, floor: JEV.GRIDLOCK_FLOOR, gated: [], model: 'confirmed' } } : null);
   const gateFrom = (verdicts) => (uid, now) => {
     const v = verdicts.get(uid);
     if (!v || now < v.at) return null;
@@ -247,10 +251,18 @@ async function run(scenario, seed, jevAsk) {
   const rankAtEnd = Object.fromEntries(rankers.map((r) => [r.key, new Map()]));
   const ids = [...cams.keys()].sort((a, b) => a - b);
   let calls = 0;
+  // Each camera's pictures arrive on its own offset, as real cameras' do, rather than all at once.
+  const phase = new Map(ids.map((uid) => [uid, Math.floor(random() * every)]));
+  // Shown means on the wall for STEADY_MIN minutes and across two of the camera's own pictures, whichever is longer. With slow pictures the ranking hardly changes, so three minutes alone would let a camera that landed on the wall by chance count as shown.
+  const steadyTicks = Math.max((STEADY_MIN * 60) / TICK_S, 2 * every);
+  const lastTick = (WINDOW_MIN * 60) / TICK_S - 1;
+  const randomScores = new Map();
 
-  for (let minute = -LEAD_MIN; minute < WINDOW_MIN; minute++) {
-    const t = onset + minute * STEP_S;
+  for (let tick = (-LEAD_MIN * 60) / TICK_S; tick <= lastTick; tick++) {
+    const t = onset + tick * TICK_S;
+    const minute = (tick * TICK_S) / 60;
     for (const c of cams.values()) {
+      if ((((tick + phase.get(c.uid)) % every) + every) % every !== 0) continue;
       const scripted = minute >= 0 && c.during ? c.during(minute, random) : null;
       feed(c.uid, noisy(random, scripted ?? c.usual), t);
     }
@@ -274,7 +286,7 @@ async function run(scenario, seed, jevAsk) {
         const answer = await jevAsk(state);
         calls++;
         const verdicts = verdictsByArm[arm];
-        verdicts.set(uid, { ...answer.verdict, at: t + STEP_S });
+        verdicts.set(uid, { ...answer.verdict, at: t + TICK_S });
         if (process.env.DEBUG) console.log('JEV', arm, 'seed', seed, 'minute', minute, 'uid', uid, JSON.stringify(answer.verdict));
         }
       }
@@ -282,9 +294,13 @@ async function run(scenario, seed, jevAsk) {
 
     for (const r of rankers) {
       let scores;
-      if (r.key === 'random') scores = new Map(ids.map((uid) => [uid, random()]));
-      else if (r.key === 'round-robin') {
-        const offset = (((minute + LEAD_MIN) * K) % ids.length + ids.length) % ids.length;
+      if (r.key === 'random') {
+        // Reshuffled once per picture period, so that at every cadence it shows what chance alone would.
+        const key = Math.floor(tick / every);
+        if (!randomScores.has(key)) randomScores.set(key, new Map(ids.map((uid) => [uid, random()])));
+        scores = randomScores.get(key);
+      } else if (r.key === 'round-robin') {
+        const offset = (((Math.floor(minute) + LEAD_MIN) * K) % ids.length + ids.length) % ids.length;
         scores = new Map(ids.map((uid, i) => [uid, (i - offset + ids.length) % ids.length < K ? 1 : 0]));
       } else if (r.key === 'motion') scores = new Map(ids.map((uid) => [uid, slots.get(uid).latest.diff]));
       else if (r.key === 'activity') scores = new Map(ids.map((uid) => [uid, slots.get(uid).activity(null) ?? 0]));
@@ -303,20 +319,20 @@ async function run(scenario, seed, jevAsk) {
       }
       // Ties broken by camera id, the same way every time, so no ranker is flattered by luck in a tie.
       const order = [...scores.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).map(([uid]) => uid);
-      if (minute >= 0) {
+      if (tick >= 0) {
         const wall = new Set(order.slice(0, K));
         for (const uid of ids) {
           const run = wall.has(uid) ? (streak[r.key].get(uid) ?? 0) + 1 : 0;
           streak[r.key].set(uid, run);
           if (wall.has(uid)) onWall[r.key].set(uid, (onWall[r.key].get(uid) ?? 0) + 1);
-          // Counted from the start of the stretch, so a camera shown from the first minute scores 0.
-          if (run === STEADY_MIN && !seen[r.key].has(uid)) seen[r.key].set(uid, minute - STEADY_MIN + 1);
+          // Counted in minutes from the start of the stretch, so a camera shown from the first moment scores 0.
+          if (run === steadyTicks && !seen[r.key].has(uid)) seen[r.key].set(uid, ((tick - steadyTicks + 1) * TICK_S) / 60);
         }
       }
-      if (minute === WINDOW_MIN - 1) order.forEach((uid, i) => rankAtEnd[r.key].set(uid, i + 1));
+      if (tick === lastTick) order.forEach((uid, i) => rankAtEnd[r.key].set(uid, i + 1));
     }
   }
-  return { seen, onWall, floored, rankAtEnd, calls, rankers: rankers.map((r) => r.key) };
+  return { seen, onWall, windowTicks: lastTick + 1, floored, rankAtEnd, calls, rankers: rankers.map((r) => r.key) };
 }
 
 // ---------------------------------------------------------------- aggregation
@@ -338,14 +354,16 @@ async function main() {
     jevAsk = createGateAsk(key);
   }
 
-  const results = [];
+  const byCadence = new Map();
   let totalCalls = 0;
+  for (const cadence of CADENCES) {
+  const results = [];
   for (const scenario of SCENARIOS) {
     const perRanker = new Map();
     for (let seed = 1; seed <= SEEDS; seed++) {
-      // Jev is paid for per call, so its arm runs on fewer seeds, the same first ones.
-      const withJev = jevAsk && scenario.jev && seed <= JEV_SEEDS ? jevAsk : null;
-      const out = await run(scenario, seed, withJev);
+      // Jev is paid for per call, so its arms run on fewer seeds, the same first ones, and only at the main cadence.
+      const withJev = jevAsk && scenario.jev && seed <= JEV_SEEDS && cadence === MAIN_CADENCE ? jevAsk : null;
+      const out = await run(scenario, seed, withJev, cadence);
       totalCalls += out.calls;
       for (const key of out.rankers) {
         const bucket = perRanker.get(key) ?? { runs: 0, tts: [], surfaced: 0, coverage: [], queue: {}, distractorFloored: 0, rankAtEnd: [] };
@@ -357,7 +375,7 @@ async function main() {
         }
         for (const uid of scenario.queue ?? []) {
           const q = (bucket.queue[uid] ??= { surfaced: 0, tts: [], floored: 0, coverage: [] });
-          q.coverage.push((out.onWall[key].get(uid) ?? 0) / WINDOW_MIN);
+          q.coverage.push((out.onWall[key].get(uid) ?? 0) / out.windowTicks);
           if (out.seen[key].has(uid)) {
             q.surfaced++;
             q.tts.push(out.seen[key].get(uid));
@@ -366,17 +384,20 @@ async function main() {
         }
         if ((scenario.distractors ?? []).some((uid) => out.floored[key].has(uid))) bucket.distractorFloored++;
         bucket.rankAtEnd.push(out.rankAtEnd[key].get(scenario.targets[0]));
-        bucket.coverage.push((out.onWall[key].get(scenario.targets[0]) ?? 0) / WINDOW_MIN);
+        bucket.coverage.push((out.onWall[key].get(scenario.targets[0]) ?? 0) / out.windowTicks);
         perRanker.set(key, bucket);
       }
     }
     results.push({ scenario, perRanker });
   }
+  byCadence.set(cadence, results);
+  }
+  const results = byCadence.get(MAIN_CADENCE) ?? byCadence.get(CADENCES[0]);
 
   // ---- print
   const cams = (s) => s.cameras.length;
   const lines = [];
-  lines.push(`Synthetic benchmark: ${SEEDS} runs per scenario${jevAsk ? `, Jev arm on the first ${JEV_SEEDS}` : ''}, ${K} tiles on the wall, one picture a minute, ${WINDOW_MIN} minutes after each event, ${HISTORY_WEEKS} weeks of history. A camera counts as shown once it stays on the wall for ${STEADY_MIN} minutes in a row.`);
+  lines.push(`Synthetic benchmark: ${SEEDS} runs per scenario${jevAsk ? `, Jev arm on the first ${JEV_SEEDS}` : ''}, ${K} tiles on the wall, one picture every ${byCadence.has(MAIN_CADENCE) ? MAIN_CADENCE : CADENCES[0]} s per camera, ${WINDOW_MIN} minutes after each event, ${HISTORY_WEEKS} weeks of history. A camera counts as shown once it stays on the wall for ${STEADY_MIN} minutes in a row, or across two of its own pictures if that is longer.`);
   for (const { scenario, perRanker } of results) {
     lines.push('');
     lines.push(`## ${scenario.title} (${cams(scenario)} cameras)`);
@@ -397,6 +418,29 @@ async function main() {
       lines.push(row);
     }
   }
+  // How the same scenarios fare when pictures arrive more or less often.
+  if (byCadence.size > 1) {
+    const label = (c) => (c < 60 ? `every ${c} s` : `every ${c / 60} min`);
+    const shown = ['random', 'motion', 'activity', 'equation'];
+    lines.push('');
+    lines.push('## How often pictures arrive');
+    lines.push(`Each cell gives how many of the ${SEEDS} runs showed the target, and the median minutes until it was shown. Random reshuffles once per picture period, so its row is what chance alone gives at that cadence.`);
+    for (const scenario of SCENARIOS) {
+      lines.push('');
+      lines.push(`### ${scenario.title}`);
+      lines.push('');
+      lines.push(`| Ranking | ${[...byCadence.keys()].map(label).join(' | ')} |`);
+      lines.push(`| --- |${[...byCadence.keys()].map(() => ' --- |').join('')}`);
+      for (const key of shown) {
+        const cells = [...byCadence.values()].map((res) => {
+          const b = res.find((x) => x.scenario.key === scenario.key).perRanker.get(key);
+          const tts = median(b.tts);
+          return `${b.surfaced} of ${b.runs}${tts === null ? '' : `, ${tts} min`}`;
+        });
+        lines.push(`| ${RANKERS.find((r) => r.key === key).label} | ${cells.join(' | ')} |`);
+      }
+    }
+  }
   lines.push('');
   lines.push(`Jev calls made: ${totalCalls}.`);
   console.log(lines.join('\n'));
@@ -409,8 +453,8 @@ async function main() {
     file,
     JSON.stringify(
       {
-        settings: { K, SEEDS, JEV_SEEDS: jevAsk ? JEV_SEEDS : 0, STEP_S, LEAD_MIN, WINDOW_MIN, HISTORY_WEEKS, STEADY_MIN, rubric_version: JEV.RUBRIC_VERSION },
-        results: results.map(({ scenario, perRanker }) => ({ scenario: scenario.key, title: scenario.title, cameras: scenario.cameras.length, rankers: Object.fromEntries(perRanker) })),
+        settings: { K, SEEDS, JEV_SEEDS: jevAsk ? JEV_SEEDS : 0, TICK_S, CADENCES, MAIN_CADENCE, LEAD_MIN, WINDOW_MIN, HISTORY_WEEKS, STEADY_MIN, rubric_version: JEV.RUBRIC_VERSION },
+        results: Object.fromEntries([...byCadence].map(([cadence, res]) => [cadence, res.map(({ scenario, perRanker }) => ({ scenario: scenario.key, title: scenario.title, cameras: scenario.cameras.length, rankers: Object.fromEntries(perRanker) }))])),
         jev_calls: totalCalls,
         report: lines.join('\n'),
       },
