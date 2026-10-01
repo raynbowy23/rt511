@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 426" width="900" height="426" font-family="Inter, Segoe UI, Helvetica, Arial, sans-serif">
+<rect width="900" height="426" fill="#ffffff"/>
+<text x="28" y="34" font-size="15" font-weight="700" fill="#1d2530">Result 2. Live trace. What put each of the top places on the wall, as run and with the planned-work rule</text>
+<line x1="300" y1="88" x2="300" y2="306" stroke="#e6ebf0"/>
+<text x="300" y="324" text-anchor="middle" font-size="12" fill="#5d6b7d">0%</text>
+<line x1="440" y1="88" x2="440" y2="306" stroke="#e6ebf0"/>
+<text x="440" y="324" text-anchor="middle" font-size="12" fill="#5d6b7d">25%</text>
+<line x1="580" y1="88" x2="580" y2="306" stroke="#e6ebf0"/>
+<text x="580" y="324" text-anchor="middle" font-size="12" fill="#5d6b7d">50%</text>
+<line x1="720" y1="88" x2="720" y2="306" stroke="#e6ebf0"/>
+<text x="720" y="324" text-anchor="middle" font-size="12" fill="#5d6b7d">75%</text>
+<line x1="860" y1="88" x2="860" y2="306" stroke="#e6ebf0"/>
+<text x="860" y="324" text-anchor="middle" font-size="12" fill="#5d6b7d">100%</text>
+<text x="286" y="111" text-anchor="end" font-size="12.5" fill="#1d2530">As run</text>
+<text x="286" y="127" text-anchor="end" font-size="12" fill="#5d6b7d">without the wall’s limit</text>
+<rect x="300" y="96" width="439.6774193548387" height="34" fill="#b4541a"/>
+<text x="519.8387096774194" y="117" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">79%</text>
+<rect x="739.6774193548388" y="96" width="119.83870967741936" height="34" fill="#e3a77f"/>
+<text x="799.5967741935484" y="117" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">21%</text>
+<rect x="859.5161290322582" y="96" width="0.4838709677419355" height="34" fill="#1f6feb"/>
+<text x="286" y="167" text-anchor="end" font-size="12.5" fill="#1d2530">As run</text>
+<text x="286" y="183" text-anchor="end" font-size="12" fill="#5d6b7d">limit of 6 held cameras</text>
+<rect x="300" y="152" width="329.5161290322581" height="34" fill="#b4541a"/>
+<text x="464.758064516129" y="173" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">59%</text>
+<rect x="629.516129032258" y="152" width="90.48387096774192" height="34" fill="#e3a77f"/>
+<text x="674.758064516129" y="173" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">16%</text>
+<rect x="720" y="152" width="140" height="34" fill="#1f6feb"/>
+<text x="790" y="173" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">25%</text>
+<text x="286" y="223" text-anchor="end" font-size="12.5" fill="#1d2530">Replayed, planned work without a floor</text>
+<text x="286" y="239" text-anchor="end" font-size="12" fill="#5d6b7d">without the wall’s limit</text>
+<rect x="300" y="208" width="560" height="34" fill="#1f6feb"/>
+<text x="580" y="229" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">100%</text>
+<text x="286" y="279" text-anchor="end" font-size="12.5" fill="#1d2530">Replayed, planned work without a floor</text>
+<text x="286" y="295" text-anchor="end" font-size="12" fill="#5d6b7d">limit of 6 held cameras</text>
+<rect x="300" y="264" width="560" height="34" fill="#1f6feb"/>
+<text x="580" y="285" text-anchor="middle" font-size="12" font-weight="600" fill="#ffffff">100%</text>
+<rect x="300" y="360" width="12" height="12" fill="#b4541a"/>
+<text x="318" y="370" text-anchor="start" font-size="12" fill="#1d2530">Incident floor</text>
+<rect x="450" y="360" width="12" height="12" fill="#e3a77f"/>
+<text x="468" y="370" text-anchor="start" font-size="12" fill="#1d2530">Queue floor</text>
+<rect x="600" y="360" width="12" height="12" fill="#1f6feb"/>
+<text x="618" y="370" text-anchor="start" font-size="12" fill="#1d2530">Movement alone</text>
+<text x="28" y="404" text-anchor="start" font-size="12" fill="#5d6b7d">columbus-oh, 2026-09-30 21:05 to 22:52 local, 434 rankings, top 8 places. 85% of replayed places are certain against cameras below the logged top 30.</text>
+</svg>

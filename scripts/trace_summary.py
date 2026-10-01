@@ -1,8 +1,8 @@
 """Summarize a live trace from the server's own logs: what reached the top of the wall, what held it there, what the arbiter did, and what the run cost the agency.
 
-    uv run python scripts/trace_summary.py --since 2026-09-30T21:05 --until 2026-09-30T23:05 [--region columbus-oh] [--server-log path] [--top 8] [--cap 6] [--without-planned-work]
+    uv run python scripts/trace_summary.py --since 2026-09-30T21:05 --until 2026-09-30T23:05 [--region columbus-oh] [--server-log path] [--top 8] [--cap 6] [--without-planned-work] [--json path]
 
-Reads out/attention-<date>.jsonl, the decision log of the top 30 cameras every 10 seconds, and out/jev-<date>.jsonl, every arbiter call. Times are local, as the logs are named. With --server-log, the periodic "load:" lines the server prints give the request rate and data volume. Nothing is written; it prints Markdown.
+Reads out/attention-<date>.jsonl, the decision log of the top 30 cameras every 10 seconds, and out/jev-<date>.jsonl, every arbiter call. Times are local, as the logs are named. With --server-log, the periodic "load:" lines the server prints give the request rate and data volume. It prints Markdown, and with --json it also writes the top-place figures to a file, which scripts/result_figures.mjs draws.
 
 With --without-planned-work, each logged ranking is replayed as the server now scores it, with no floor from a planned-work record, so a trace recorded before that rule can be compared with the rule on the same pictures. Only the logged top 30 can be rescored. A camera outside it scored no higher than the 30th logged camera then and scores no higher now, so a replayed place is certain when its new score is at least that bound, and the replay says how many places are.
 """
@@ -91,6 +91,7 @@ def main() -> None:
     parser.add_argument("--top", type=int, default=8)
     parser.add_argument("--cap", type=int, help="held cameras allowed among the prominent tiles, half of the large and wide tiles on the wall")
     parser.add_argument("--without-planned-work", action="store_true", help="replay each ranking with no floor from planned work")
+    parser.add_argument("--json", help="also write the top-place figures here")
     parser.add_argument("--out", default="out")
     args = parser.parse_args()
     since, until = local_ts(args.since), local_ts(args.until)
@@ -106,10 +107,11 @@ def main() -> None:
     print(f"Window {args.since} to {args.until}, {len(times)} rankings logged, {len({r['id'] for r in decisions})} distinct cameras in the logged top 30.\n")
 
     # What held the top of the wall.
-    held_share, driver_counts, certain = [], collections.Counter(), 0
+    held_share, driver_counts, certain, places = [], collections.Counter(), 0, 0
     for t in times:
         top = capped(snapshots[t], args.cap)[: args.top]
         certain += sum(score >= bounds[t] for score, _ in top)
+        places += len(top)
         held_share.append(sum(score > BAND for score, _ in top) / max(1, len(top)))
         for score, r in top:
             if score <= BAND:
@@ -124,11 +126,28 @@ def main() -> None:
         how = f" with at most {args.cap} held cameras kept ahead, as the wall applies" if args.cap is not None else ", as logged, without the wall's cap"
         print(f"Top {args.top} places{how}" + (", replayed with no floor from planned work." if args.without_planned_work else "."))
         if args.without_planned_work:
-            places = sum(min(args.top, len(snapshots[t])) for t in times)
             print(f"Replayed places certain against the unlogged cameras: {certain / max(1, places):.0%}.")
         print(f"Share of the top {args.top} places held by a floor: median {statistics.median(held_share):.0%}, maximum {max(held_share):.0%}.")
         total = sum(driver_counts.values())
         print("What put each top place there: " + ", ".join(f"{k} {v / total:.0%}" for k, v in driver_counts.most_common()) + ".\n")
+        if args.json:
+            with open(args.json, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "region": args.region,
+                        "since": args.since,
+                        "until": args.until,
+                        "rankings": len(times),
+                        "top": args.top,
+                        "cap": args.cap,
+                        "without_planned_work": args.without_planned_work,
+                        "held_share_median": statistics.median(held_share),
+                        "drivers": {k: v / total for k, v in driver_counts.items()},
+                        "certain": certain / max(1, places) if args.without_planned_work else None,
+                    },
+                    handle,
+                    indent=2,
+                )
 
     incidents = collections.Counter(r["incident"] for r in decisions if r.get("incident"))
     queues = collections.Counter(r["queue"]["incident"] for r in decisions if r.get("queue"))
