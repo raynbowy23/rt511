@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
-import type { ScoreCamera, ScoresResponse } from '@rt511/shared';
+import { SCORE, isHeld, type ScoreCamera, type ScoresResponse } from '@rt511/shared';
 import { getScores } from '../api';
 import { HoverCard } from './HoverCard';
 
@@ -30,7 +30,8 @@ function CameraExplanation({ camera, tuning }: { camera: ScoreCamera; tuning: Sc
     )}
     <p>Road scale {number(a.scale_prior)} comes from {{ aadt: 'published traffic counts', capacity: 'road capacity from tagged lanes and speed', class: 'road class', default: 'the default for an unplaced camera' }[a.scale_prior_source]}.</p>
     <p>The queue floor is inferred from an incident or confirmed stopped traffic further down the road. It shrinks with road distance and grows as a queue could have reached this camera.</p>
-    <p>Queue floor {number(a.queue_floor)}. Incident floor {number(a.incident_floor)}. Stopped traffic floor {number(a.gate?.floor ?? 0)}. {driverLabel[camera.driver]} wins. A floor wins a tie because the score cannot drop below it. The result is limited to 0 through 1.</p>
+    <p>Queue floor {number(a.queue_floor)}. Incident floor {number(a.incident_floor)}. Stopped traffic floor {number(a.gate?.floor ?? 0)}. {driverLabel[camera.driver]} sets the level, and a floor wins a tie.</p>
+    <p>{isHeld(camera.attention) ? <>A floor of at least {SCORE.FLOOR_HOLD_MIN} holds this camera in the upper band, from {SCORE.BAND} to 1, so it ranks above every camera without one.</> : <>No floor of {SCORE.FLOOR_HOLD_MIN} or more holds this camera, so it scores in the lower band, from 0 to {SCORE.BAND}, and ranks among the cameras with none.</>} The score is {number(camera.attention)}.</p>
   </>;
 }
 

@@ -1,12 +1,12 @@
 /** What is worth looking at, and why.
  *
- * `activity` answers one question well: is this camera busier than it usually is. It cannot answer the two that follow from it. A residential street at twice its own median outranks an interstate at its own median, although one of them is six lanes of traffic and the other is a car. And a camera that has just gone still is scored the same whether the road emptied or the feed froze.
+ * `activity` answers one question well, whether this camera is busier than it usually is. It cannot answer the two that follow from it. A residential street at twice its own median outranks an interstate at its own median, although one carries six lanes of traffic and the other a car. And a camera whose traffic has stopped scores like a camera whose road is empty.
  *
- * So the score here is built from three axes that are kept apart and reported apart. `anomaly` is the old measure with a better baseline: what this camera does at this hour of this day, shrunk towards the rolling median until the hour has enough samples to speak for itself. `spectacle` is how much the camera matters at all, from published traffic counts where a state publishes them and from road capacity or class elsewhere. `incidentFloor` is the state patrol saying something is happening here, which puts a floor under the camera that decays as the incident ages.
+ * So the score is built from parts that are kept apart and reported apart. `anomaly` is movement against this camera's own profile for this hour of the week, shrunk toward the rolling median until the hour has enough samples of its own. The road-size amplifier scales that movement by how much traffic the road carries. Three floors carry consequence, an incident record nearby, a queue that could have reached the camera from further down the road, and stopped traffic confirmed by the arbiter on a still picture.
  *
- * The frozen-camera question is not answered. It is only recorded: AMBIGUOUS_ZERO marks a frame that changed by nothing in an hour that usually moves. Nothing acts on it, because acting on it either way would be a guess, and the flag exists to find out how often the guess would have to be made. */
+ * The combination is lexicographic, in `combineAttention`. A camera held by a floor of at least `SCORE.FLOOR_HOLD_MIN` scores in an upper band, above every camera that is not, and within each band the larger of its movement and its floor sets the level. */
 
-import { SCORE, type AttentionAxes, type ScoreCamera, type ScoreDriver, type ScoreRegion, type CameraState, type GateInfluence, type Graph, type Incident, type JevInfluence, type ReviewInfluence, type ScalePriorSource, type Site, type Snap } from '../../shared/src/index.js';
+import { SCORE, combineAttention, type AttentionAxes, type ScoreCamera, type ScoreDriver, type ScoreRegion, type CameraState, type GateInfluence, type Graph, type Incident, type JevInfluence, type ReviewInfluence, type ScalePriorSource, type Site, type Snap } from '../../shared/src/index.js';
 import { CAMERA_RADIUS_KM, distanceKm } from './cad.js';
 import { loadAadt, round } from './config.js';
 import { CORRIDOR } from './corridor.js';
@@ -63,8 +63,14 @@ export const TUNING = {
   FLOOR_OTHER: 0,
   /** An upstream queue is inferred rather than seen, so it receives only sixty percent of the scene floor. */
   UPSTREAM_SHARE: 0.6,
-  /** The floor halves every half hour. A crash is worth interrupting the wall for; the same crash two hours later is not. */
+  /** A record keeps its full floor for this long after it is reported. A feed lists a record only while it is open, so for the first hour the record's presence is the evidence that it still matters, and a decay over that hour pulled a crash camera below ordinary busy freeways within minutes. */
+  INCIDENT_FULL_S: 3600,
+  /** After the full hour, the floor halves every half hour, so a record a dispatcher has left open for days does not hold a camera on the wall for days. */
   INCIDENT_HALF_LIFE_S: 1800,
+  /** A picture changing at least this many times as much as its hour-of-week cell expects is an event, not a sample of the usual, and is not folded into the cell. Twice the cell is where anomaly saturates. */
+  LEARN_SKIP_RATIO: 2,
+  /** An unusual level that lasts this long is accepted as the new usual and folded in again, so a lasting change such as a work zone does not read as an event forever. */
+  LEARN_RESUME_S: 10800,
   /** Inside this distance the camera is treated as looking straight at the incident. */
   INCIDENT_NEAR_KM: 0.25,
   /** What is left of the floor at the edge of the linking radius, tapering linearly from the near distance out to it. A camera 1.5 km away may be pointed at the right road, which is why it is not zero. */
@@ -130,6 +136,8 @@ export class AttentionEngine {
   private readonly flagged = new Map<number, boolean>();
   /** The hour-of-week cell each camera's newest poll fell in, as it stood before that poll was folded into it. A frame has to be judged against the hour it arrived into rather than the hour it has already changed, or a camera that suddenly moves raises the very expectation it is being measured against and reads as less of a surprise than it is. */
   private readonly beforeLatest = new Map<number, { cell: number; n: number; mean: number; m2: number }>();
+  /** When each camera's current run of unusual pictures began, for the learning rule in `observe`. */
+  private readonly unusualSince = new Map<number, number>();
   private polls = 0;
   private flagCount = 0;
   private readonly pollsByHour = new Int32Array(24);
@@ -164,7 +172,8 @@ export class AttentionEngine {
     let profile = this.profiles.get(slot.uid);
     if (!profile) this.profiles.set(slot.uid, (profile = new Profile()));
     this.beforeLatest.set(slot.uid, { cell, n: profile.n[cell] as number, mean: profile.mean[cell] as number, m2: profile.m2[cell] as number });
-    const expects = (profile.n[cell] as number) >= TUNING.AMBIGUOUS_MIN_SAMPLES && (profile.mean[cell] as number) > TUNING.AMBIGUOUS_EXPECT_DIFF;
+    const known = (profile.n[cell] as number) >= TUNING.AMBIGUOUS_MIN_SAMPLES;
+    const expects = known && (profile.mean[cell] as number) > TUNING.AMBIGUOUS_EXPECT_DIFF;
     const flag = diff <= ACTIVITY_FLOOR && expects;
     this.flagged.set(slot.uid, flag);
     this.polls++;
@@ -172,6 +181,15 @@ export class AttentionEngine {
     if (flag) {
       this.flagCount++;
       this.flagsByHour[hour] = (this.flagsByHour[hour] as number) + 1;
+    }
+    // An event is not folded into the usual. A picture well above what the cell expects, or a stillness the cell does not expect, is left out, so a camera that sends pictures four times as often does not absorb an ongoing event four times as fast. An unusual level lasting LEARN_RESUME_S is accepted as the new usual.
+    const unusual = flag || (known && diff >= TUNING.LEARN_SKIP_RATIO * (profile.mean[cell] as number));
+    if (unusual) {
+      const since = this.unusualSince.get(slot.uid) ?? now;
+      this.unusualSince.set(slot.uid, since);
+      if (now - since < TUNING.LEARN_RESUME_S) return;
+    } else {
+      this.unusualSince.delete(slot.uid);
     }
     profile.add(cell, diff);
   }
@@ -258,10 +276,13 @@ export class AttentionEngine {
     // Nothing is known about this camera yet and no incident is pointing at it, so it has no score rather than a score of zero: a camera that has not returned a frame and one that has returned a still frame are different things and the wall treats them differently.
     if (anomaly === null && floor.value === 0 && queued.value === 0 && gateValue === 0) return { attention: null, axes };
     const movement = amplifier * (TUNING.WEIGHT_ANOMALY * (anomaly ?? 0) + TUNING.WEIGHT_SPECTACLE * (spectacle ?? 0));
+    const strongest = Math.max(floor.value, queued.value, gateValue);
     // The fixed equation on its own, kept beside the score the wall uses so the baseline stays clean however the look moves the wall.
-    axes.equation = round(clamp(Math.max(movement, floor.value, queued.value, gateValue)), 3);
-    const combined = movement * (review?.acted ? review.factor : 1);
-    return { attention: round(clamp(Math.max(combined, floor.value, queued.value, gateValue)), 3), axes };
+    axes.equation = round(combineAttention(movement, strongest), 3);
+    const looked = movement * (review?.acted ? review.factor : 1);
+    // The movement term on its own, clamped, which is what a capped ranking falls back to for a camera held by a floor.
+    axes.movement = round(clamp(looked), 3);
+    return { attention: round(combineAttention(looked, strongest), 3), axes };
   }
 
   /** One line per camera in the top of the ranking, so that a decision the wall made ten minutes ago can still be taken apart.
@@ -367,7 +388,7 @@ export function incidentFloor(ctx: FloorContext, incidents: Incident[]): { value
     if (level === 0 || incident.reported_at === null) continue;
     const age = Math.max(0, ctx.now - incident.reported_at);
     const km = distanceKm(ctx.lat, ctx.lon, incident.lat, incident.lon);
-    const plain = level * distanceFactor(km) * Math.pow(0.5, age / TUNING.INCIDENT_HALF_LIFE_S);
+    const plain = level * distanceFactor(km) * Math.pow(0.5, Math.max(0, age - TUNING.INCIDENT_FULL_S) / TUNING.INCIDENT_HALF_LIFE_S);
     const adjusted = ctx.modulate ? ctx.modulate(incident, ctx.uid, plain) : { value: plain, influence: null };
     if (adjusted.value > best) {
       best = adjusted.value;

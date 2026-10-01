@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { capHeld } from '@rt511/shared';
 import type { Camera, CameraState } from '../api';
 import type { TileRank, Tier } from '../components/Wall';
 
@@ -40,17 +41,19 @@ export function useWallRanking(
   return useMemo(() => {
     void tick;
     void mode;
-    const ranked = cameras
+    const scored = cameras
       .map((camera) => {
         const state = latest.current.get(camera.id);
         const attention = state && state.attention !== null && scorer.current ? scorer.current(camera, state) : state?.attention ?? null;
-        return { camera, attention };
+        return { camera, attention, movement: state?.axes?.movement ?? 0 };
       })
-      .filter((entry) => entry.attention !== null)
-      .sort((a, b) => (b.attention as number) - (a.attention as number));
+      .filter((entry): entry is { camera: Camera; attention: number; movement: number } => entry.attention !== null)
+      .sort((a, b) => b.attention - a.attention);
 
-    const bigCount = Math.max(2, Math.round(ranked.length / 26));
-    const wideCount = Math.max(4, Math.round(ranked.length / 9));
+    const bigCount = Math.max(2, Math.round(scored.length / 26));
+    const wideCount = Math.max(4, Math.round(scored.length / 9));
+    // Cameras held by a floor take at most half of the large and wide tiles. A person's own ranking has no floors, so the cap changes nothing there.
+    const ranked = scorer.current ? scored : capHeld(scored, Math.floor((bigCount + wideCount) / 2));
     const out = new Map<number, TileRank>();
 
     ranked.forEach((entry, rank) => {

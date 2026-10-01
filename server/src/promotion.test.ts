@@ -63,7 +63,7 @@ test('a new claim pulls an existing slow timer forward including after expiry', 
 
 test('direct incident, still and established movement trigger promotion', () => {
   assert.deepEqual(promotionTrigger({ axes: axes({ incident_floor: 0.8 }) }), { reason: 'incident', strength: 0.8 });
-  assert.deepEqual(promotionTrigger({ axes: axes({ gate: { floor: 0.6, standstill: 0.9, frozen: 0, gated: [], model: 'test' } }) }), { reason: 'still', strength: 0.6 });
+  assert.deepEqual(promotionTrigger({ axes: axes({ gate: { floor: 0.6, standstill: 0.9, gated: [], model: 'test' } }) }), { reason: 'still', strength: 0.6 });
   assert.deepEqual(promotionTrigger({ axes: axes({ anomaly: CORRIDOR.PROMOTE_ANOMALY }) }), { reason: 'movement', strength: 0.9 });
 });
 

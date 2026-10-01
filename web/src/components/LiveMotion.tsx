@@ -1,7 +1,7 @@
 import { useEffect, useRef, type ReactElement } from 'react';
 import { HoverCard } from './HoverCard';
 import { period } from '../format';
-import { SCORE, type AttentionAxes } from '@rt511/shared';
+import { SCORE, combineAttention, type AttentionAxes } from '@rt511/shared';
 
 // The same constants the server scores with, from the shared package, so the live line and the wall cannot drift apart.
 const { ANOMALY_AT_BASELINE, SCALE_AMPLIFIER_MIN, SCALE_AMPLIFIER_MAX } = SCORE;
@@ -70,7 +70,7 @@ class MotionTrack {
     const median = this.count % 2 ? this.sorted[middle]! : (this.sorted[middle - 1]! + this.sorted[middle]!) / 2;
     /** Mirrors server/src/attention.ts with ANOMALY_AT_BASELINE at 0.5 and ALPHA_ABSOLUTE at zero, so spectacle equals anomaly and the two weights sum to one. Revisit this equation when that server tuning changes. */
     const anomaly = Math.min(1, ANOMALY_AT_BASELINE * diff / Math.max(median, EPSILON));
-    const score = Math.max(0, Math.min(1, Math.max(axes.scale_amplifier * (axes.review?.factor ?? 1) * anomaly, axes.incident_floor, axes.queue_floor, axes.gate?.floor ?? 0)));
+    const score = combineAttention(axes.scale_amplifier * (axes.review?.factor ?? 1) * anomaly, Math.max(axes.incident_floor, axes.queue_floor, axes.gate?.floor ?? 0));
     this.attention[this.scoreCursor] = score;
     this.times[this.scoreCursor] = nowMs;
     this.scoreCursor = (this.scoreCursor + 1) % WINDOW;
@@ -117,9 +117,10 @@ export function LiveMotion({ video, axes, active, still = null }: { video: HTMLV
     if (!sample || !a) return 'Waiting for enough new frames to measure this camera.';
     const look = a.review?.factor ?? 1;
     const movement = a.scale_amplifier * look * sample.anomaly;
-    const floor = a.gate?.floor ?? 0;
-    const winner = a.incident_floor >= movement && a.incident_floor >= floor ? 'Incident' : floor >= movement ? 'Stopped traffic' : 'Movement';
-    return `Current change ${sample.change.toFixed(5)}. Typical change ${sample.median.toFixed(5)}. Ratio ${(sample.change / Math.max(sample.median, EPSILON)).toFixed(2)} with a small noise floor. Movement ${sample.anomaly.toFixed(3)}. Road factor ${a.scale_amplifier.toFixed(3)}${look === 1 ? '' : ` and second look ${look.toFixed(2)}`} give ${movement.toFixed(3)}. Incident floor ${a.incident_floor.toFixed(3)}. Stopped traffic floor ${floor.toFixed(3)}. ${winner} wins. A floor wins a tie. The result is limited to 0 through 1.`;
+    const still = a.gate?.floor ?? 0;
+    const strongest = Math.max(a.incident_floor, a.queue_floor, still);
+    const band = strongest >= SCORE.FLOOR_HOLD_MIN ? `A floor of at least ${SCORE.FLOOR_HOLD_MIN} holds the camera in the upper band, from ${SCORE.BAND} to 1, above every camera without one.` : `With no floor of ${SCORE.FLOOR_HOLD_MIN} or more, the camera scores in the lower band, from 0 to ${SCORE.BAND}.`;
+    return `Current change ${sample.change.toFixed(5)}. Typical change ${sample.median.toFixed(5)}. Ratio ${(sample.change / Math.max(sample.median, EPSILON)).toFixed(2)} with a small noise floor. Movement ${sample.anomaly.toFixed(3)}. Road factor ${a.scale_amplifier.toFixed(3)}${look === 1 ? '' : ` and second look ${look.toFixed(2)}`} give ${movement.toFixed(3)}. Incident floor ${a.incident_floor.toFixed(3)}, queue floor ${a.queue_floor.toFixed(3)}, stopped-traffic floor ${still.toFixed(3)}. ${band} Within a band, the larger of the movement and the strongest floor sets the level.`;
   };
   const explainRef = useRef(explain);
   explainRef.current = explain;

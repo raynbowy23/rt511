@@ -1,10 +1,13 @@
-import type { BoardCamera, BoardResponse, CameraState } from '../../shared/src/index.js';
+import { capHeld, type BoardCamera, type BoardResponse, type CameraState } from '../../shared/src/index.js';
 import { driver } from './attention.js';
 import type { CatalogCamera } from './config.js';
 import { RADAR } from './radar.js';
 
 /** Thirty tiles keep the national board readable without changing which cameras the server polls. */
 export const BOARD_SIZE = 30;
+
+/** At most this many board places go to cameras held by a floor. Beyond it they compete on movement alone, so a burst of incidents in one state and the queues behind them cannot fill the national board. */
+export const BOARD_HELD_LIMIT = BOARD_SIZE / 2;
 
 /** A camera whose newest picture is older than this is left off the board. Two radar periods, so a radar anchor survives one missed sample. A camera in a city that has just been closed stops being polled, and without this its last score would sit on the national board for as long as the process ran, ranked against cameras that are live. */
 export const BOARD_MAX_AGE_S = 2 * RADAR.RADAR_PERIOD_S;
@@ -22,7 +25,15 @@ export function buildBoard(states: CameraState[], catalog: ReadonlyMap<number, C
   });
   const available = new Set(scored.map((camera) => camera.region));
   return {
-    cameras: scored.filter((camera) => (!stateFilter || camera.state === stateFilter) && (!regionFilter || camera.region === regionFilter)).sort((a, b) => b.attention - a.attention || a.id - b.id).slice(0, BOARD_SIZE),
+    cameras: capHeld(
+      scored
+        .filter((camera) => (!stateFilter || camera.state === stateFilter) && (!regionFilter || camera.region === regionFilter))
+        .sort((a, b) => b.attention - a.attention || a.id - b.id)
+        .map((camera) => ({ camera, attention: camera.attention, movement: camera.axes.movement ?? 0 })),
+      BOARD_HELD_LIMIT,
+    )
+      .slice(0, BOARD_SIZE)
+      .map((entry) => entry.camera),
     states: [...new Set(scored.map((camera) => camera.state))].sort(),
     regions: regions.filter((region) => available.has(region.key)).sort((a, b) => a.name.localeCompare(b.name)),
   };

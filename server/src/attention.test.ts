@@ -10,8 +10,8 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { after, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import type { CameraState, ScoreCamera, Graph, Incident } from '../../shared/src/index.js';
-import { AttentionEngine, TUNING, queueFloor, driver, summarizeRegions, aadtPrior, capacityPrior, buildScalePriors, classPrior, incidentFloor, scaleAmplifier } from './attention.js';
+import { SCORE, capHeld, combineAttention, isHeld, type CameraState, type ScoreCamera, type Graph, type Incident } from '../../shared/src/index.js';
+import { AttentionEngine, TUNING, hourOfWeek, queueFloor, driver, summarizeRegions, aadtPrior, capacityPrior, buildScalePriors, classPrior, incidentFloor, scaleAmplifier } from './attention.js';
 import { CORRIDOR, buildQueueIndex } from './corridor.js';
 import type { Neighbor } from './jev.js';
 import { catalogPath, graphPath, loadAadt, loadCatalog, loadGraph, loadSources } from './config.js';
@@ -179,7 +179,9 @@ test('the incident floor respects the code, the distance and the age', () => {
   // A record with no readable date cannot be aged, so it never lifts anything.
   assert.equal(incidentFloor(at(here.lat, here.lon, now), [incident({ reported_at: null })]).value, 0);
 
-  const halved = incidentFloor(at(here.lat, here.lon, now + TUNING.INCIDENT_HALF_LIFE_S), [incident({})]);
+  // A record keeps its full floor for its first hour, then halves every half hour.
+  assert.equal(incidentFloor(at(here.lat, here.lon, now + TUNING.INCIDENT_FULL_S), [incident({})]).value, TUNING.FLOOR_ROAD_RELEVANT);
+  const halved = incidentFloor(at(here.lat, here.lon, now + TUNING.INCIDENT_FULL_S + TUNING.INCIDENT_HALF_LIFE_S), [incident({})]);
   assert.ok(Math.abs(halved.value - TUNING.FLOOR_ROAD_RELEVANT / 2) < 1e-12);
 
   // A tenth of a degree of latitude is about eleven kilometers, well outside the linking radius, but the floor is a function of distance rather than of the link, so it tapers to the far factor and stops there.
@@ -328,11 +330,13 @@ test('a still camera the arbiter called stopped traffic reaches the wall', () =>
   const still = () => slot(1, [0.02, 0.02, 0.02, 0.02, 0.02], 0.0001);
   const without = engine.scorer(() => [])(still(), null);
 
-  engine.gate = () => ({ at: 0, value: 0.6, influence: { standstill: 0.9, frozen: 0.05, floor: 0.6, gated: ['frozen'], model: 'test' } });
+  engine.gate = () => ({ at: 0, value: 0.6, influence: { standstill: 0.9, floor: 0.6, gated: [], model: 'test' } });
   const with_ = engine.scorer(() => [])(still(), null);
 
   assert.ok((without.attention ?? 0) < 0.6, 'stillness on its own scores near nothing');
-  assert.equal(with_.attention, 0.6);
+  // A floor of 0.6 places the camera in the upper band, at 0.5 + 0.5 x 0.6.
+  assert.equal(with_.attention, combineAttention(0, 0.6));
+  assert.ok(isHeld(with_.attention));
   assert.equal(with_.axes?.gate?.standstill, 0.9);
   // The floor is kept apart from an incident's, because one came from a dispatcher and the other from a picture.
   assert.equal(with_.axes?.incident_floor, 0);
@@ -341,7 +345,7 @@ test('a still camera the arbiter called stopped traffic reaches the wall', () =>
 test('a gate answer that was not acted on changes no score', () => {
   const engine = new AttentionEngine(new Map(), temporaryDirectory(join(tmpdir(), 'rt511-attn-')));
   const before = engine.scorer(() => [])(slot(1, [0.02, 0.02, 0.02, 0.02, 0.02], 0.0001), null);
-  engine.gate = () => ({ at: 0, value: 0, influence: { standstill: 0.4, frozen: 0.1, floor: 0, gated: ['frozen', 'standstill'], model: 'test' } });
+  engine.gate = () => ({ at: 0, value: 0, influence: { standstill: 0.4, floor: 0, gated: ['standstill'], model: 'test' } });
   const after = engine.scorer(() => [])(slot(1, [0.02, 0.02, 0.02, 0.02, 0.02], 0.0001), null);
   assert.equal(after.attention, before.attention);
   assert.equal(after.axes?.gate?.standstill, 0.4, 'recorded all the same');
@@ -359,10 +363,10 @@ test('a second look scales movement and never a floor', () => {
   assert.equal(lifted.axes?.equation, plain.attention);
 
   // A stopped-traffic floor stands exactly as it was, however low the look puts the picture.
-  engine.gate = () => ({ at: 0, value: 0.6, influence: { standstill: 0.9, frozen: 0.05, floor: 0.6, gated: ['frozen'], model: 'test' } });
+  engine.gate = () => ({ at: 0, value: 0.6, influence: { standstill: 0.9, floor: 0.6, gated: [], model: 'test' } });
   engine.review = () => ({ level: 0, levels: 4, confidence: 0.9, factor: 0.75, acted: true, at: 0, model: 'test' });
   const floored = engine.scorer(() => [])(slot(2, [0.02, 0.02, 0.02, 0.02, 0.02], 0.0001), null);
-  assert.equal(floored.attention, 0.6);
+  assert.equal(floored.attention, combineAttention(0, 0.6));
 });
 
 function scoreAxes(): NonNullable<CameraState['axes']> {
@@ -380,13 +384,13 @@ test('driver names the incident when its floor wins', () => {
 });
 
 test('driver names stopped traffic when its floor wins', () => {
-  assert.equal(driver({ ...scoreAxes(), gate: { standstill: 1, frozen: 0, floor: 0.9, gated: [], model: 'test' } }), 'still');
+  assert.equal(driver({ ...scoreAxes(), gate: { standstill: 1, floor: 0.9, gated: [], model: 'test' } }), 'still');
 });
 
 test('driver gives floors priority over movement on a tie', () => {
   const axes = { ...scoreAxes(), anomaly: 0.6, spectacle: 0.6, scale_amplifier: 1, incident_floor: 0.6 };
   assert.equal(driver(axes), 'incident');
-  const gate = { standstill: 1, frozen: 0, floor: 0.6, gated: [], model: 'test' };
+  const gate = { standstill: 1, floor: 0.6, gated: [], model: 'test' };
   assert.equal(driver({ ...axes, incident_floor: 0, gate }), 'still');
   assert.equal(driver({ ...axes, gate }), 'incident');
 });
@@ -442,9 +446,11 @@ test('queue floors shrink with road distance and vanish at the corridor limit', 
   assert.equal(floor(4, 1500).value, 0);
 });
 
-test('an arrived queue decays with the record half-life', () => {
+test('an arrived queue holds through the first hour of its record, then decays with the record half-life', () => {
   const { floor } = queueFixture();
-  assert.ok(Math.abs(floor(2, 500 + TUNING.INCIDENT_HALF_LIFE_S).value - floor(2, 500).value / 2) < 1e-12);
+  assert.equal(floor(2, TUNING.INCIDENT_FULL_S).value, floor(2, 500).value);
+  const late = TUNING.INCIDENT_FULL_S + 100;
+  assert.ok(Math.abs(floor(2, late + TUNING.INCIDENT_HALF_LIFE_S).value - floor(2, late).value / 2) < 1e-12);
 });
 
 test('a record never propagates a queue to its named cameras', () => {
@@ -466,7 +472,7 @@ test('non-road records and missing report times infer no queue', () => {
 });
 
 test('floor ties prefer incident, then queue, then still, ahead of movement', () => {
-  const axes = { ...scoreAxes(), anomaly: 0.6, spectacle: 0.6, scale_amplifier: 1, incident_floor: 0.6, queue_floor: 0.6, gate: { standstill: 1, frozen: 0, floor: 0.6, gated: [], model: 'test' } };
+  const axes = { ...scoreAxes(), anomaly: 0.6, spectacle: 0.6, scale_amplifier: 1, incident_floor: 0.6, queue_floor: 0.6, gate: { standstill: 1, floor: 0.6, gated: [], model: 'test' } };
   assert.equal(driver(axes), 'incident');
   assert.equal(driver({ ...axes, incident_floor: 0 }), 'queue');
   assert.equal(driver({ ...axes, incident_floor: 0, queue_floor: 0 }), 'still');
@@ -476,7 +482,8 @@ test('a queue scores an unpolled camera and is carried into the ranking log', as
   const { index } = queueFixture();
   const engine = new AttentionEngine(new Map(), temporaryDirectory(join(tmpdir(), 'rt511-queue-')));
   const scored = engine.scorer(() => [], 1500, index)(slot(2), null);
-  assert.equal(scored.attention, scored.axes?.queue_floor);
+  // A camera with no picture yet scores from its floor alone, through the same banded rule.
+  assert.equal(scored.attention, Number(combineAttention(0, scored.axes?.queue_floor ?? 0).toFixed(3)));
   assert.ok((scored.attention ?? 0) > 0);
   engine.logRanking([{ ...state(2, 0), ...scored }], 1500);
   await engine.drain();
@@ -548,8 +555,8 @@ test('Welford sample deviation agrees with two-pass variance before each newest 
   const values = [.01, .03, .02, .08, .004];
   const at = 1790000000;
   const previous: number[] = [];
-  // Captured from the original scorer before adding variance, with the same fixed prior and frame sequence. The fourth frame saturated at 1 there; with the warm-up cap a camera holding five differences tops out at 0.75, and its attention scales with it from 0.8 to 0.6. The other four sit below the cap and are unchanged. Removing warmupCap restores [1, .8].
-  const fixture = [[.167, .134], [.562, .45], [.368, .294], [.75, .6], [.062, .05]];
+  // Captured from the original scorer before adding variance, with the same fixed prior and frame sequence. The fourth frame saturated at 1 there; with the warm-up cap a camera holding five differences tops out at 0.75. Since the lexicographic bands, a camera with no floor scores in the lower band, at half its movement term, so the attention column is half what it was ([.134, .45, .294, .6, .05] before the bands), while anomaly is unchanged. Removing warmupCap restores an anomaly of 1 on the fourth frame.
+  const fixture = [[.167, .067], [.562, .225], [.368, .147], [.75, .3], [.062, .025]];
   for (const [i, value] of values.entries()) {
     const camera = slot(1, [.01, .02, .03, .04, .05], value);
     engine.observe(camera, 'fresh', at);
@@ -577,4 +584,72 @@ test('ranking logs expose the cell standard deviation', async () => {
   const logged = JSON.parse(readFileSync(engine.logPath(at), 'utf8').trim());
   assert.equal(logged.baseline_sd, scored.axes?.baseline_sd);
   assert.ok(Math.abs(logged.baseline_sd - Math.sqrt(.0002)) < 1e-14);
+});
+
+/** The lexicographic bands. Consequence must outrank movement however busy the moving camera is, and the cap must stop consequence from taking every prominent place. */
+
+test('a floor outranks movement however busy the moving camera is', () => {
+  // An ordinary busy freeway, its movement term clamped at 1, against a confirmed standstill and an arrived queue.
+  const busy = combineAttention(1.4, 0);
+  assert.ok(combineAttention(0, 0.6) > busy);
+  assert.ok(combineAttention(0, TUNING.UPSTREAM_SHARE * TUNING.FLOOR_ROAD_RELEVANT) > busy);
+  assert.equal(busy, SCORE.BAND);
+  // Within a band, the larger of movement and floor sets the level.
+  assert.ok(combineAttention(0.9, 0.6) > combineAttention(0.2, 0.6));
+  // A floor below the hold threshold counts only against movement, in the lower band.
+  assert.equal(combineAttention(0, SCORE.FLOOR_HOLD_MIN / 2), (SCORE.BAND * SCORE.FLOOR_HOLD_MIN) / 2);
+  assert.ok(!isHeld(combineAttention(0, SCORE.FLOOR_HOLD_MIN / 2)));
+});
+
+test('the cap keeps at most the given number of held cameras ahead of the rest', () => {
+  const held = [0.9, 0.85, 0.8, 0.75].map((attention, i) => ({ id: i, attention, movement: 0.1 }));
+  const moving = [{ id: 10, attention: 0.45, movement: 0.9 }];
+  const ranked = capHeld([...held, ...moving], 2);
+  assert.deepEqual(ranked.slice(0, 3).map((entry) => entry.id), [0, 1, 10]);
+  // Held cameras beyond the cap compete on movement alone.
+  assert.equal(ranked[3]?.attention, SCORE.BAND * 0.1);
+  assert.equal(ranked[3]?.capped, true);
+});
+
+test('an event is not folded into the usual for its hour', () => {
+  const engine = new AttentionEngine(new Map(), ROOT);
+  const camera = slot(31);
+  const at = Date.UTC(2026, 8, 20, 12) / 1000;
+  const cell = hourOfWeek(at);
+  const feed = (diff: number, when: number): void => {
+    camera.frames.length = 0;
+    camera.frames.push({ ts: when, last_modified: null, data: Buffer.alloc(0), content_type: 'image/jpeg', brightness: 0.5, diff });
+    camera.diffs.push(diff);
+    if (camera.diffs.length > 24) camera.diffs.shift();
+    engine.observe(camera, 'fresh', when);
+  };
+  for (let i = 0; i < 10; i++) feed(0.01, at + i);
+  // Three times the usual for this hour, twenty times over. The cell keeps its mean, so the camera still reads as unusual. Folded in, the cell would have risen to about 0.023 and the anomaly fallen to about 0.6.
+  for (let i = 0; i < 20; i++) feed(0.03, at + 20 + i);
+  assert.ok(Math.abs(engine.baseline(31, null, cell).cellMean - 0.01) < 1e-12);
+  assert.ok((engine.scorer(() => [], at + 40)(camera, null).axes?.anomaly ?? 0) >= 0.85);
+  // An ordinary picture is learned as before.
+  feed(0.011, at + 60);
+  feed(0.011, at + 61);
+  assert.ok(engine.baseline(31, null, cell).cellMean > 0.01);
+});
+
+test('an unusual level that lasts is accepted as the new usual', () => {
+  const engine = new AttentionEngine(new Map(), ROOT);
+  const camera = slot(32);
+  const at = Date.UTC(2026, 8, 20, 12) / 1000;
+  const cell = hourOfWeek(at);
+  const feed = (diff: number, when: number): void => {
+    camera.frames.length = 0;
+    camera.frames.push({ ts: when, last_modified: null, data: Buffer.alloc(0), content_type: 'image/jpeg', brightness: 0.5, diff });
+    engine.observe(camera, 'fresh', when);
+  };
+  for (let i = 0; i < 10; i++) feed(0.01, at + i);
+  feed(0.03, at + 100);
+  feed(0.03, at + 101);
+  assert.ok(Math.abs(engine.baseline(32, null, cell).cellMean - 0.01) < 1e-12);
+  // The same hour a week later, with the run of unusual pictures unbroken since, is past LEARN_RESUME_S and is folded in.
+  feed(0.03, at + 7 * 86400);
+  feed(0.03, at + 7 * 86400 + 1);
+  assert.ok(engine.baseline(32, null, cell).cellMean > 0.01);
 });

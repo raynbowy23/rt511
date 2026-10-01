@@ -5,7 +5,7 @@
 export type { LatLon, LonLat } from './coords.js';
 export { asLatLon, asLonLat, latLon, lonLat, latOf, lonOf, latOfLonLat, lonOfLonLat, toLatLon, toLonLat } from './coords.js';
 export { solarElevation } from './sun.js';
-export { SCORE } from './score.js';
+export { SCORE, capHeld, combineAttention, isHeld } from './score.js';
 
 import type { LatLon, LonLat } from './coords.js';
 
@@ -179,7 +179,7 @@ export interface AttentionAxes {
   baseline_n: number;
   /** Sample standard deviation of the hour cell before the newest frame, with at least two earlier frames required. */
   baseline_sd: number | null;
-  /** The frame changed by almost nothing although this hour usually shows movement, which is either stopped traffic, an empty road or a frozen camera. Recorded on every poll; acted on only through `gate` below, and only when the arbiter says which of the three it is. */
+  /** The frame changed by almost nothing although this hour usually shows movement, which is either stopped traffic or an empty road. A frozen feed cannot raise it, because a poll returning the same bytes is never flagged. Recorded on every poll, and acted on only through `gate` below, when the arbiter says the traffic has stopped. */
   ambiguous_zero: boolean;
   /** What the arbiter said about an ambiguous zero on this camera, and the floor that answer put under it. Null whenever the gate has not fired, nothing was asked, or the answer was too weak to act on. */
   gate: GateInfluence | null;
@@ -189,6 +189,8 @@ export interface AttentionAxes {
   review?: ReviewInfluence | null | undefined;
   /** The score the fixed equation alone gives this camera, with no second look applied. The baseline every other ranking is compared against. Equal to the attention whenever no look has acted. */
   equation?: number | null | undefined;
+  /** The movement term on its own, after the road-size amplifier and any second look, clamped to 0 to 1. What a capped ranking scores a floor-held camera by once the cap is reached. */
+  movement?: number | undefined;
 }
 
 /** A second opinion on how much one camera deserves a person's attention, relative to the others at the top of its city. It scales the movement term only. The floors, which carry incidents and stopped traffic, are never touched by it. */
@@ -212,8 +214,6 @@ export interface ReviewInfluence {
 export interface GateInfluence {
   /** Probability that the stillness is stopped traffic rather than an empty road. */
   standstill: number;
-  /** Probability that the picture is not updating at all, which is a fault in the feed rather than anything on the road. */
-  frozen: number;
   /** The floor this reading put under the camera, after the threshold and the hold window. */
   floor: number;
   /** The questions whose answers were not acted on, because they fell below their gate. */
@@ -239,7 +239,6 @@ export interface VerdictPoint {
 export interface GatePoint {
   at: number;
   standstill: number;
-  frozen: number;
   floor: number;
 }
 

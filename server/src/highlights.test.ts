@@ -43,7 +43,7 @@ test('only Jev answers that passed their gates appear in incident briefs', () =>
 });
 
 test('stopped traffic uses the acted-on floor and confirmation time', () => {
-  const gate = { standstill: 1, frozen: 0, floor: 0.7, gated: [], model: 'fixture' };
+  const gate = { standstill: 1, floor: 0.7, gated: [], model: 'fixture' };
   const result = select([state(1, 0.9, { gate })], [], new Map(), new Map([[1, now - 240]]));
   assert.equal(result[0]!.kind, 'stopped');
   assert.equal(result[0]!.at, now - 240);
@@ -56,7 +56,7 @@ test('unusual movement requires promotion and excludes incident and gate floors'
   assert.equal(select([state(1)])[0]!.kind, 'movement');
   assert.equal(select([state(1, 0.9, { incident_floor: 0.1 })]).length, 0);
   assert.equal(select([state(1, 0.9, { baseline_n: 0 })]).length, 0);
-  assert.equal(select([state(1, 0.9, { gate: { standstill: 1, frozen: 0, floor: 0.1, gated: [], model: 'fixture' } })]).length, 0);
+  assert.equal(select([state(1, 0.9, { gate: { standstill: 1, floor: 0.1, gated: [], model: 'fixture' } })]).length, 0);
 });
 
 test('highlights rank by attention, cap at five and scope to the region', () => {

@@ -13,7 +13,7 @@ import type { Incident } from '../../shared/src/index.js';
 import { incidentFloor, queueFloor, TUNING } from './attention.js';
 import { buildQueueIndex } from './corridor.js';
 import { round } from './config.js';
-import { JEV, JevArbiter, ago, buildGateState, buildReviewState, kendallTau, buildState, choiceOptions, createAsk, createGateAsk, picture, type AskResult, type CameraTelemetry, type GateAskResult, type GateCandidate, type Neighbor, type ReviewAsk, type ReviewCandidate } from './jev.js';
+import { GATE_RUBRICS, JEV, JevArbiter, ago, buildGateState, buildReviewState, kendallTau, buildState, choiceOptions, createAsk, createGateAsk, picture, type AskResult, type CameraTelemetry, type GateAskResult, type GateCandidate, type Neighbor, type ReviewAsk, type ReviewCandidate } from './jev.js';
 
 const temporaryDirectories: string[] = [];
 function temporaryDirectory(prefix: string): string {
@@ -358,7 +358,7 @@ test('an incident is not asked about until one of its cameras has a picture', as
 /** The zero-motion gate. What it must never do is lower anything, and what it must never be is loud: a region-wide feed fault should cost a handful of calls rather than one per camera. */
 
 const gateAnswer = (over: Partial<GateAskResult['verdict']> = {}): GateAskResult => ({
-  verdict: { standstill: 0.9, frozen: 0.05, model: 'jev-1.13.0', ...over },
+  verdict: { standstill: 0.9, model: 'jev-1.13.0', ...over },
   usage: { input_tokens: 400, output_tokens: 20 },
   raw: {},
   latencyMs: 300,
@@ -368,21 +368,20 @@ function candidate(uid: number, over: Partial<CameraTelemetry> = {}): GateCandid
   return { camera: telemetry(uid, over), neighbors: [], incidentNearby: false, vehicles: null };
 }
 
-test('a confident standstill puts a floor under a still camera and a frozen feed does not', async () => {
+test('a confident standstill puts a floor under a still camera', async () => {
   const arbiter = makeArbiter(null, dir(), async () => gateAnswer());
   arbiter.considerGate([candidate(1)]);
   await arbiter.drain();
   const held = arbiter.gateFloor(1);
   assert.equal(held?.value, JEV.GRIDLOCK_FLOOR);
-  assert.deepEqual(held?.influence.gated, ['frozen']);
+  assert.deepEqual(held?.influence.gated, []);
+});
 
-  // The same stillness, read as a dead picture, is worth nothing at all, and takes the standstill answer with it.
-  const dead = makeArbiter(null, dir(), async () => gateAnswer({ standstill: 0.9, frozen: 0.95 }));
-  dead.considerGate([candidate(2)]);
-  await dead.drain();
-  const nothing = dead.gateFloor(2);
-  assert.equal(nothing?.value, 0);
-  assert.deepEqual(nothing?.influence.gated, ['standstill']);
+test('the gate asks only whether the traffic has stopped, and states that the feed is updating', async () => {
+  // A frozen feed returns the same bytes and is never flagged, so the server answers that question itself and the model is told so.
+  const state = buildGateState(candidate(1), 1000) as { camera: Record<string, unknown> };
+  assert.match(String(state.camera.feed), /updating/);
+  assert.deepEqual(Object.keys(GATE_RUBRICS), ['standstill']);
 });
 
 test('an unsure standstill is recorded and never acted on', async () => {
@@ -466,7 +465,7 @@ test('the gate state carries the detector count, and says so when there is none 
   assert.equal(none.camera.vehicle_types_counted, null);
 });
 
-test('the gate request carries two nouls and nothing else', async () => {
+test('the gate request carries one noul and nothing else', async () => {
   let sent: { body: unknown; auth: string | null } | null = null;
   const askGate = createGateAsk('test-key-value', {
     retry: { maxRetries: 0 },
@@ -475,7 +474,7 @@ test('the gate request carries two nouls and nothing else', async () => {
       return new Response(
         JSON.stringify({
           model: 'jev-1.13.0',
-          answers: { standstill: { type: 'noul', noul: 0.91 }, frozen: { type: 'noul', noul: 0.04 } },
+          answers: { standstill: { type: 'noul', noul: 0.91 } },
           usage: { input_tokens: 400, output_tokens: 20 },
         }),
         { status: 200, headers: { 'content-type': 'application/json' } },
@@ -485,7 +484,7 @@ test('the gate request carries two nouls and nothing else', async () => {
   const result = await askGate({ camera: {} });
   const request = sent as unknown as { body: { model: string; questions: Record<string, { type: string }> }; auth: string | null };
   assert.equal(request.body.model, JEV.MODEL);
-  assert.deepEqual(Object.keys(request.body.questions).sort(), ['frozen', 'standstill']);
+  assert.deepEqual(Object.keys(request.body.questions), ['standstill']);
   assert.equal(request.body.questions.standstill?.type, 'noul');
   assert.equal(request.auth, 'Bearer test-key-value');
   assert.equal(result.verdict.standstill, 0.91);
@@ -496,7 +495,7 @@ test('a gate answer missing a question is a failure rather than a verdict of zer
   const askGate = createGateAsk('test-key-value', {
     retry: { maxRetries: 0 },
     fetch: async () =>
-      new Response(JSON.stringify({ model: 'jev-1.13.0', answers: { standstill: { type: 'noul', noul: 0.9 } }, usage: { input_tokens: 1, output_tokens: 1 } }), {
+      new Response(JSON.stringify({ model: 'jev-1.13.0', answers: {}, usage: { input_tokens: 1, output_tokens: 1 } }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       }),
@@ -667,13 +666,12 @@ test('neighbors carry pictures or explicit missing pictures without epoch timest
   assert.equal(neighbors[1]?.newest_frame, 'none yet');
   assert.ok(!JSON.stringify(state).includes('1000'));
   assert.ok(!JSON.stringify(state).includes('900'));
-  assert.equal(JEV.RUBRIC_VERSION, 5);
+  assert.equal(JEV.RUBRIC_VERSION, 6);
 });
 
 for (const [name, verdict, expected] of [
-  ['acted-on standstill', { standstill: 0.9, frozen: 0.05 }, true],
-  ['frozen feed', { standstill: 0.9, frozen: 0.95 }, false],
-  ['sub-threshold standstill', { standstill: JEV.NOUL_THRESHOLD - 0.01, frozen: 0.05 }, false],
+  ['acted-on standstill', { standstill: 0.9 }, true],
+  ['sub-threshold standstill', { standstill: JEV.NOUL_THRESHOLD - 0.01 }, false],
 ] as const) {
   test(`upstream queue propagation from ${name}`, async () => {
     const arbiter = makeArbiter(null, dir(), async () => gateAnswer(verdict));

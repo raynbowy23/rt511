@@ -232,15 +232,14 @@ async function run(scenario, seed, jevAsk, cadence) {
   const verdictsByArm = { 'equation-jev': new Map(), 'equation-jev-count': new Map() };
   const askedAtByArm = { 'equation-jev': new Map(), 'equation-jev-count': new Map() };
   // The confirmed arm answers "stopped" with certainty for the target from the minute after onset, and keeps answering it, as the arbiter re-asks every five minutes: the best any arbiter could do.
-  const confirmedGate = (uid, now) => (scenario.jev && scenario.targets.includes(uid) && now >= onset + TICK_S ? { value: JEV.GRIDLOCK_FLOOR, at: now, influence: { standstill: 1, frozen: 0, floor: JEV.GRIDLOCK_FLOOR, gated: [], model: 'confirmed' } } : null);
+  const confirmedGate = (uid, now) => (scenario.jev && scenario.targets.includes(uid) && now >= onset + TICK_S ? { value: JEV.GRIDLOCK_FLOOR, at: now, influence: { standstill: 1, floor: JEV.GRIDLOCK_FLOOR, gated: [], model: 'confirmed' } } : null);
   const gateFrom = (verdicts) => (uid, now) => {
     const v = verdicts.get(uid);
     if (!v || now < v.at) return null;
     if (!v || now - v.at > JEV.GATE_HOLD_S) return null;
-    const frozen = v.frozen >= JEV.NOUL_THRESHOLD;
-    const standstill = !frozen && v.standstill >= JEV.NOUL_THRESHOLD;
+    const standstill = v.standstill >= JEV.NOUL_THRESHOLD;
     const value = standstill ? JEV.GRIDLOCK_FLOOR : 0;
-    return { value, at: v.at, influence: { standstill: v.standstill, frozen: v.frozen, floor: value, gated: [], model: v.model } };
+    return { value, at: v.at, influence: { standstill: v.standstill, floor: value, gated: [], model: v.model } };
   };
 
   const rankers = RANKERS.filter((r) => (!r.only || r.only.includes(scenario.key)) && (!r.needsJev || jevAsk));

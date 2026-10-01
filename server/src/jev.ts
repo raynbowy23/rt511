@@ -21,8 +21,8 @@ export const JEV = {
   MODEL: 'jev-latest',
   /** Bumped by hand whenever a rubric below changes, or whenever the state the rubrics are answered from changes. Answers logged under different versions are not comparable, and calibration is the whole reason the log exists.
    *
-   * Version 3 gives neighbors pictures and makes a neighbor choice add a floor without demoting named cameras. Version 4 gives the gate a vehicle count from the detector and has the standstill rubric read it. Version 5 adds the review of the top of a city. */
-  RUBRIC_VERSION: 5,
+   * Version 3 gives neighbors pictures and makes a neighbor choice add a floor without demoting named cameras. Version 4 gives the gate a vehicle count from the detector and has the standstill rubric read it. Version 5 adds the review of the top of a city. Version 6 drops the gate's frozen-feed question, which the server answers itself, and tells the model that the picture is still updating. */
+  RUBRIC_VERSION: 6,
   /** Per attempt. The API answers a handful of questions in well under a second, so anything near this is a network fault, and the call is abandoned rather than kept waiting while the floor it would have adjusted is already being served deterministically. */
   TIMEOUT_MS: 8000,
   /** Answers below this confidence change nothing. The documentation puts genuine uncertainty at 0.5 and reserves 0.9 for high-stakes action; nothing here is high-stakes, because the deterministic floor is already serving. */
@@ -138,7 +138,6 @@ export interface GateVerdict {
   uid: number;
   at: number;
   standstill: number;
-  frozen: number;
   model: string;
 }
 
@@ -412,8 +411,7 @@ export class JevArbiter {
       series.push({
         at: round(at, 1),
         standstill: round(verdict.standstill, 2),
-        frozen: round(verdict.frozen, 2),
-        floor: verdict.frozen >= JEV.NOUL_THRESHOLD || verdict.standstill < JEV.NOUL_THRESHOLD ? 0 : JEV.GRIDLOCK_FLOOR,
+        floor: verdict.standstill < JEV.NOUL_THRESHOLD ? 0 : JEV.GRIDLOCK_FLOOR,
       });
       while (series.length > JEV.HISTORY_POINTS) series.shift();
       this.gateHistory.set(uid, series);
@@ -550,15 +548,15 @@ export class JevArbiter {
 
   /** The floor a gate answer puts under one camera, or null when there is none to apply.
    *
-   * Three ways to get nothing. No answer, an answer older than the hold window, or an answer that did not clear its threshold. A confident frozen feed is one of those: it is recorded, and it takes the standstill answer with it, because a picture that is not arriving is not evidence of anything on the road. */
+   * Three ways to get nothing. No answer, an answer older than the hold window, or an answer that did not clear its threshold.
+   *
+   * A frozen feed is not asked about. The server decides it: a poll that returns the same bytes as the last one is recorded as unchanged and is never folded into a baseline or flagged, so a feed that has stopped updating can never reach this gate. Only a picture whose bytes changed can be flagged, and the model is told so. */
   gateFloor(uid: number, now = Date.now() / 1000): { value: number; at: number; influence: GateInfluence } | null {
     const verdict = this.gateVerdicts.get(uid);
     if (!verdict) return null;
     if (now - verdict.at > JEV.GATE_HOLD_S) return null;
     const gated: string[] = [];
-    const frozen = verdict.frozen >= JEV.NOUL_THRESHOLD;
-    if (!frozen) gated.push('frozen');
-    const standstill = !frozen && verdict.standstill >= JEV.NOUL_THRESHOLD;
+    const standstill = verdict.standstill >= JEV.NOUL_THRESHOLD;
     if (!standstill) gated.push('standstill');
     const value = standstill ? JEV.GRIDLOCK_FLOOR : 0;
     return {
@@ -566,7 +564,6 @@ export class JevArbiter {
       at: verdict.at,
       influence: {
         standstill: round(verdict.standstill, 2),
-        frozen: round(verdict.frozen, 2),
         floor: round(value, 3),
         gated,
         model: verdict.model,
@@ -841,6 +838,8 @@ export function buildGateState(candidate: GateCandidate, now: number): Record<st
       road: camera.roadway,
       view: camera.location,
       picture: state.summary,
+      // Stated rather than asked. Only a picture whose bytes differ from the previous one can be flagged, so the feed is known to be updating.
+      feed: 'updating, the newest picture differs from the one before it, so this is not a frozen feed',
       frame_difference: state.frame_difference,
       usual_frame_difference_this_hour: state.usual,
       times_its_usual: state.times_usual,
@@ -919,9 +918,9 @@ export const REVIEW_RUBRIC = {
   ],
 } as const;
 
-/** The two questions asked about a still picture. Both Nouls, because each one is a single yes or no about a state of the world, and neither of them is a judgment about the wall.
+/** The question asked about a still picture. A Noul, because it is a single yes or no about the state of the road, and not a judgment about the wall.
  *
- * They are not exclusive and are not asked to be. A frozen feed answered yes takes precedence in code, in `gateFloor`, rather than in the rubric, because a model asked to rank its own two answers is being asked to do the recombination this project already does with weights it can see. */
+ * Whether the feed has frozen is not asked. Measured on the synthetic benchmark, the model read a near-zero frame difference as a frozen feed with a probability of about 0.9 whatever else it was told, which cancelled every stopped-traffic answer. The server knows the answer exactly, since a frozen feed returns the same bytes and is never flagged, so it states that the picture is updating instead of asking. */
 export const GATE_RUBRICS = {
   standstill: {
     type: 'noul',
@@ -929,14 +928,6 @@ export const GATE_RUBRICS = {
     criteria: {
       true: 'This hour normally carries traffic here, the picture has gone still rather than emptied, with vehicles counted in it where a count is given, and the cameras on the approach are also quieter than usual, which is what a queue standing back from a blockage looks like.',
       false: 'The road is most likely simply empty, which an hour that usually moves can still be and which a count of no vehicles shows directly, or the approach is running normally, which a queue at this camera would not allow.',
-    },
-  },
-  frozen: {
-    type: 'noul',
-    instructions: 'Is this camera most likely sending the same picture over and over because the feed has stopped updating, rather than showing a road that is genuinely still?',
-    criteria: {
-      true: 'The frame difference is at or near zero rather than merely low, which a real scene with light, weather and shadows in it almost never produces, and nothing on the corridor agrees with it.',
-      false: 'The picture still changes a little, or the cameras around it agree that something unusual is happening on this road.',
     },
   },
 } as const;
@@ -977,7 +968,7 @@ export const RUBRICS = {
   },
 } as const;
 
-/** The binding for the zero-motion gate. Two Nouls, one call, and the same client contract as the incident ask above.
+/** The binding for the zero-motion gate. One Noul, one call, and the same client contract as the incident ask above.
  *
  * Shares the key with `createAsk` and nothing else. A deployment that wants incident arbitration without per-camera calls simply does not build this one, and the gate goes back to being recorded and never acted on. */
 export function createGateAsk(apiKey: string, overrides: Partial<TypeSafeClientConfig> = {}): GateAsk {
@@ -988,14 +979,13 @@ export function createGateAsk(apiKey: string, overrides: Partial<TypeSafeClientC
       state: state as EntryType,
       questions: {
         standstill: noul(GATE_RUBRICS.standstill.instructions, GATE_RUBRICS.standstill.criteria),
-        frozen: noul(GATE_RUBRICS.frozen.instructions, GATE_RUBRICS.frozen.criteria),
       },
     });
     const latencyMs = Date.now() - started;
-    const { standstill, frozen } = result.answers;
-    if (typeof standstill?.noul !== 'number' || typeof frozen?.noul !== 'number') throw new Error('answer missing a question');
+    const { standstill } = result.answers;
+    if (typeof standstill?.noul !== 'number') throw new Error('answer missing a question');
     return {
-      verdict: { standstill: standstill.noul, frozen: frozen.noul, model: result.model },
+      verdict: { standstill: standstill.noul, model: result.model },
       usage: { input_tokens: result.usage.input_tokens, output_tokens: result.usage.output_tokens },
       raw: result.answers,
       latencyMs,
