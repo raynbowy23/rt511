@@ -4,7 +4,7 @@ rt511 brings roadside traffic-camera feeds into a ranked wall, combines road-awa
 
 The idea draws on **Information Foraging Theory**, which studies how people search for clues in crowded environments. Instead of making an operator click through thousands of quiet highway feeds, rt511 lays down a trail of "scent." When a camera picks up something unusual, the system raises its ranks and pulls attention upstream and downstream along the road, following where delays and shockwaves actually travel.
 
-Attention starts with a scoring equation: a camera ranks higher when its feed is unusually busy or slow for that hour, when the corridor carries heavy traffic, and when reported incidents back it up. A vision-reasoning model then takes a second look at the top-ranked feeds to verify what is actually happening.
+Attention starts with a scoring equation: a camera ranks higher when its feed is unusually busy or slow for that hour, when the corridor carries heavy traffic, and when reported incidents back it up. When a key for the optional Jev reasoning model is set, it reads each leading camera's numbers, not its picture, and takes a second look at their order, which can reorder cameras the equation scores close together but never lowers an incident or queue floor.
 
 The scoring is summarized in [Theory at a Glance](#theory-at-a-glance), and the design decisions behind it in [`docs/attention.md`](docs/attention.md). rt511 uses public feeds from agencies whose written terms permit third-party display. It currently covers California, Iowa, Ohio, Oregon, Maine, New Hampshire, and Vermont - 7,394 cameras in all.
 
