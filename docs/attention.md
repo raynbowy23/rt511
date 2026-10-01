@@ -1,6 +1,6 @@
 # Attention Mechanics: Scoring Formulation and Decision Architecture
 
-This document records how rt511 decides which camera is worth looking at, what was decided and why, what is built, and what is still open. The equation it describes is one proposed direction for attention, not the answer, and the [whitepaper](rt511_visual_attention_whitepaper.md) gives the full specification and its literature.
+This document records how rt511 decides which camera is worth looking at, what was decided and why, what is built, and what is still open. The equation it describes is one proposed direction for attention, not the answer, and the README's [Theory at a Glance](../README.md#theory-at-a-glance) gives it in brief.
 
 Some measurements below were taken in September 2026 on the sources the project used then, a vendor 511 platform and a state highway patrol's dispatch feed, which have since been retired in favor of agencies' published feeds (see [sources.md](sources.md)). They are kept because the design decisions were made on them, and they are labeled where they appear. The status table at the end describes what runs today.
 
@@ -118,7 +118,7 @@ A jam and an empty road are indistinguishable to this signal, and the jam is the
 ```
 
 1. **Stopped traffic or an empty road.** A confident standstill answer puts a floor of 0.6 under the camera for 10 minutes, the same level a road-relevant incident record receives, since a confirmed standstill is an incident nobody has reported yet. The floor is then carried upstream like any other.
-2. **Frozen feed.** Not asked, because the server knows it. A poll that returns the same bytes as the last one is recorded as unchanged and never flagged, so only a picture that is still updating reaches the gate, and the state Jev reads says so. An earlier version asked Jev a second Noul about a frozen feed, and in the synthetic benchmark it answered about 0.9 for every near-still picture, which cancelled every stopped-traffic answer.
+2. **Frozen feed.** Not asked, because the server knows it. A poll that returns the same bytes as the last one is recorded as unchanged and never flagged, so only a picture that is still updating reaches the gate, and the state Jev reads says so. An earlier version asked Jev a second Noul about a frozen feed, and in a synthetic test it answered about 0.9 for every near-still picture, which cancelled every stopped-traffic answer.
 3. **Vehicle detector.** When the optional detector is running, the flagged frame is posted to it, and its vehicle count is added to the state that Jev reads. The count decides nothing by itself, so what it adds can be calibrated against the logged answers first. Every count is written to `out/detector-<date>.jsonl` whether or not Jev is configured, and a missing count is described as "not counted", never as zero.
 
 The cell's own mean is used for the test rather than the blended baseline, so that the flag never fires about a camera nothing is yet known about, and the cell must hold at least 5 frames. An earlier build without that guard fired on 34% of polls three minutes into a run.
@@ -175,7 +175,6 @@ A Noul acts at a probability of at least 0.8, and a Score or Choice at a confide
 | Incident feed | Live for Ohio (OHGO) | Dated by first sighting, because OHGO publishes no report time |
 | Published traffic counts | Live for Iowa (CC BY) | Mainline segments on the camera's own route, capacity and road class elsewhere |
 | Zero-motion gate | Live | One question, stopped traffic, 0 triggers in 2,831 daytime polls, not yet observed at night or in a jam |
-| Synthetic benchmark | Live | `make bench-synthetic`, five scripted scenarios at four picture rates, see whitepaper Section 8.3 |
 | Jev arbitration | Live when a key is set | Text only, over Ohio incidents, still cameras and the second look, in `server/src/jev.ts` |
 | Vehicle detector | Optional | Evidence to Jev, in `server/src/detector.ts` and `src/rt511/detect.py`, not yet measured at night or in a jam |
 | Neighbor promotion | Live | 2 hops, at most 30 cameras, in `server/src/corridor.ts` |

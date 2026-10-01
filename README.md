@@ -6,9 +6,9 @@ The idea draws on **Information Foraging Theory**, which studies how people sear
 
 Attention starts with a scoring equation: a camera ranks higher when its feed is unusually busy or slow for that hour, when the corridor carries heavy traffic, and when reported incidents back it up. A vision-reasoning model then takes a second look at the top-ranked feeds to verify what is actually happening.
 
-The complete math, graph models, and software design are detailed in the [whitepaper](docs/rt511_visual_attention_whitepaper.md). rt511 uses public feeds from agencies whose written terms permit third-party display. It currently covers California, Iowa, Ohio, Oregon, Maine, New Hampshire, and Vermont - 7,394 cameras in all.
+The scoring is summarized in [Theory at a Glance](#theory-at-a-glance), and the design decisions behind it in [`docs/attention.md`](docs/attention.md). rt511 uses public feeds from agencies whose written terms permit third-party display. It currently covers California, Iowa, Ohio, Oregon, Maine, New Hampshire, and Vermont - 7,394 cameras in all.
 
-It is a demonstration based on my idea that how we can comfort the information foraging theory applied to the traffic camera. It is originally proposed as a theory to understand how human users search for information. The [whitepaper](docs/rt511_visual_attention_whitepaper.md) describes the theory and concept behind and actual software design.
+It is a demonstration based on my idea that how we can comfort the information foraging theory applied to the traffic camera. It is originally proposed as a theory to understand how human users search for information.
 
 The front page shows the covered states floating in a row, with each camera lit by the sun's position over it. Pick a city, and its cameras are mapped across the road network and ranked live on the wall. A red LIVE badge marks streaming video, while a SNAPSHOT tag counts down to the camera's next still image.
 
@@ -270,7 +270,15 @@ Because polling is strictly rate-limited, wall behavior reflects these operation
 
 ## Theory at a Glance
 
-This section outlines the baseline assumptions governing how attention is scored and allocated. It represents one explicit hypothesis designed to be measured, tested, and compared against alternative ranking models. The complete mathematical formulation, empirical constants, and academic references are detailed in the [whitepaper](docs/rt511_visual_attention_whitepaper.md), with operational notes in [`docs/attention.md`](docs/attention.md).
+This section outlines the baseline assumptions governing how attention is scored and allocated. It represents one explicit hypothesis designed to be measured, tested, and compared against alternative ranking models. Design decisions and operational notes are in [`docs/attention.md`](docs/attention.md).
+
+Each camera's score combines a movement term $M$ with the strongest of three consequence floors $F$.
+
+$$M = P \cdot R \cdot \big(0.5\,A + 0.5\,S\big), \qquad F = \max\big(F_{\text{incident}},\ F_{\text{queue}},\ F_{\text{gate}}\big), \qquad L = \min\big(1, \max(M, F)\big)$$
+
+$$\text{Attn} = \begin{cases} \tfrac{1}{2} + \tfrac{1}{2} L & \text{if } F \ge 0.2 \\ \tfrac{1}{2} L & \text{otherwise} \end{cases}$$
+
+Here $A$ is anomaly, the frame difference $\Delta I$ against the camera's usual level $\mu$ for that hour of the week, $A = \min\big(c_n, \tfrac{1}{2}\,\Delta I / \mu\big)$, where the cap $c_n$ rises from 0.5 to 1 over the camera's first ten differences. $S$ is spectacle, $P$ is the road-size amplifier between 0.5 and 1.5, and $R$ is the second-look factor between 0.75 and 1.25, which is 1 without a confident look. A camera held by a floor of at least 0.2 therefore scores between 0.6 and 1, and every other camera between 0 and 0.5.
 
 * **Temporal Anomaly**: Incoming frames are downsampled to grayscale thumbnails and differenced against preceding captures. The resulting delta is normalized against a rolling baseline learned for that specific hour of the week. Expected baseline activity scores at $0.5$, while variance exceeding twice the historical norm saturates the term. Cameras lacking sufficient observation history are clamped to prevent artificial volatility.
 * **Corridor Importance**: Roadway priority scales the baseline motion term by a multiplier between $0.5\times$ and $1.5\times$. Ground truth is derived hierarchically: measured agency AADT counts when published, lane count and design speed limits when available, and standard functional road classification as a fallback.

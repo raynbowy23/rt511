@@ -8,7 +8,7 @@
 # Variables pass straight through, e.g. `make start ARGS="--regions oakland-ca"` or `make detect DEVICE=cpu`.
 
 .DEFAULT_GOAL := help
-.PHONY: help setup install sync start serve dev up build check test test-server test-web test-python smoke release figures result-figures paper bench-synthetic \
+.PHONY: help setup install sync start serve dev up build check test test-server test-web test-python smoke release \
 	detect detect-cpu sources regions index metros city catalog graph counts add-city
 
 # Extra arguments for the server, e.g. ARGS="--regions oakland-ca,des-moines-ia --cameras freeway".
@@ -95,21 +95,6 @@ test-python:
 release: ## bump every version, write the changelog, run the gates, commit and tag: VERSION=x.y.z (never pushes)
 	@test -n "$(VERSION)" || { echo 'usage: make release VERSION=x.y.z'; exit 1; }
 	uv run --no-project python scripts/release.py $(VERSION)
-
-figures: ## redraw docs/figures from the built constants, after a tuning change
-	pnpm --filter @rt511/server run build
-	node scripts/figures.mjs
-
-result-figures: ## redraw the result figures from saved results: BENCH=out/bench/synthetic-<stamp>.json TRACE="out/trace/a.json ..."
-	node scripts/result_figures.mjs $(if $(BENCH),--bench $(BENCH)) $(if $(TRACE),--trace $(TRACE))
-
-paper: ## build docs/main.pdf: print the result figures to PDF (needs Chrome) and run latexmk
-	scripts/figures_pdf.sh docs/figures/11-benchmark-picture-rate.svg docs/figures/12-live-trace.svg
-	cd docs && latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex
-
-bench-synthetic: ## scripted scenarios through the real scorer, no agency contacted: [SEEDS=30] [JEV=1 JEV_SEEDS=5, paid calls]
-	pnpm --filter @rt511/server run build
-	SEEDS=$(or $(SEEDS),30) JEV=$(JEV) JEV_SEEDS=$(or $(JEV_SEEDS),5) node scripts/bench_synthetic.mjs
 
 # --- the offline pipeline
 

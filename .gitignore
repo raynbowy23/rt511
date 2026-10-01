@@ -17,12 +17,3 @@ server/dist/
 yolo26n.pt
 # Detector weights. Ultralytics YOLO26 is AGPL-3.0 and is never committed to this MIT repository.
 data/models/
-# LaTeX build output of make paper. The figure PDFs it prints are committed so the paper builds without Chrome.
-docs/main.pdf
-docs/*.aux
-docs/*.bbl
-docs/*.blg
-docs/*.fdb_latexmk
-docs/*.fls
-docs/*.log
-docs/*.out
