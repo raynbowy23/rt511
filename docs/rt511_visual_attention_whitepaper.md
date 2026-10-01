@@ -181,7 +181,7 @@ $$
 
 Consequence sets lower bounds under the score rather than adding to it.
 
-1. **Incident floor.** An incident record is worth 0.9 when it implies the road is closed, 0.6 when it concerns the road without closing it, and nothing when it is not about traffic or is planned work. Planned work, such as Ohio's Repairs/Maintenance records, is scheduled and stays listed for hours or days, so it would otherwise hold its cameras above every unplanned change for as long as it lasted, and it earns no floor even when it closes the road. It remains listed and labeled. A camera within 250 m of the reported location takes the full level, which falls linearly to a quarter of it at the 1.5 km linking radius, beyond which no camera is linked. A feed lists a record only while it is open, so the record keeps its full floor for its first hour, and after that the floor halves every 30 minutes, so that a record a dispatcher leaves open for days does not hold a camera on the wall for days.
+1. **Incident floor.** An incident record is worth 0.9 when it implies the road is closed, 0.6 when it concerns the road without closing it, and nothing when it is not about traffic or is planned work. Planned work, such as Ohio's Repairs/Maintenance records, is scheduled and stays listed for hours or days, so it would otherwise hold its cameras above every unplanned change for as long as it lasted, and it earns no floor even when it closes the road (Section 8.4). It remains listed and labeled. A camera within 250 m of the reported location takes the full level, which falls linearly to a quarter of it at the 1.5 km linking radius, beyond which no camera is linked. A feed lists a record only while it is open, so the record keeps its full floor for its first hour, and after that the floor halves every 30 minutes, so that a record a dispatcher leaves open for days does not hold a camera on the wall for days.
    $$F_{\text{incident}} = F_0 \cdot 2^{-\max(0,\, \Delta t - T_{\text{full}}) / T_{1/2}}, \qquad T_{\text{full}} = 3600\text{ s},\; T_{1/2} = 1800\text{ s}$$
    Ohio's incident feed publishes no report time, so a record is dated by when the server first saw it.
 2. **Queue floor.** Every camera upstream of a camera with an incident floor, on the same carriageway and within the walk's bounds, receives a smaller floor of its own.
@@ -396,17 +396,40 @@ Slower pictures delay the movement cases roughly in proportion to the picture pe
 
 **Limits.** This is a specification test, not evidence that the rules are right. The scenarios, their levels and the noise model were written by the author with the rules in view, and several outcomes follow directly from the definitions. The rush-hour result, for example, holds because anomaly divides by a camera's usual level, which no motion-only ranking does. The benchmark is not selective in what it reports, since every scenario and every seed is reported, including the failures, and it was not tuned to pass, having found four faults in the rules it was written to test. It shows how the rules respond to situations of known kind. It says nothing about how often those situations occur, how real pictures behave, or whether the equation matches what a person would watch.
 
+### 8.4 Live trace
+
+**Setup.** One server watched Columbus, Ohio, from 21:05 to 22:52 Eastern time on 30 September 2026, with a headless browser holding the wall open at 1600 by 1000 pixels and the arbiter on. The run was planned for two hours and the browser was stopped at 22:52 when the host ran short of memory. The city has 80 cameras, all still pictures from ODOT. The decision log recorded 434 rankings of the top 30 cameras, in which 73 distinct cameras appeared. Every figure below comes from that log, the arbiter's log and the server's own load readings, through `scripts/trace_summary.py`.
+
+**Planned work held the wall.** Six incident records named a logged camera, and all six were ODOT Repairs/Maintenance records. No crash or weather record fell within reach of a Columbus camera during the window. Because every OHGO record was then read as road-relevant, these six records and the queues inferred upstream of them held every one of the top 8 places in every ranking, 79% through an incident floor and 21% through a queue floor. The wall's limit of 6 held cameras among its prominent tiles left two places to movement, so floors still took 75% of the top 8. Routine maintenance was ranked above every unplanned change on the wall for the whole evening. This is the fault behind the rule in Section 3.3 that planned work earns no floor.
+
+**The same evening under the rule.** Each logged ranking was replayed with no floor from planned work, rescoring every camera from its logged components. The rebuilt score matched the logged score for all 13,020 logged rows before any floor was removed, so the replay differs from the run only in the floors it removes. A camera outside the logged top 30 cannot be rescored, but its score was no higher than the 30th logged camera's and can only have fallen, so a replayed place is certain when its new score is at least that bound. 85% of the replayed top 8 places are certain in that sense.
+
+| Top 8 places, 434 rankings | As run | Replayed under the rule |
+| --- | --- | --- |
+| Held by a floor, without the wall's limit | 100% | 0% |
+| Held by a floor, with the limit of 6 | 75% | 0% |
+| Won by movement alone, with the limit of 6 | 25% | 100% |
+
+The rule also stops the arbiter from spending calls on planned work, since records that earn no floor are not arbitrated. All 193 incident arbitration calls in the window concerned the six maintenance records.
+
+**The arbiter.** The stopped-traffic question was asked 19 times and the standstill probability ranged from 0.31 to 0.45, so no stopped-traffic floor was set. The second look ran 51 times. Its order of the leading cameras agreed with the equation's order with a median Kendall tau of 0.14, ranging from -0.50 to 0.79, and put the same camera first in 8 of 51 looks. Its answer was confident enough to act on 27 cameras. Measured against the equation's own score, the look changed on average 0.14 of the top 8 places per ranking as run, and 0.42 per ranking in the replay, changing at least one place in 12% and 40% of rankings respectively. The floors had left the look little to move. The median call took 221 ms with about 3,000 input tokens.
+
+**Load.** The server averaged 0.27 requests a second to ODOT over 107 one-minute readings, with a median of 0.23 and 74 MB an hour, against a budget of 0.3, one on-screen picture every 5 seconds and one off-screen picture every 10. In 35 of the readings the one-minute rate was above 0.3, reaching 0.87 apart from the first minute after startup, which reached 1.52. The budget holds on average but not minute by minute, and the cause has not been traced. ODOT returned 44 truncated pictures, 41 of them from two cameras.
+
+**Limits.** This is one city on one evening, with no record of what a person would have wanted to see, so it shows what the rules did with real records and real pictures, not whether they did it well. The low agreement between the second look and the equation says the two orders differ, not which is better. The replay is exact for the logged cameras and bounded for the rest, and the replayed wall had no unplanned incident to test the floors that remain.
+
 ---
 
 ## 9. Open Items
 
 - **Absolute vehicle volume.** The spectacle axis is wired for an absolute term and carries none. Whether the optional detector's counts can serve as that term across weather and camera optics has not been checked.
-- **Zero motion at night and in congestion.** The gate has not been observed at night or under congestion, which is where it is supposed to matter.
+- **Zero motion at night and in congestion.** On one evening in Columbus the gate was asked 19 times after dark and never set a floor. Whether any of those roads was actually stopped is unknown, and the gate has not been observed under congestion, which is where it is supposed to matter.
 - **Stopping-wave speed.** The 15 km/h speed sits at the slow end of the empirically reported range for congestion propagating against traffic (Treiber et al., 2010) and has not been measured on these corridors.
 - **Scale prior.** The capacity proxy tracks published counts only moderately, and only Iowa's counts are usable in the current pool.
 - **Incident coverage.** Incidents are available for one state of seven.
 - **Rubric calibration.** None of the arbiter's rubrics has been calibrated against labeled outcomes, which is what the decision log and the rubric version exist to make possible.
 - **Stopped traffic from numbers.** In the synthetic checks the arbiter's standstill probability stayed below its 0.8 gate even with a vehicle count. Whether a real detector count on a real stopped freeway clears it is untested.
+- **Load per minute.** In the live trace the request rate averaged within its budget but exceeded it in a third of the one-minute readings, by up to almost three times. The cause has not been traced.
 - **Band and limit settings.** The hold threshold of 0.2 and the limit of half the prominent tiles are design settings that have not been tuned against any outcome.
 - **Human attention.** Whether the equation, the second look or either matches any person's attention, and whether different people agree with each other, is untested.
 
