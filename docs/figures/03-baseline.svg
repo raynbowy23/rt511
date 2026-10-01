@@ -29,6 +29,7 @@
 <text x="774" y="155" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Baseline mu</text>
 <text x="774" y="172" text-anchor="middle" font-size="12" fill="#5d6b7d">what anomaly divides by</text>
 <text x="450" y="304" text-anchor="middle" font-size="13.5" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#1d2530">mu = (N/(N+K)) * cellMean + (K/(N+K)) * rollingMedian</text>
-<text x="28" y="340" text-anchor="start" font-size="12" fill="#5d6b7d">At N = 0 the blend returns the rolling median exactly, so a cold process ranks cameras the way the older activity</text>
-<text x="28" y="356" text-anchor="start" font-size="12" fill="#5d6b7d">measure did. The hourly profile takes over as its own cell fills, with no warm-up period and no reindexing.</text>
+<text x="28" y="340" text-anchor="start" font-size="12" fill="#5d6b7d">At N = 0 the blend returns the rolling median exactly, so the system is usable at once. A picture at least 2 times</text>
+<text x="28" y="356" text-anchor="start" font-size="12" fill="#5d6b7d">what the cell expects, or a stillness it does not expect, is not folded in,</text>
+<text x="28" y="372" text-anchor="start" font-size="12" fill="#5d6b7d">so an ongoing event does not become the usual. An unusual level lasting 3 hours is accepted as the new usual.</text>
 </svg>

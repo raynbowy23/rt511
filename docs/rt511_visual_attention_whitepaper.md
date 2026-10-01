@@ -12,7 +12,7 @@ rt511 treats this as an information foraging problem and scores each camera on t
 1. **Continuous fast path.** Incoming frames are reduced to small grayscale thumbnails and differenced. Each camera keeps an empirical Bayes baseline for every hour of the week, and priority floors are raised by incident records and by queues carried upstream along the road network.
 2. **Episodic reasoning tier (the Jev arbiter).** A typed reasoning model is consulted only for cases the arithmetic cannot settle. It resolves still pictures into stopped traffic, an empty road or a frozen feed, chooses the camera that best shows an incident or its queue, and takes a periodic second look at the leading cameras of the city a viewer has open.
 
-Consequence enters as a floor rather than as an additive weight, so a camera beside a reported incident keeps a place on the wall however still its picture is. A display allocator assigns tile sizes by rank, with hysteresis to prevent needless swapping. To make the scorer open to inspection, a Bradley–Terry preference model in the browser learns from a person's choices between pairs of cameras, expressed in the scorer's own feature space, and an evaluation mode sets the fixed equation, the second look and the person's choices side by side.
+Consequence enters lexicographically rather than as an additive weight. Any camera held by a floor, from an incident record, a queue or confirmed stopped traffic, ranks above every camera that is not, however still its picture is and however busy the others are. A display allocator assigns tile sizes by rank, with hysteresis to prevent needless swapping. To make the scorer open to inspection, a Bradley–Terry preference model in the browser learns from a person's choices between pairs of cameras, expressed in the scorer's own feature space, and an evaluation mode sets the fixed equation, the second look and the person's choices side by side.
 
 > **Scope.** This document describes the running system. Every constant quoted is read from the implementation, and the figures are generated from the same constants. Measured quantities say what they were measured on. Several were taken on the vendor-platform regions the project used before 23 September 2026, when it moved to agencies' own published feeds, and they are labeled as such. This is a whitepaper and not a study, and it makes no claim that the system directs attention better than any alternative.
 
@@ -57,7 +57,7 @@ Each element of the design has a counterpart in an established account from beha
 - **Spectacle as salience.** Spectacle stands for the pull of a busy scene whether or not it is unusual. Computational models of visual attention treat low-level features such as motion as salient before relevance is judged (Itti et al., 1998). rt511 uses a single such feature, temporal change.
 - **Road size as exposure.** Annual average daily traffic is what traffic-safety analysis treats as exposure, the quantity against which event frequencies are normalized (AASHTO, 2010). rt511 applies it only as a multiplicative weight on attention.
 - **Learning a baseline while operating.** The hour-of-week baseline is an empirical Bayes estimator, in which each cell's mean is shrunk toward a pooled estimate in proportion to how little data the cell holds (Efron and Morris, 1973). The pooled value is the camera's own rolling median.
-- **Consequence as a constraint.** The incident floor turns consequence into a lower bound instead of a weight, a lexicographic rule in which one criterion is satisfied before others are traded off (Fishburn, 1974). A stopped freeway and an empty one look identical to a pixel difference, so no weighting of visual evidence could protect the stopped one.
+- **Consequence as a constraint.** Consequence is ranked before movement, a lexicographic rule in which one criterion is satisfied before others are traded off (Fishburn, 1974). A stopped freeway and an empty one look identical to a pixel difference, so no weighting of visual evidence could protect the stopped one. A floor used only as a lower bound under a single score did not achieve this, because an ordinary busy freeway's movement term exceeded the stopped-traffic and queue floors (Section 8.3), and the score is therefore built in two bands (Section 3).
 - **Why stillness is ambiguous.** Under the fundamental diagram, flow is zero both on an empty road and at jam density (Greenshields et al., 1935). Frame difference behaves like a flow measure and inherits the same two zeros, which is why the zero-motion gate exists.
 - **How a queue travels.** Behind a blockage, a change in density travels upstream as a kinematic wave (Lighthill and Whitham, 1955; Richards, 1956). The queue floor is therefore carried only upstream, and only as far as the wave could have traveled since the report.
 - **How an event spreads over the graph.** Passing a floor from one camera to its neighbors is a form of spreading activation, in which activation passes to connected nodes and weakens with distance (Collins and Loftus, 1975). rt511 constrains that spread with the direction of travel and with road distance.
@@ -84,15 +84,24 @@ Measured on the same Des Moines wall with one viewer, the budget and the schedul
 
 ## 3. Continuous Fast-Path Scoring Engine
 
-Each camera $c$ receives an attention score between 0 and 1.
+Each camera $c$ receives an attention score between 0 and 1, built from a movement term $M$ and the strongest of three floors $F$.
 
 $$
-\text{Attn}(c,t) = \operatorname{clamp}\Big(
-\max\big(P(c) \cdot R(c,t) \cdot (w_a A(c,t) + w_s S(c,t)),\; F_{\text{incident}}(c,t),\; F_{\text{queue}}(c,t),\; F_{\text{gate}}(c,t)\big),\,
-0,\, 1\Big)
+M(c,t) = P(c) \cdot R(c,t) \cdot \big(w_a A(c,t) + w_s S(c,t)\big), \qquad F(c,t) = \max\big(F_{\text{incident}},\; F_{\text{queue}},\; F_{\text{gate}}\big)
 $$
 
-Here $P$ is the road-size amplifier, $R$ is the second-look factor of Section 4.2, which is 1 for any camera without a confident look, $A$ is anomaly, $S$ is spectacle, and the three $F$ terms are floors. The weights are $w_a = w_s = 0.5$.
+$$
+L(c,t) = \min\big(1, \max(M, F)\big), \qquad
+\text{Attn}(c,t) =
+\begin{cases}
+\tfrac{1}{2} + \tfrac{1}{2} L & \text{if } F \ge F_{\text{hold}} \\
+\tfrac{1}{2} L & \text{otherwise}
+\end{cases}
+$$
+
+Here $P$ is the road-size amplifier, $R$ is the second-look factor of Section 4.2, which is 1 for any camera without a confident look, $A$ is anomaly and $S$ is spectacle, with weights $w_a = w_s = 0.5$. The hold threshold is $F_{\text{hold}} = 0.2$. A camera held by a floor of at least 0.2 therefore scores between 0.6 and 1, and every other camera between 0 and 0.5, so consequence outranks movement in every case, and within each band the larger of movement and floor sets the order. A floor below the hold threshold, such as a queue that has barely begun to arrive, counts only against movement in the lower band.
+
+A burst of incidents and the queues behind them could otherwise take every prominent place. Floor-held cameras therefore take at most half of the wall's large and wide tiles, and at most 15 of the 30 places on the national board. A held camera beyond that limit is ranked by its movement term alone.
 
 ```
  frame difference ΔI ──► hour-of-week baseline μ ──► anomaly A ──┐
@@ -100,7 +109,7 @@ Here $P$ is the road-size amplifier, $R$ is the second-look factor of Section 4.
  road size (AADT, lanes x speed, road class) ──► amplifier P ─────┤
  second look (Jev, optional) ─────────────────► factor R ────────┴──► movement term ─┐
  incident record (level, distance, age) ─────────────────────────► F_incident ──────┤
- queue carried upstream at 15 km/h ──────────────────────────────► F_queue ─────────┼──► max, clamp ──► Attn
+ queue carried upstream at 15 km/h ──────────────────────────────► F_queue ─────────┼──► two bands ──► Attn
  confirmed stopped traffic ──────────────────────────────────────► F_gate ──────────┘
 ```
 
@@ -130,6 +139,8 @@ $$
 
 Here $n$ is the number of frame differences the camera holds. The cap starts at 0.5 and reaches 1 at ten differences, about ten minutes on screen, so a new camera does not look remarkable simply because little is known about it. A still picture reads 0 from the start. Spectacle equals the relative term at present, because the weight $\alpha$ of an absolute term is held at zero until a calibrated measure of vehicle volume exists.
 
+A picture is not folded into its hour-of-week cell when it is clearly an event. A difference at least twice the cell's mean, or a stillness the cell does not expect, leaves the cell unchanged, provided the cell already holds at least 5 frames. Without this rule an ongoing event raised the cell it was measured against, and the effect grew with the picture rate, since the cell counts pictures rather than minutes, so a camera sending a picture every 15 seconds absorbed an event four times as fast as one sending a picture a minute (Section 8.3). An unusual level that lasts 3 hours is accepted as the new usual and folded in again, so that a lasting change such as a work zone does not read as an event indefinitely.
+
 ![Frame difference](figures/02-difference.svg)
 
 ![Baseline](figures/03-baseline.svg)
@@ -152,12 +163,12 @@ $$
 
 Consequence sets lower bounds under the score rather than adding to it.
 
-1. **Incident floor.** An incident record is worth 0.9 when it implies the road is closed, 0.6 when it concerns the road without closing it, and nothing when it is not about traffic. A camera within 250 m of the reported location takes the full level, which falls linearly to a quarter of it at the 1.5 km linking radius, beyond which no camera is linked. The floor decays with a half-life of 30 minutes.
-   $$F_{\text{incident}} = F_0 \cdot \exp(-\lambda \Delta t), \qquad \lambda = \frac{\ln 2}{1800\text{ s}}$$
+1. **Incident floor.** An incident record is worth 0.9 when it implies the road is closed, 0.6 when it concerns the road without closing it, and nothing when it is not about traffic. A camera within 250 m of the reported location takes the full level, which falls linearly to a quarter of it at the 1.5 km linking radius, beyond which no camera is linked. A feed lists a record only while it is open, so the record keeps its full floor for its first hour, and after that the floor halves every 30 minutes, so that a record a dispatcher leaves open for days does not hold a camera on the wall for days.
+   $$F_{\text{incident}} = F_0 \cdot 2^{-\max(0,\, \Delta t - T_{\text{full}}) / T_{1/2}}, \qquad T_{\text{full}} = 3600\text{ s},\; T_{1/2} = 1800\text{ s}$$
    Ohio's incident feed publishes no report time, so a record is dated by when the server first saw it.
 2. **Queue floor.** Every camera upstream of a camera with an incident floor, on the same carriageway and within the walk's bounds, receives a smaller floor of its own.
    $$F_{\text{queue}} = F_{\text{anchor}} \cdot s \cdot \Big(1 - \frac{\Delta M}{M_{\max}}\Big) \cdot \min\Big(1, \frac{\Delta t}{\tau}\Big), \qquad \tau = \frac{\Delta M}{v_{\text{wave}}}$$
-   Here $s = 0.6$, $M_{\max} = 5{,}000$ m, $\Delta M$ is road distance upstream and $v_{\text{wave}} = 15$ km/h. The last term ramps the floor in as a queue could plausibly have reached the camera. A stopped-traffic verdict from the gate is carried upstream in the same way.
+   Here $s = 0.6$, $M_{\max} = 5{,}000$ m, $\Delta M$ is road distance upstream and $v_{\text{wave}} = 15$ km/h. The last term ramps the floor in as a queue could plausibly have reached the camera. A stopped-traffic verdict from the gate is carried upstream in the same way. Since an arrived queue floor reaches the hold threshold of 0.2 only within about 2.2 km of a road-relevant record and about 3.1 km of a closure, queue cameras farther upstream stay in the lower band.
 3. **Stopped-traffic floor.** When the reasoning tier confirms stopped traffic on a still picture, the camera receives a floor of 0.6, held for 10 minutes.
 
 ![Incident floor](figures/05-floor.svg)
@@ -175,7 +186,7 @@ The fast path cannot tell stopped traffic from an empty road, cannot read an inc
             │                            │                           │
             ▼                            ▼                           ▼
    Noul  stopped traffic?        Noul   supported?            Score × 8
-   Noul  frozen feed?            Noul   cleared?              relative attention
+                                 Noul   cleared?              relative attention
                                  Score  prominence 0–3
                                  Choice best camera
             │                            │                           │
@@ -192,7 +203,7 @@ Every answer is gated, so an unconfident answer changes nothing and a low confid
 
 ### 4.1 Exception questions
 
-- **Zero-motion arbitration.** The gate flags a camera when $\Delta I \le 0.004$ while its hour-of-week cell expects traffic, with a cell mean of at least 0.008 over at least 5 frames. The cell mean is used rather than the blended baseline, so that the flag never fires about a camera nothing is yet known about. Two Nouls ask whether the stillness is stopped traffic and whether the feed has frozen. A confident frozen answer takes precedence and suppresses the standstill answer, and a standstill probability of at least 0.8 applies the 0.6 floor. At most 3 cameras are asked about per pass and no camera more than once in 5 minutes. When the optional vehicle detector is running, its count for the flagged frame is added to the state as evidence. The detector sees the frame, and Jev sees only the count.
+- **Zero-motion arbitration.** The gate flags a camera when $\Delta I \le 0.004$ while its hour-of-week cell expects traffic, with a cell mean of at least 0.008 over at least 5 frames. The cell mean is used rather than the blended baseline, so that the flag never fires about a camera nothing is yet known about. One Noul asks whether the stillness is stopped traffic rather than an empty road, and a probability of at least 0.8 applies the 0.6 floor. Whether the feed has frozen is not asked, because the server knows it. A poll that returns the same bytes as the last one is recorded as unchanged and is never flagged, so only a picture that is still updating can reach the gate, and the state the model reads says so. An earlier version asked a second Noul about a frozen feed, and on the synthetic benchmark the model answered it with a probability of about 0.9 for every near-still picture, which cancelled every stopped-traffic answer (Section 8.3). At most 3 cameras are asked about per pass and no camera more than once in 5 minutes. When the optional vehicle detector is running, its count for the flagged frame is added to the state as evidence. The detector sees the frame, and Jev sees only the count.
 - **Incident arbitration.** For a road-relevant record, two Nouls ask whether the camera evidence supports the report and whether it has cleared, a Score places the record on a four-level prominence rubric, and a Choice picks the camera that shows it best. A confident clearance leaves a tenth of the floor, since the record is still open. A confident prominence level scales the floor between 0.5 and 1.5 times. A confident support lifts it by 1.2 times. A confidently chosen named camera gains 1.25 times while the record's other cameras keep 0.75 of theirs. The Choice may also pick an upstream camera, found by walking the directed graph against the traffic for up to 3 hops and 5,000 m, and that camera then receives a queue floor without demoting the named cameras. A record is not asked about until at least one of its cameras has returned a frame difference, and it is asked again only after 60 seconds and once one of its cameras has a new picture.
 
 ![Gate arbitration](figures/08-gate-arbiter.svg)
@@ -238,7 +249,7 @@ Cameras are joined into a directed graph built from OpenStreetMap road geometry.
 
 ## 6. Display Allocation, Logging and Visualization
 
-The display allocator ranks cameras by attention and assigns tile sizes by rank position, with four ranks of hysteresis so that cameras on either side of a size boundary do not swap on noise. Each tile shows its score and the term that drove it, a line that fills until its next picture is due, whether the agency publishes live video for it, and its channel number and picture time.
+The display allocator ranks cameras by attention and assigns tile sizes by rank position, with four ranks of hysteresis so that cameras on either side of a size boundary do not swap on noise. Floor-held cameras take at most half of the large and wide tiles, as Section 3 describes. Each tile shows its score and the term that drove it, a line that fills until its next picture is due, whether the agency publishes live video for it, and its channel number and picture time.
 
 A decision logger writes one line per camera in the top 30, no more often than every 10 seconds, with every component of the score kept separate, including the incident floor before and after arbitration, the second-look factor and the equation's own score. The arbiter writes its own log with the full state of every call, the answers, the latency and the token usage.
 
@@ -280,10 +291,14 @@ The choices stay in the person's browser and are never sent anywhere. One person
 | Axis weights | $w_a = w_s = 0.5$, $\alpha = 0$ |
 | Road-size amplifier | 0.5 to 1.5 |
 | Zero-motion gate | $\epsilon = 0.004$, $\tau = 0.008$, at least 5 frames in the cell |
-| Incident floor | 0.9 closure, 0.6 road-relevant, half-life 30 minutes, radius 1.5 km |
+| Score bands | hold threshold 0.2, upper band 0.5 to 1, lower band 0 to 0.5 |
+| Held-camera limit | half of the wall's large and wide tiles, 15 of 30 board places |
+| Baseline learning | pictures at least 2 times the cell mean, or unexpected stillness, not folded in, unless the level lasts 3 hours |
+| Incident floor | 0.9 closure, 0.6 road-relevant, full for 60 minutes then half-life 30 minutes, radius 1.5 km |
 | Queue floor | share 0.6, upstream walk 3 hops and 5,000 m, stopping wave 15 km/h |
 | Stopped-traffic floor | 0.6, held 10 minutes |
 | Arbiter gates | Noul 0.8, Score and Choice confidence 0.5 |
+| Zero-motion question | one Noul, stopped traffic, frozen feeds decided by the server |
 | Arbiter limits | 20 calls per minute, 2 in flight, 3 gate calls per pass, 8 s timeout |
 | Second look | 8 cameras, at most every 2 minutes on a new picture, factor 0.75 to 1.25, held 10 minutes |
 | Neighbor promotion | 2 hops, at most 30 cameras, held 5 minutes |
@@ -310,6 +325,59 @@ The choices stay in the person's browser and are never sent anywhere. One person
 
 A trigger rate of zero over 2,831 daytime polls says that the gate is quiet, not that it is correct, and the sample contains no night hours and no jams. Four looks show that the second look and the equation order cameras differently, not which of them is closer to a person's attention.
 
+### 8.3 Synthetic benchmark
+
+The benchmark tests whether the scoring rules behave as designed in situations defined in advance. It does not measure performance on real traffic. Each run gives 40 cameras a scripted series of frame differences, with multiplicative noise from one picture to the next, and passes them through the scorer of the running implementation with simulated time. Four weeks of ordinary history on the same weekday are laid down first, so that every camera's hour-of-week cell holds a profile. The event begins at minute 10 and is watched for 40 minutes on a wall of 8 tiles. A camera counts as shown once it stays on the wall for 3 minutes in a row, or across two of its own pictures where that is longer, so that a camera landing on the wall by chance does not count. Every scenario is run 30 times with different seeds, and the rankings compared are a random wall reshuffled once per picture period, the largest frame difference, the frame difference against the camera's recent median, and the equation. `make bench-synthetic` reproduces every figure below.
+
+The five scenarios are these.
+
+1. **Quiet hour, street.** At 3 AM a street camera moves at four times its usual level while the freeways around it are at their usual night level.
+2. **Quiet hour, freeway.** The same, on a freeway camera.
+3. **Rush hour.** At 5 PM thirty freeways are at their usual rush level, and one arterial moves at two and a half times its own usual level, still less raw movement than the freeways.
+4. **Stopped traffic.** At 5 PM a freeway camera that usually moves at 0.030 goes almost still at 0.001. No incident is reported.
+5. **Crash report.** At 2 PM a closure is reported beside a freeway camera whose picture stays ordinary, with two cameras upstream at 1.2 and 3.5 km, one 1.5 km downstream and a cross-street camera 300 m away.
+
+**Results with one picture a minute.** Each cell gives how many of the 30 runs showed the target, and the median share of the 40 minutes it spent on the wall.
+
+| Scenario | Random | Largest difference | Difference against recent median | Equation |
+| --- | --- | --- | --- | --- |
+| Quiet hour, street | 8 of 30, 20% | 30 of 30, 99% | 30 of 30, 53% | 30 of 30, 92% |
+| Quiet hour, freeway | 9 of 30, 23% | 30 of 30, 99% | 30 of 30, 52% | 30 of 30, 99% |
+| Rush hour | 6 of 30, 18% | 0 of 30, 2% | 30 of 30, 48% | 30 of 30, 94% |
+| Stopped traffic | 7 of 30, 23% | 0 of 30, 0% | 0 of 30, 0% | 0 of 30, 0% |
+| Crash report | 6 of 30, 18% | 7 of 30, 24% | 4 of 30, 20% | 30 of 30, 100% |
+
+With the stopped-traffic verdict supplied as certain, the equation shows the stopped camera in 30 of 30 runs, for 99% of the window. In the crash scenario the equation shows the upstream camera at 1.2 km in 30 of 30 runs, a median of 2.5 minutes after the report, and gives no queue floor to the downstream or cross-street camera in any run. A queue floor applied by straight-line radius instead gave a floor to a distractor in all 30 runs. The camera 3.5 km upstream was shown in 5 of 30 runs, since its queue floor stays below the hold threshold.
+
+**Effect of the four changes.** The benchmark found four faults in the previous rules. The floors sat below an ordinary busy freeway's movement term, about 0.68, so a confirmed standstill and an arrived queue never reached the wall. The incident floor decayed below that level within minutes. Events were absorbed into their own baseline, faster at higher picture rates. And the arbiter read near-stillness as a frozen feed. The changes described in Sections 3 and 4.1 address each, with the following effect on the equation.
+
+| Measure | Before | After |
+| --- | --- | --- |
+| Quiet hour, street, share of the window | 66% | 92% |
+| Rush hour, share of the window | 64% | 94% |
+| Stopped traffic with a certain verdict, runs shown | 0 of 30 | 30 of 30 |
+| Crash report, share of the window | 41% | 100% |
+| Upstream camera at 1.2 km, runs shown | 16 of 30 | 30 of 30 |
+| Quiet hour, street, one picture every 15 seconds, runs shown | 19 of 30 | 30 of 30 |
+| Rush hour, one picture every 15 seconds, runs shown | 23 of 30 | 30 of 30 |
+| Crash report, one picture every 5 minutes, runs shown | 13 of 30 | 30 of 30 |
+
+**Picture rate.** The same scenarios were run at one picture every 15 seconds, as sampling a video stream allows, every minute, every 2 minutes and every 5 minutes. For the equation, each cell gives the runs that showed the target and the median minutes until it was shown.
+
+| Scenario | 15 seconds | 1 minute | 2 minutes | 5 minutes |
+| --- | --- | --- | --- | --- |
+| Quiet hour, street | 30 of 30, 0.75 | 30 of 30, 0.75 | 30 of 30, 1 | 30 of 30, 3.5 |
+| Quiet hour, freeway | 30 of 30, 0 | 30 of 30, 0.25 | 30 of 30, 0.5 | 30 of 30, 1 |
+| Rush hour | 30 of 30, 0 | 30 of 30, 0.5 | 30 of 30, 1.25 | 30 of 30, 3 |
+| Stopped traffic | 0 of 30 | 0 of 30 | 0 of 30 | 0 of 30 |
+| Crash report | 30 of 30, 0 | 30 of 30, 0 | 30 of 30, 0 | 30 of 30, 0 |
+
+Slower pictures delay the movement cases roughly in proportion to the picture period, while the crash camera is shown at once at every rate because its floor does not depend on its picture. The largest-difference ranking never showed the rush-hour target at any rate.
+
+**The arbiter on the stopped-traffic scenario.** Checked on one seed with eight calls per arm, the previous gate answered the frozen-feed question at about 0.9 for every call, which cancelled the standstill answer. With that question removed and the feed stated to be updating, the model placed the standstill probability between 0.44 and 0.50 from the numbers alone, and between 0.75 and 0.78 when the state also carried a count of 30 vehicles. Both stay below the 0.8 gate, so the stopped camera was not shown with the arbiter in either arm. From frame differences alone a stopped road and an empty one are indistinguishable, and the result says that a vehicle count alone does not yet carry the model across its threshold. The threshold was not lowered to pass a synthetic test. `make bench-synthetic JEV=1` runs the arbiter arms on five seeds.
+
+**Limits.** The scenarios, their levels and the noise model were chosen by the author, and the outcomes follow from those choices as much as from the rules. The benchmark therefore shows how the rules respond to situations of known kind. It says nothing about how often those situations occur, how real pictures behave, or whether the equation matches what a person would watch.
+
 ---
 
 ## 9. Open Items
@@ -320,6 +388,8 @@ A trigger rate of zero over 2,831 daytime polls says that the gate is quiet, not
 - **Scale prior.** The capacity proxy tracks published counts only moderately, and only Iowa's counts are usable in the current pool.
 - **Incident coverage.** Incidents are available for one state of seven.
 - **Rubric calibration.** None of the arbiter's rubrics has been calibrated against labeled outcomes, which is what the decision log and the rubric version exist to make possible.
+- **Stopped traffic from numbers.** In the synthetic checks the arbiter's standstill probability stayed below its 0.8 gate even with a vehicle count. Whether a real detector count on a real stopped freeway clears it is untested.
+- **Band and limit settings.** The hold threshold of 0.2 and the limit of half the prominent tiles are design settings that have not been tuned against any outcome.
 - **Human attention.** Whether the equation, the second look or either matches any person's attention, and whether different people agree with each other, is untested.
 
 ---

@@ -28,13 +28,15 @@
 <path d="M 684 114 L 742 114" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
 <text x="713" y="107" text-anchor="middle" font-size="11.5" fill="#5d6b7d">x</text>
 <rect x="742" y="70" width="130" height="88" rx="7" fill="#f4f7fa" stroke="#96a4b5"/>
-<text x="807" y="95" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Age decay</text>
-<text x="807" y="112" text-anchor="middle" font-size="12" fill="#5d6b7d">half-life</text>
-<text x="807" y="129" text-anchor="middle" font-size="12" fill="#5d6b7d">30 min</text>
-<text x="450" y="202" text-anchor="middle" font-size="13.5" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#1d2530">Floor = level(code) * taper(distance) * 0.5 ^ (age / halfLife)</text>
+<text x="807" y="95" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">Age</text>
+<text x="807" y="112" text-anchor="middle" font-size="12" fill="#5d6b7d">full for 60 min</text>
+<text x="807" y="129" text-anchor="middle" font-size="12" fill="#5d6b7d">then half-life 30 min</text>
+<text x="450" y="202" text-anchor="middle" font-size="13.5" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#1d2530">Floor = level(code) * taper(distance) * 0.5 ^ (max(0, age - 60 min) / 30 min)</text>
 <path d="M 450 216 L 450 252" fill="none" stroke="#96a4b5" stroke-width="1.6" marker-end="url(#head)"/>
 <rect x="240" y="252" width="420" height="50" rx="7" fill="#f4f7fa" stroke="#1f6feb"/>
 <text x="450" y="282" text-anchor="middle" font-size="14" font-weight="600" fill="#1d2530">The floor under every camera the record names</text>
-<text x="28" y="340" text-anchor="start" font-size="12" fill="#5d6b7d">Without the decay term an open record pins a camera to the wall for as long as the dispatcher leaves it open. One</text>
-<text x="28" y="356" text-anchor="start" font-size="12" fill="#5d6b7d">Florida record in the sample had been open for 171 days.</text>
+<text x="28" y="340" text-anchor="start" font-size="12" fill="#5d6b7d">A feed lists a record only while it is open, so the record keeps its full floor for its first hour. After that it</text>
+<text x="28" y="356" text-anchor="start" font-size="12" fill="#5d6b7d">halves every half hour, so a record a dispatcher</text>
+<text x="28" y="372" text-anchor="start" font-size="12" fill="#5d6b7d">leaves open for days does not hold a camera on the wall for days. One record in an earlier dispatch feed had been open</text>
+<text x="28" y="388" text-anchor="start" font-size="12" fill="#5d6b7d">for 171 days.</text>
 </svg>

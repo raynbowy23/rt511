@@ -30,21 +30,24 @@ anomaly(c,t)    = min( cap(n), 0.5 · diff(c,t) / baseline(c, hourOfWeek) )    c
 spectacle(c,t)  = α · absolute + (1 − α) · relative                          α = 0 at present
 amplifier(c)    = Pmin + (Pmax − Pmin) · scalePrior(c)                       Pmin = 0.5, Pmax = 1.5
 look(c,t)       = second-look factor from 0.75 to 1.25, or 1 without a confident look
-floor(c,t)      = incidentLevel(record, distance) · exp(−λ · age)             half-life 30 minutes
+floor(c,t)      = incidentLevel(record, distance) · 2^(−max(0, age − 60 min) / 30 min)
 queueFloor(c,t) = floor(anchor) · 0.6 · (1 − roadDistance / 5 km) · min(1, age / waveArrival)
 gateFloor(c,t)  = 0.6 for 10 minutes once stopped traffic is confirmed on the camera
 
-attention(c,t)  = clamp( max( amplifier(c) · look(c,t) · (wa · anomaly + ws · spectacle),
-                              floor, queueFloor, gateFloor ), 0, 1 )                wa = ws = 0.5
+movement(c,t)   = amplifier(c) · look(c,t) · (wa · anomaly + ws · spectacle)            wa = ws = 0.5
+F(c,t)          = max(floor, queueFloor, gateFloor)
+level(c,t)      = min(1, max(movement, F))
+attention(c,t)  = 0.5 + 0.5 · level   if F ≥ 0.2   (upper band, held by a floor)
+                  0.5 · level         otherwise    (lower band)
 ```
 
 ### Core mechanics
 
-- **Consequence as a floor.** The `max` is the central structural choice. Consequence is not a weighted contributor but a lower bound, so a camera beside a reported closure keeps a place on the wall however still its picture is, which is exactly the case a pixel difference gets wrong.
+- **Consequence before movement.** The two bands are the central structural choice. Any camera held by a floor of at least 0.2 scores above every camera that is not, so a camera beside a reported closure, behind it in a queue or showing confirmed stopped traffic keeps a place on the wall however still its picture is, which is exactly the case a pixel difference gets wrong. A floor used only as a lower bound under one score, the earlier rule, did not achieve this, because an ordinary busy freeway's movement term, about 0.68, exceeded the stopped-traffic and queue floors. Floor-held cameras take at most half of the wall's large and wide tiles, and at most 15 of the 30 places on the national board, so that a burst of incidents cannot take every prominent place.
 - **Warm-up cap.** A camera with only a few frame differences has a noisy baseline, and before the cap most of a newly opened city read 1.00 in its first minutes. The cap holds a camera's movement score to the ordinary 0.5 until it has history of its own, and lets it reach 1 after ten differences, about ten minutes on screen. A still picture reads 0 from the start, because only the saturation waits.
 - **Road-size amplifier.** Road size sits outside both visual axes as a single amplifier between 0.5 and 1.5 times, so a minor anomaly on a local street does not outrank the same anomaly on an interstate. It used to multiply spectacle, which the weighted sum then halved, so its real range was 0.5 to 1.0 without any constant saying so. Moving it out states the range and keeps spectacle readable as a measure of movement alone.
 - **Separate floors.** The stopped-traffic floor comes from a picture and the incident floor from an agency's record. They are kept apart so that the decision log can say which one put a camera on the wall.
-- **Decay.** Without decay, a stale incident record would hold a camera on the wall indefinitely, and one dispatch feed used earlier contained a record that had been open for 171 days.
+- **Hold, then decay.** A feed lists a record only while it is open, so a record keeps its full floor for its first hour. After that it halves every 30 minutes, since without decay a stale record would hold a camera on the wall indefinitely, and one dispatch feed used earlier contained a record that had been open for 171 days. The earlier rule decayed from the start and pulled a crash camera below ordinary busy freeways within minutes.
 
 ---
 
@@ -64,6 +67,8 @@ $$
 - As observations accumulate in a given hour of the week, the cell's own mean takes over, so a rush hour that happens every weekday reads as normal while the same movement at an unusual hour stands out.
 
 A rolling median alone would track rush hour as it builds and correctly call it normal, but it would also measure a 3 AM event against the empty minutes just before it. The profile separates busy from unusual.
+
+An event is kept out of its own baseline. Once a cell holds 5 frames, a picture at least twice its mean, or a stillness it does not expect, is not folded in, so an ongoing event is still measured against the ordinary hour. Without this rule the event raised the cell it was measured against, and faster cameras did so faster, because the cell counts pictures rather than minutes. An unusual level that lasts 3 hours is accepted as the new usual, so a lasting change such as a work zone is eventually learned.
 
 ### Road-size prior
 
@@ -104,17 +109,16 @@ A jam and an empty road are indistinguishable to this signal, and the jam is the
                               │
           ┌───────────────────┴────────────────────┐
           ▼                                        ▼
-  optional detector counts vehicles        Jev asks two Nouls, from numbers and text
-  in the flagged frame (evidence only)       stopped traffic?   frozen feed?
+  optional detector counts vehicles        Jev asks one Noul, from numbers and text
+  in the flagged frame (evidence only)       stopped traffic, rather than an empty road?
           └───────────────────┬────────────────────┘
                               ▼
-          frozen feed confident (≥ 0.8)  →  nothing is applied, and the standstill answer is set aside
           stopped traffic confident (≥ 0.8)  →  floor of 0.6 for 10 minutes, carried upstream as a queue
-          neither confident  →  recorded, no change
+          not confident  →  recorded, no change
 ```
 
 1. **Stopped traffic or an empty road.** A confident standstill answer puts a floor of 0.6 under the camera for 10 minutes, the same level a road-relevant incident record receives, since a confirmed standstill is an incident nobody has reported yet. The floor is then carried upstream like any other.
-2. **Frozen feed.** A confident frozen answer takes precedence and sets the standstill answer aside, because a picture that is not arriving says nothing about the road.
+2. **Frozen feed.** Not asked, because the server knows it. A poll that returns the same bytes as the last one is recorded as unchanged and never flagged, so only a picture that is still updating reaches the gate, and the state Jev reads says so. An earlier version asked Jev a second Noul about a frozen feed, and in the synthetic benchmark it answered about 0.9 for every near-still picture, which cancelled every stopped-traffic answer.
 3. **Vehicle detector.** When the optional detector is running, the flagged frame is posted to it, and its vehicle count is added to the state that Jev reads. The count decides nothing by itself, so what it adds can be calibrated against the logged answers first. Every count is written to `out/detector-<date>.jsonl` whether or not Jev is configured, and a missing count is described as "not counted", never as zero.
 
 The cell's own mean is used for the test rather than the blended baseline, so that the flag never fires about a camera nothing is yet known about, and the cell must hold at least 5 frames. An earlier build without that guard fired on 34% of polls three minutes into a run.
@@ -136,7 +140,6 @@ Jev is a reasoning model that answers typed questions about a state. It returns 
 | Score (0–3) | How much of the wall should the incident take? | Scales the incident floor between 0.5 and 1.5 times |
 | Choice | Which camera best shows the incident or its queue? | A chosen named camera gains 1.25 times and the others keep 0.75, and a chosen upstream camera receives a queue floor |
 | Noul | Is this still picture stopped traffic? | Floor of 0.6 for 10 minutes |
-| Noul | Has this camera's feed frozen? | Sets the standstill answer aside |
 | Score (0–3), one per camera | How much does each of a city's eight leading cameras deserve attention, compared with the others? | Scales that camera's movement term between 0.75 and 1.25 times for 10 minutes |
 
 A Noul acts at a probability of at least 0.8, and a Score or Choice at a confidence of at least 0.5. An answer below its gate is recorded and changes nothing, so a low confidence means a camera is treated normally, never hidden.
@@ -171,7 +174,8 @@ A Noul acts at a probability of at least 0.8, and a Score or Choice at a confide
 | Queue floor carried upstream | Live | Directed walk, 15 km/h, 5 km, in `server/src/corridor.ts` and `server/src/attention.ts` |
 | Incident feed | Live for Ohio (OHGO) | Dated by first sighting, because OHGO publishes no report time |
 | Published traffic counts | Live for Iowa (CC BY) | Mainline segments on the camera's own route, capacity and road class elsewhere |
-| Zero-motion gate | Live | 0 triggers in 2,831 daytime polls, not yet observed at night or in a jam |
+| Zero-motion gate | Live | One question, stopped traffic, 0 triggers in 2,831 daytime polls, not yet observed at night or in a jam |
+| Synthetic benchmark | Live | `make bench-synthetic`, five scripted scenarios at four picture rates, see whitepaper Section 8.3 |
 | Jev arbitration | Live when a key is set | Text only, over Ohio incidents, still cameras and the second look, in `server/src/jev.ts` |
 | Vehicle detector | Optional | Evidence to Jev, in `server/src/detector.ts` and `src/rt511/detect.py`, not yet measured at night or in a jam |
 | Neighbor promotion | Live | 2 hops, at most 30 cameras, in `server/src/corridor.ts` |

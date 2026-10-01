@@ -14,6 +14,7 @@ const { TUNING } = await import(join(ROOT, 'server/dist/server/src/attention.js'
 const { CORRIDOR } = await import(join(ROOT, 'server/dist/server/src/corridor.js'));
 const { JEV } = await import(join(ROOT, 'server/dist/server/src/jev.js'));
 const { MARGIN_S, DIFF_HISTORY, DEFAULT_RING, BUDGET, SLOW_PERIOD_S } = await import(join(ROOT, 'server/dist/server/src/poller.js'));
+const { SCORE } = await import(join(ROOT, 'server/dist/shared/src/score.js'));
 
 /** A constant that stops being exported reads as `undefined` in a label and the figure still renders, which is exactly the drift these figures exist to prevent. */
 for (const [name, value] of Object.entries({ MARGIN_S, DIFF_HISTORY, DEFAULT_RING, SLOW_PERIOD_S, ON_SCREEN_S: BUDGET?.ON_SCREEN_S, OFF_SCREEN_S: BUDGET?.OFF_SCREEN_S })) {
@@ -180,7 +181,7 @@ add(
     arrow(602, 172, 676, 172, ''),
     box(676, 130, 196, 84, 'Baseline mu', ['what anomaly divides by']),
     formula(450, 304, 'mu = (N/(N+K)) * cellMean + (K/(N+K)) * rollingMedian'),
-    note(28, 340, ['At N = 0 the blend returns the rolling median exactly, so a cold process ranks cameras the way the older activity measure did. The hourly profile takes over as its own cell fills, with no warm-up period and no reindexing.']),
+    note(28, 340, ['At N = 0 the blend returns the rolling median exactly, so the system is usable at once. A picture at least ' + TUNING.LEARN_SKIP_RATIO + ' times what the cell expects, or a stillness it does not expect, is not folded in,', 'so an ongoing event does not become the usual. An unusual level lasting ' + TUNING.LEARN_RESUME_S / 3600 + ' hours is accepted as the new usual.']),
   ].join('\n'),
 );
 
@@ -217,18 +218,18 @@ add(
     arrow(470, 114, 528, 114, 'x'),
     box(528, 70, 156, 88, 'Distance taper', [`1 within ${TUNING.INCIDENT_NEAR_KM} km`, `${TUNING.INCIDENT_FAR_FACTOR} at the edge`]),
     arrow(684, 114, 742, 114, 'x'),
-    box(742, 70, 130, 88, 'Age decay', [`half-life`, `${TUNING.INCIDENT_HALF_LIFE_S / 60} min`]),
-    formula(450, 202, 'Floor = level(code) * taper(distance) * 0.5 ^ (age / halfLife)'),
+    box(742, 70, 130, 88, 'Age', [`full for ${TUNING.INCIDENT_FULL_S / 60} min`, `then half-life ${TUNING.INCIDENT_HALF_LIFE_S / 60} min`]),
+    formula(450, 202, `Floor = level(code) * taper(distance) * 0.5 ^ (max(0, age - ${TUNING.INCIDENT_FULL_S / 60} min) / ${TUNING.INCIDENT_HALF_LIFE_S / 60} min)`),
     arrow(450, 216, 450, 252, ''),
     box(240, 252, 420, 50, 'The floor under every camera the record names', [], { stroke: ACCENT }),
-    note(28, 340, ['Without the decay term an open record pins a camera to the wall for as long as the dispatcher leaves it open. One Florida record in the sample had been open for 171 days.']),
+    note(28, 340, ['A feed lists a record only while it is open, so the record keeps its full floor for its first hour. After that it halves every half hour, so a record a dispatcher', 'leaves open for days does not hold a camera on the wall for days. One record in an earlier dispatch feed had been open for 171 days.']),
   ].join('\n'),
 );
 
 /* 6. Attention combination. */
 add(
   '06-attention.svg',
-  'Process 6. Combination. Two visual axes amplified by road scale, held up by a floor',
+  'Process 6. Combination. Movement amplified by road size, then ordered in two bands by consequence',
   440,
   [
     box(28, 70, 214, 78, 'Anomaly A', ['difference over baseline', `${TUNING.ANOMALY_AT_BASELINE} at the baseline`]),
@@ -245,8 +246,8 @@ add(
     arrow(736, 156, 800, 156, '', { path: 'M 736 156 L 790 156 L 790 250 L 700 250' }),
     arrow(242, 275, 700, 275, '', { path: 'M 242 275 L 560 275 L 560 262 L 700 262' }),
     arrow(242, 349, 700, 349, '', { path: 'M 242 349 L 600 349 L 600 278 L 700 278' }),
-    box(700, 228, 172, 72, 'max, then clamp', ['result in 0..1'], { stroke: ACCENT }),
-    formula(450, 416, 'Attn = clamp( max( P * (wa*A + ws*S), Floor, QueueFloor, GateFloor ), 0, 1 )'),
+    box(700, 228, 172, 72, 'Two bands', [`floor >= ${SCORE.FLOOR_HOLD_MIN}: ${SCORE.BAND} to 1`, `otherwise: 0 to ${SCORE.BAND}`], { stroke: ACCENT }),
+    formula(450, 416, `level = min(1, max(P*R*(wa*A + ws*S), F))    Attn = F >= ${SCORE.FLOOR_HOLD_MIN} ? ${SCORE.BAND} + ${1 - SCORE.BAND}*level : ${SCORE.BAND}*level`),
   ].join('\n'),
 );
 
@@ -283,23 +284,21 @@ add(
 /* 8. Gate arbitration. */
 add(
   '08-gate-arbiter.svg',
-  'Process 8. Gate arbitration. Telling stopped traffic from an empty road and a dead picture',
+  'Process 8. Gate arbitration. Telling stopped traffic from an empty road',
   400,
   [
-    box(28, 74, 210, 80, 'A flagged camera', ['still, in an hour that moves'], { stroke: WARM }),
+    box(28, 74, 210, 80, 'A flagged camera', ['still, in an hour that moves', 'picture still updating'], { stroke: WARM }),
     arrow(238, 114, 312, 114, 'state'),
-    box(312, 74, 190, 80, 'Jev, one call', ['two nouls'], { stroke: ACCENT }),
-    arrow(502, 96, 576, 96, ''),
-    arrow(502, 132, 576, 132, ''),
-    box(576, 66, 296, 46, 'frozen: the feed has stopped', []),
-    box(576, 124, 296, 46, 'standstill: traffic has stopped', []),
-    arrow(724, 170, 724, 208, ''),
-    diamond(724, 240, 250, 62, 'frozen confident ?'),
-    arrow(724, 271, 724, 306, 'no', { lx: 734, anchor: 'start' }),
-    arrow(599, 240, 500, 240, 'yes', { lx: 550, ly: 232 }),
+    box(312, 74, 190, 80, 'Jev, one call', ['one noul'], { stroke: ACCENT }),
+    arrow(502, 114, 576, 114, ''),
+    box(576, 90, 296, 48, 'standstill: traffic has stopped', []),
+    arrow(724, 138, 724, 208, ''),
+    diamond(724, 240, 250, 62, `standstill >= ${JEV.NOUL_THRESHOLD} ?`),
+    arrow(724, 271, 724, 306, 'yes', { lx: 734, anchor: 'start' }),
+    arrow(599, 240, 500, 240, 'no', { lx: 550, ly: 232 }),
     box(576, 306, 296, 48, `Floor of ${JEV.GRIDLOCK_FLOOR}, held ${JEV.GATE_HOLD_S / 60} min`, [], { stroke: ACCENT }),
-    box(200, 216, 300, 48, 'Nothing, and the standstill answer with it', [], { dash: true }),
-    note(28, 196, [`At most ${JEV.MAX_GATE_PER_PASS} cameras per pass,`, `and one camera at most every ${JEV.GATE_REASK_AFTER_S / 60} minutes.`]),
+    box(200, 216, 300, 48, 'Recorded, nothing applied', [], { dash: true }),
+    note(28, 376, [`At most ${JEV.MAX_GATE_PER_PASS} cameras per pass, and one camera at most every ${JEV.GATE_REASK_AFTER_S / 60} minutes. A frozen feed never reaches this gate, because a poll returning the same bytes is recorded as unchanged and never flagged.`]),
   ].join('\n'),
 );
 

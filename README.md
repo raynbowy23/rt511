@@ -49,7 +49,7 @@ cp .env.example .env
 | Key | Source | Purpose |
 | OHIODOT_API | [OHGO Portal](https://publicapi.ohgo.com/docs/registration) | Refreshes Ohio camera lists and incident feeds. |
 | OREGONDOT_API | [TripCheck Portal](https://apiportal.odot.state.or.us/) | Refreshes Oregon camera lists. |
-| JEV_API | Provider token | Enables the vision-language second-look reranker. |
+| JEV_API | Provider token | Enables the typed reasoning model, which reads numbers and text, for incident and still-picture arbitration and the second-look reranker. |
 | RT511_DETECTOR_URL | Custom endpoint | Points to the vehicle detector (defaults to [http://127.0.0.1:8513](http://127.0.0.1:8513)). |
 
 
@@ -91,7 +91,7 @@ pnpm start --ring 30                            # Extend in-memory replay buffer
 
 * **Evaluate** Compares your preferences against the scoring engine and JEV models using double-blind pairs. Run `uv run python scripts/evaluate_attention.py <export>.json --logs out` to evaluate rank correlations.
 
-* **The Second Look** When `JEV_API` is configured, an asynchronous multimodal model inspects the top eight candidate feeds every few minutes, scaling the dynamic movement term ($0.75\times$ to $1.25\times$) while preserving baseline incident floors. Logs stream to `out/jev-<date>.jsonl`.
+* **The Second Look** When `JEV_API` is configured, an asynchronous typed reasoning model compares the top eight candidate feeds, from their numbers and text, every few minutes, scaling the dynamic movement term ($0.75\times$ to $1.25\times$) while preserving baseline incident floors. Logs stream to `out/jev-<date>.jsonl`.
 
 
 #### Dynamic Map Overlays
@@ -274,10 +274,10 @@ This section outlines the baseline assumptions governing how attention is scored
 
 * **Temporal Anomaly**: Incoming frames are downsampled to grayscale thumbnails and differenced against preceding captures. The resulting delta is normalized against a rolling baseline learned for that specific hour of the week. Expected baseline activity scores at $0.5$, while variance exceeding twice the historical norm saturates the term. Cameras lacking sufficient observation history are clamped to prevent artificial volatility.
 * **Corridor Importance**: Roadway priority scales the baseline motion term by a multiplier between $0.5\times$ and $1.5\times$. Ground truth is derived hierarchically: measured agency AADT counts when published, lane count and design speed limits when available, and standard functional road classification as a fallback.
-* **Consequence as a Score Floor**: Confirmed incidents, upstream queue propagation, and verified stationary traffic apply strict numerical *floors* to a camera's score rather than additive bonuses. Because zero-motion frames (gridlock vs. an empty overnight road) appear identical under simple pixel differencing, structural floors guarantee that severe bottlenecks remain anchored on the wall.
-* **Directed Network Topology**: Sensors are mapped to directed roadway corridors matching real-world traffic flow. Queue risks diffuse exclusively upstream, bounded by kinematic wave speeds and elapsed incident duration. An anomaly at a downstream node automatically sharpens the polling frequency and baseline sensitivity of adjacent upstream neighbors.
-* **Selective Semantic Reasoning**: The JEV multimodal model acts strictly as an exception handler for ambiguities that numerical heuristics cannot resolve. It arbitrates zero-motion ambiguities (gridlock vs. deserted road vs. frozen frame), selects optimal camera perspectives during active incidents, and re-ranks top candidate feeds during periodic second-look sweeps. Model outputs are strictly bounded, confidence-gated, and barred from overriding topological incident floors.
-* **Human Visual Alignment**: The *Which?* inspection tool fits an in-browser Bradley–Terry preference model to pairwise user choices across identical feature vectors. This projects operator instinct directly into the scorer's feature space, enabling quantitative evaluation between algorithmic rank, multimodal reasoning, and human choice.
+* **Consequence Before Movement**: Confirmed incidents, upstream queue propagation, and verified stationary traffic apply numerical *floors* to a camera's score rather than additive bonuses. The score is built in two bands, so any camera held by a floor of at least $0.2$ ranks above every camera without one, and floor-held cameras take at most half of the wall's prominent tiles. Because zero-motion frames (gridlock vs. an empty overnight road) appear identical under simple pixel differencing, this ordering keeps severe bottlenecks on the wall.
+* **Directed Network Topology**: Sensors are mapped to directed roadway corridors matching real-world traffic flow. Queue risks diffuse exclusively upstream, bounded by kinematic wave speeds and elapsed incident duration. An incident, confirmed stopped traffic, or movement well above a camera's usual level prompts closer polling of its neighbors within two hops, upstream first.
+* **Selective Semantic Reasoning**: The JEV typed reasoning model, which reads numbers and text rather than images, acts strictly as an exception handler for ambiguities that numerical heuristics cannot resolve. It arbitrates zero-motion ambiguities (gridlock vs. deserted road, while a frozen feed is detected by the server itself), selects optimal camera perspectives during active incidents, and re-ranks top candidate feeds during periodic second-look sweeps. Model outputs are strictly bounded, confidence-gated, and barred from overriding topological incident floors.
+* **Human Visual Alignment**: The *Which?* inspection tool fits an in-browser Bradley–Terry preference model to pairwise user choices across identical feature vectors. This projects operator instinct directly into the scorer's feature space, enabling quantitative evaluation between algorithmic rank, the reasoning model's second look, and human choice.
 * **Display Allocation & Hysteresis**: Feeds are allocated screen area proportionally by ranked score. A hysteresis buffer prevents rapid tile-swapping and visual flicker when adjacent feeds hover near rank boundaries.
 
 ## Disclaimer
