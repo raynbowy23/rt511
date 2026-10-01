@@ -18,7 +18,9 @@ Consequence enters lexicographically rather than as an additive weight. Any came
 
 ---
 
-## 1. Theoretical Grounding
+## 1. Theoretical Grounding and Related Work
+
+### 1.1 Theoretical grounding
 
 Each element of the design has a counterpart in an established account from behavioral science, statistics or traffic flow theory. The correspondence makes each choice open to inspection. None of these accounts is tested here.
 
@@ -64,6 +66,22 @@ Each element of the design has a counterpart in an established account from beha
 - **Record age.** The exponential decay of the incident floor assumes that an incident clears at a constant rate whatever its age. Hazard-based studies of incident duration find that assumption too simple (Nam and Mannering, 2000), so the half-life is a convenience.
 - **Acting only when confident.** The reasoning tier acts on an answer only when its confidence clears a threshold, and otherwise leaves the deterministic score in place. This is the reject option in classification (Chow, 1970), with the deterministic floor as the fallback.
 - **A person's attention from comparisons.** Choices between two cameras are turned into a scale by the law of comparative judgment (Thurstone, 1927) in the logistic form of the Bradley–Terry model (Bradley and Terry, 1952), parameterized over the scorer's features. The next pair is chosen where the model is least certain, the uncertainty sampling strategy of active learning (Lewis and Gale, 1994).
+
+### 1.2 Related work
+
+The search behind this section was not exhaustive, and a systematic search of transportation and engineering databases for the prioritization of traffic management center cameras is still to be done. The work closest to rt511 falls into five areas.
+
+**Scheduling cameras for scarce viewing.** Camera scheduling has been studied mainly for active pan-tilt-zoom cameras serving many targets, as in the observation scheduling of Costello et al. (2004) and the virtual-vision scheduling of Qureshi and Terzopoulos (2006). In the traffic domain, Li et al. (2024) decide where tilting traffic cameras should point using a graph-based predictor learned online. rt511 shares the premise of scarce viewing capacity but steers no camera, and instead ranks fixed public feeds for a person's display. Field observation of a road traffic control room by Starke et al. (2017) describes how operators divide their visual attention across displays, which is the condition rt511 is designed around.
+
+**Detecting incidents and anomalies in traffic video.** Video-based incident detection has a long history, from tracking-based accident detection at intersections (Kamijo et al., 2000) to the study of false alarms from shadows, weather and lighting in deployed systems (Shehata et al., 2008). Santhosh et al. (2021) survey anomaly detection in road surveillance video, the AI City Challenge benchmarks the detection of crashes and stalled vehicles in Iowa DOT video (Naphade et al., 2021), and Mandal et al. (2020) apply detection and tracking to DOT camera feeds to reduce manual monitoring. These methods produce detections or alerts. rt511 produces a ranking, works from still pictures a minute or more apart rather than continuous video, and could take any such detector's output as an additional floor.
+
+**Selecting views among many cameras.** Multi-camera surveillance has studied which camera to show, surveyed by Natarajan et al. (2015). Daniyal et al. (2010) score each camera's content and select the most informative view of a shared scene, and Daniyal and Cavallaro (2011) treat the choice as a sequential decision that penalizes switching between cameras, a counterpart to rt511's hysteresis. These methods choose among views of one scene, while rt511 ranks many cameras on separate roads and weights them by the consequence of what happens there.
+
+**Attention allocation in supervisory monitoring.** Senders (1964) proposed that an observer should sample each channel in proportion to how fast its information changes, and the SEEV model of Wickens et al. (2003) predicts where attention goes from salience, effort, expectancy and value. rt511's terms correspond roughly to that model, with anomaly as salience, the hour-of-week baseline as expectancy, and road size and consequence floors as value. SEEV describes where attention goes, while rt511 uses the same ingredients to propose where it should go. Stainer et al. (2013) found that operators of live CCTV spent most of their time on a few spot monitors and chose what to show from expectations about the time of day, which bears on both the hour-of-week baseline and the small number of prominent tiles.
+
+**Language models as rerankers.** Large language models have been used to rerank candidate lists, both listwise (Sun et al., 2023) and by pairwise comparison (Qin et al., 2024). The confidence they state can be better calibrated than their token probabilities (Tian et al., 2023), which bears on the gates used here. rt511's second look is a listwise rerank of the leading cameras from text descriptions, bounded so that it can move movement but never consequence.
+
+Each component of rt511 therefore has precedent. What has not been found in the work above is their combination for ranking fixed public traffic feeds on a wall, namely a per-camera hour-of-week baseline over picture differences, exposure weighting, lexicographic consequence floors from incident records and from queues propagated upstream along a road graph, a language model consulted only for cases the arithmetic cannot settle, and a preference model learned from one person's choices. That combination, and the framing of a traffic camera wall as an attention allocation problem, is the contribution this document describes, subject to the fuller search noted above.
 
 ---
 
@@ -374,9 +392,9 @@ With the stopped-traffic verdict supplied as certain, the equation shows the sto
 
 Slower pictures delay the movement cases roughly in proportion to the picture period, while the crash camera is shown at once at every rate because its floor does not depend on its picture. The largest-difference ranking never showed the rush-hour target at any rate.
 
-**The arbiter on the stopped-traffic scenario.** Checked on one seed with eight calls per arm, the previous gate answered the frozen-feed question at about 0.9 for every call, which cancelled the standstill answer. With that question removed and the feed stated to be updating, the model placed the standstill probability between 0.44 and 0.50 from the numbers alone, and between 0.75 and 0.78 when the state also carried a count of 30 vehicles. Both stay below the 0.8 gate, so the stopped camera was not shown with the arbiter in either arm. From frame differences alone a stopped road and an empty one are indistinguishable, and the result says that a vehicle count alone does not yet carry the model across its threshold. The threshold was not lowered to pass a synthetic test. `make bench-synthetic JEV=1` runs the arbiter arms on five seeds.
+**The arbiter on the stopped-traffic scenario.** Checked on one seed with eight calls per arm, the previous gate answered the frozen-feed question at about 0.9 for every call, which cancelled the standstill answer. With that question removed and the feed stated to be updating, the model placed the standstill probability between 0.44 and 0.50 from the numbers alone, and between 0.75 and 0.78 when the state also carried a count of 30 vehicles. Both stay below the 0.8 gate. Over the full arms, five seeds and 80 calls, the stopped camera was shown in 0 of 5 runs from the numbers alone and in 1 of 5 runs with the vehicle count, the one run in which a single answer crossed the gate. From frame differences alone a stopped road and an empty one are indistinguishable, and the result says that a vehicle count alone rarely carries the model across its threshold. The threshold was not lowered to pass a synthetic test. `make bench-synthetic JEV=1` reproduces these arms.
 
-**Limits.** The scenarios, their levels and the noise model were chosen by the author, and the outcomes follow from those choices as much as from the rules. The benchmark therefore shows how the rules respond to situations of known kind. It says nothing about how often those situations occur, how real pictures behave, or whether the equation matches what a person would watch.
+**Limits.** This is a specification test, not evidence that the rules are right. The scenarios, their levels and the noise model were written by the author with the rules in view, and several outcomes follow directly from the definitions. The rush-hour result, for example, holds because anomaly divides by a camera's usual level, which no motion-only ranking does. The benchmark is not selective in what it reports, since every scenario and every seed is reported, including the failures, and it was not tuned to pass, having found four faults in the rules it was written to test. It shows how the rules respond to situations of known kind. It says nothing about how often those situations occur, how real pictures behave, or whether the equation matches what a person would watch.
 
 ---
 
@@ -406,6 +424,12 @@ Chow, C. K. (1970). On optimum recognition error and reject tradeoff. *IEEE Tran
 
 Collins, A. M., & Loftus, E. F. (1975). A spreading-activation theory of semantic processing. *Psychological Review*, 82(6), 407–428. https://doi.org/10.1037/0033-295X.82.6.407
 
+Costello, C. J., Diehl, C. P., Banerjee, A., & Fisher, H. (2004). Scheduling an active camera to observe people. In *Proceedings of the 2nd ACM International Workshop on Video Surveillance and Sensor Networks* (pp. 39–45). https://doi.org/10.1145/1026799.1026808
+
+Daniyal, F., & Cavallaro, A. (2011). Multi-camera scheduling for video production. In *2011 Conference for Visual Media Production* (pp. 11–20). https://doi.org/10.1109/CVMP.2011.8
+
+Daniyal, F., Taj, M., & Cavallaro, A. (2010). Content and task-based view selection from multiple video streams. *Multimedia Tools and Applications*, 46(2–3), 235–258. https://doi.org/10.1007/s11042-009-0355-z
+
 Efron, B., & Morris, C. (1973). Stein's estimation rule and its competitors, an empirical Bayes approach. *Journal of the American Statistical Association*, 68(341), 117–130. https://doi.org/10.2307/2284155
 
 Fishburn, P. C. (1974). Lexicographic orders, utilities and decision rules: A survey. *Management Science*, 20(11), 1442–1471. https://doi.org/10.1287/mnsc.20.11.1442
@@ -420,21 +444,52 @@ Itti, L., Koch, C., & Niebur, E. (1998). A model of saliency-based visual attent
 
 Jiang, Z., Araki, J., Ding, H., & Neubig, G. (2021). How can we know when language models know? On the calibration of language models for question answering. *Transactions of the Association for Computational Linguistics*, 9, 962–977. https://doi.org/10.1162/tacl_a_00407
 
+Kamijo, S., Matsushita, Y., Ikeuchi, K., & Sakauchi, M. (2000). Traffic monitoring and accident detection at intersections. *IEEE Transactions on Intelligent Transportation Systems*, 1(2), 108–118. https://doi.org/10.1109/6979.880968
+
 Lewis, D. D., & Gale, W. A. (1994). A sequential algorithm for training text classifiers. In *SIGIR '94, Proceedings of the Seventeenth Annual International ACM-SIGIR Conference on Research and Development in Information Retrieval* (pp. 3–12). Springer London. https://doi.org/10.1007/978-1-4471-2099-5_1
+
+Li, T., Bian, Z., Lei, H., Zuo, F., Yang, Y.-T., Zhu, Q., Li, Z., & Ozbay, K. (2024). Multi-level traffic-responsive tilt camera surveillance through predictive correlated online learning. *Transportation Research Part C*, 167, 104804. https://doi.org/10.1016/j.trc.2024.104804
 
 Lighthill, M. J., & Whitham, G. B. (1955). On kinematic waves II. A theory of traffic flow on long crowded roads. *Proceedings of the Royal Society of London. Series A*, 229(1178), 317–345. https://doi.org/10.1098/rspa.1955.0089
 
+Mandal, V., Mussah, A. R., Jin, P., & Adu-Gyamfi, Y. (2020). Artificial intelligence-enabled traffic monitoring system. *Sustainability*, 12(21), 9177. https://doi.org/10.3390/su12219177
+
+Naphade, M., Wang, S., Anastasiu, D. C., Tang, Z., Chang, M.-C., Yang, X., Yao, Y., Zheng, L., Chakraborty, P., Sharma, A., Feng, Q., Ablavsky, V., & Sclaroff, S. (2021). The 5th AI City Challenge. In *2021 IEEE/CVF Conference on Computer Vision and Pattern Recognition Workshops* (pp. 4258–4268). https://doi.org/10.1109/CVPRW53098.2021.00482
+
 Nam, D., & Mannering, F. (2000). An exploratory hazard-based analysis of highway incident duration. *Transportation Research Part A*, 34(2), 85–102. https://doi.org/10.1016/S0965-8564(98)00065-2
+
+Natarajan, P., Atrey, P. K., & Kankanhalli, M. (2015). Multi-camera coordination and control in surveillance systems: A survey. *ACM Transactions on Multimedia Computing, Communications, and Applications*, 11(4), 1–30. https://doi.org/10.1145/2710128
 
 Pirolli, P., & Card, S. (1999). Information foraging. *Psychological Review*, 106(4), 643–675. https://doi.org/10.1037/0033-295X.106.4.643
 
+Qin, Z., Jagerman, R., Hui, K., Zhuang, H., Wu, J., Yan, L., Shen, J., Liu, T., Liu, J., Metzler, D., Wang, X., & Bendersky, M. (2024). Large language models are effective text rankers with pairwise ranking prompting. In *Findings of the Association for Computational Linguistics: NAACL 2024* (pp. 1504–1518). https://doi.org/10.18653/v1/2024.findings-naacl.97
+
+Qureshi, F. Z., & Terzopoulos, D. (2006). Surveillance camera scheduling: A virtual vision approach. *Multimedia Systems*, 12(3), 269–283. https://doi.org/10.1007/s00530-006-0059-4
+
 Richards, P. I. (1956). Shock waves on the highway. *Operations Research*, 4(1), 42–51. https://doi.org/10.1287/opre.4.1.42
 
+Santhosh, K. K., Dogra, D. P., & Roy, P. P. (2021). Anomaly detection in road traffic using visual surveillance: A survey. *ACM Computing Surveys*, 53(6), 1–26. https://doi.org/10.1145/3417989
+
+Senders, J. W. (1964). The human operator as a monitor and controller of multidegree of freedom systems. *IEEE Transactions on Human Factors in Electronics*, HFE-5(1), 2–5. https://doi.org/10.1109/THFE.1964.231647
+
+Shehata, M. S., Cai, J., Badawy, W. M., Burr, T. W., Pervez, M. S., Johannesson, R. J., & Radmanesh, A. (2008). Video-based automatic incident detection for smart roads: The outdoor environmental challenges regarding false alarms. *IEEE Transactions on Intelligent Transportation Systems*, 9(2), 349–360. https://doi.org/10.1109/TITS.2008.915644
+
+Stainer, M. J., Scott-Brown, K. C., & Tatler, B. W. (2013). Looking for trouble: A description of oculomotor search strategies during live CCTV operation. *Frontiers in Human Neuroscience*, 7, 615. https://doi.org/10.3389/fnhum.2013.00615
+
+Starke, S. D., Baber, C., Cooke, N. J., & Howes, A. (2017). Workflows and individual differences during visually guided routine tasks in a road traffic management control room. *Applied Ergonomics*, 61, 79–89. https://doi.org/10.1016/j.apergo.2017.01.006
+
+Sun, W., Yan, L., Ma, X., Wang, S., Ren, P., Chen, Z., Yin, D., & Ren, Z. (2023). Is ChatGPT good at search? Investigating large language models as re-ranking agents. In *Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing* (pp. 14918–14937). https://doi.org/10.18653/v1/2023.emnlp-main.923
+
 Thurstone, L. L. (1927). A law of comparative judgment. *Psychological Review*, 34(4), 273–286.
+
+Tian, K., Mitchell, E., Zhou, A., Sharma, A., Rafailov, R., Yao, H., Finn, C., & Manning, C. (2023). Just ask for calibration: Strategies for eliciting calibrated confidence scores from language models fine-tuned with human feedback. In *Proceedings of the 2023 Conference on Empirical Methods in Natural Language Processing* (pp. 5433–5442). https://doi.org/10.18653/v1/2023.emnlp-main.330
 
 Treiber, M., Kesting, A., & Helbing, D. (2010). Three-phase traffic theory and two-phase models with a fundamental diagram in the light of empirical stylized facts. *Transportation Research Part B*, 44(8–9), 983–1000. https://doi.org/10.1016/j.trb.2010.03.004
 
 TypeSafe (2026). Confidence, and the Noul primitive. TypeSafe documentation. https://docs.typesafe.ai/confidence and https://docs.typesafe.ai/primitives/noul (accessed 28 September 2026)
+
+Wickens, C. D., Goh, J., Helleberg, J., Horrey, W. J., & Talleur, D. A. (2003). Attentional models of multitask pilot performance using advanced display technology. *Human Factors*, 45(3), 360–380. https://doi.org/10.1518/hfes.45.3.360.27250
+
 
 ## Source and Figures
 
