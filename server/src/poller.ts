@@ -30,7 +30,7 @@ export const DIFF_HISTORY = 24;
 /** A camera in a watched city that nobody can see still needs the occasional frame, because the map colors its nodes by activity and a stale activity score is a lie. Ten minutes keeps that honest at a tenth of the cost. */
 export const SLOW_PERIOD_S = 600;
 
-/** What one server asks of one agency, whatever the size of the wall: at most one on-screen picture every ON_SCREEN_S, and one off-screen picture every OFF_SCREEN_S. A wall of forty cameras then refreshes each tile every three minutes or so, and a wall of ten every minute, so the load on the agency stays about what one person watching its own 511 site puts on it. The camera open in the panel is outside the budget and keeps its source's own rate, as the agency's site would show it. */
+/** What one server asks of one agency, whatever the size of the wall: at most one on-screen picture every ON_SCREEN_S, and one off-screen picture every OFF_SCREEN_S. A wall of forty cameras then refreshes each tile every three minutes or so, and a wall of ten every minute, so the load on the agency stays about what one person watching its own 511 site puts on it. The budget sets each camera's period and is also enforced when each request is sent, because periods alone bound only the average. A live trace in Columbus had every camera on screen come due in the same minute, again and again, at up to three times the budget per minute while the average held. The camera open in the panel is outside the budget and keeps its source's own rate, as the agency's site would show it. */
 export const BUDGET = {
   ON_SCREEN_S: 5,
   OFF_SCREEN_S: 10,
@@ -156,6 +156,8 @@ export class CameraSlot {
   /** The timer this camera is waiting on, and when it is due, so that a camera scrolling into view can be pulled forward instead of sitting out a five minute sleep. */
   timer: NodeJS.Timeout | null = null;
   dueAt = 0;
+  /** True while this camera waits for a turn it has already been given, so it does not ask for a second one when it wakes. */
+  reserved = false;
   polling = false;
   lastPollAt: number | null = null;
 
@@ -420,6 +422,7 @@ export class Poller {
 
   private schedule(slot: CameraSlot, delayS: number): void {
     if (this.stopped || slot.polling) return;
+    slot.reserved = false;
     if (slot.timer) {
       clearTimeout(slot.timer);
       this.timers.delete(slot.timer);
@@ -434,12 +437,35 @@ export class Poller {
     slot.dueAt = Date.now() / 1000 + delayS;
   }
 
+  /** When each source may next be asked for a picture, per tier. */
+  private readonly nextTurn = new Map<string, number>();
+
+  /** Seconds until this camera's source may next be asked for an on-screen or off-screen picture, with that turn reserved for it, so that requests are spaced by the budget however the cameras' own timers line up. The camera open in the panel and radar anchors are outside the budget. */
+  private turn(slot: CameraSlot): number {
+    const tier = this.tierOf(slot);
+    if (this.inPanel(slot.uid) || (tier !== 'fast' && tier !== 'slow')) return 0;
+    const key = `${slot.camera.source}:${tier}`;
+    const now = Date.now() / 1000;
+    const at = Math.max(now, this.nextTurn.get(key) ?? 0);
+    this.nextTurn.set(key, at + (tier === 'fast' ? BUDGET.ON_SCREEN_S : BUDGET.OFF_SCREEN_S));
+    return at - now;
+  }
+
   private async tick(slot: CameraSlot): Promise<void> {
     if (this.stopped || this.tierOf(slot) === 'idle') return;
     if (!this.watching.has(slot.camera.region) && slot.lastPollAt !== null) {
       const remaining = slot.lastPollAt + this.periodFor(slot) - Date.now() / 1000;
       if (remaining > 0) { this.schedule(slot, remaining); return; }
     }
+    if (!slot.reserved) {
+      const wait = this.turn(slot);
+      if (wait > 0) {
+        this.schedule(slot, wait);
+        slot.reserved = true;
+        return;
+      }
+    }
+    slot.reserved = false;
     slot.polling = true;
     slot.lastPollAt = Date.now() / 1000;
     // The period is read now rather than when this poll was scheduled, so a tile that scrolled into view, or a scene that woke up, takes effect on the next hop rather than the one after.
