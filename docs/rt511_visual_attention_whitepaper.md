@@ -163,7 +163,7 @@ $$
 
 Consequence sets lower bounds under the score rather than adding to it.
 
-1. **Incident floor.** An incident record is worth 0.9 when it implies the road is closed, 0.6 when it concerns the road without closing it, and nothing when it is not about traffic. A camera within 250 m of the reported location takes the full level, which falls linearly to a quarter of it at the 1.5 km linking radius, beyond which no camera is linked. A feed lists a record only while it is open, so the record keeps its full floor for its first hour, and after that the floor halves every 30 minutes, so that a record a dispatcher leaves open for days does not hold a camera on the wall for days.
+1. **Incident floor.** An incident record is worth 0.9 when it implies the road is closed, 0.6 when it concerns the road without closing it, and nothing when it is not about traffic or is planned work. Planned work, such as Ohio's Repairs/Maintenance records, is scheduled and stays listed for hours or days, so it would otherwise hold its cameras above every unplanned change for as long as it lasted, and it earns no floor even when it closes the road. It remains listed and labeled. A camera within 250 m of the reported location takes the full level, which falls linearly to a quarter of it at the 1.5 km linking radius, beyond which no camera is linked. A feed lists a record only while it is open, so the record keeps its full floor for its first hour, and after that the floor halves every 30 minutes, so that a record a dispatcher leaves open for days does not hold a camera on the wall for days.
    $$F_{\text{incident}} = F_0 \cdot 2^{-\max(0,\, \Delta t - T_{\text{full}}) / T_{1/2}}, \qquad T_{\text{full}} = 3600\text{ s},\; T_{1/2} = 1800\text{ s}$$
    Ohio's incident feed publishes no report time, so a record is dated by when the server first saw it.
 2. **Queue floor.** Every camera upstream of a camera with an incident floor, on the same carriageway and within the walk's bounds, receives a smaller floor of its own.
@@ -294,7 +294,7 @@ The choices stay in the person's browser and are never sent anywhere. One person
 | Score bands | hold threshold 0.2, upper band 0.5 to 1, lower band 0 to 0.5 |
 | Held-camera limit | half of the wall's large and wide tiles, 15 of 30 board places |
 | Baseline learning | pictures at least 2 times the cell mean, or unexpected stillness, not folded in, unless the level lasts 3 hours |
-| Incident floor | 0.9 closure, 0.6 road-relevant, full for 60 minutes then half-life 30 minutes, radius 1.5 km |
+| Incident floor | 0.9 closure, 0.6 road-relevant, 0 planned work, full for 60 minutes then half-life 30 minutes, radius 1.5 km |
 | Queue floor | share 0.6, upstream walk 3 hops and 5,000 m, stopping wave 15 km/h |
 | Stopped-traffic floor | 0.6, held 10 minutes |
 | Arbiter gates | Noul 0.8, Score and Choice confidence 0.5 |

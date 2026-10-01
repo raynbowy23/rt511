@@ -1,6 +1,6 @@
 /** Incident feeds: what an agency is responding to right now, configured in `data/cad_sources.json`.
  *
- * One feed per state rather than one per city, fetched only while some city in that state is being watched, at the interval the feed itself asks for. No feed is configured today. The only one this project ever read belonged to a state whose cameras it no longer shows, and an incident with no camera to put it on is information without a picture, which the wall does not show. A sanctioned events feed for a state it does show, such as MTC's 511 SF Bay events or OHGO's incidents, is the next one to add, with a parser registered in PARSERS. Until then everything downstream runs on no incidents, which is an ordinary state. */
+ * One feed per state rather than one per city, fetched only while some city in that state is being watched, at the interval the feed itself asks for. Ohio's OHGO incidents are the one feed configured today. A feed is added only for a state whose cameras the wall shows, because an incident with no camera to put it on is information without a picture, and each format has a parser registered in PARSERS. */
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -122,7 +122,15 @@ export interface RawIncident {
   implies_closure?: boolean;
 }
 
-/** Parses OHGO's incidents. Every OHGO incident is a traffic event on a road, so every one is road-relevant; ODOT marks a closed road in the record itself, which is what implies closure. The category is ODOT's own word for the event and is shown as it stands. OHGO publishes no report time, so records come back undated. */
+/** ODOT categories that describe planned work on the road rather than something that has happened to it. Matched as words, so ODOT's own "Repairs/Maintenance", which is most of the feed on an ordinary day, and any construction or work-zone category it adds are caught alike. */
+const PLANNED_WORK = /\b(repairs?|maintenance|construction|road ?work|work ?zone)\b/i;
+
+/** Whether an OHGO category is planned work. */
+export function isPlannedWork(category: string | null): boolean {
+  return category !== null && PLANNED_WORK.test(category);
+}
+
+/** Parses OHGO's incidents. A record is road-relevant, and a closed road in the record implies closure, unless it is planned work. Planned work earns no floor, closed or not: it is scheduled, it stays listed for hours or days, and the wall is for unplanned change. Measured on a live Columbus wall, two routine maintenance records otherwise held every one of the top eight places, since the lexicographic bands rank any floor above all movement. The record is still listed and labeled. The category is ODOT's own word for the event and is shown as it stands. OHGO publishes no report time, so records come back undated. */
 export function parseOhgoIncidents(body: string): RawIncident[] {
   const data = JSON.parse(body) as { results?: Record<string, unknown>[] };
   const out: RawIncident[] = [];
@@ -144,8 +152,8 @@ export function parseOhgoIncidents(body: string): RawIncident[] {
       reported_at: null,
       remarks: text('description'),
       label: category,
-      road_relevant: true,
-      implies_closure: status === 'closed',
+      road_relevant: !isPlannedWork(category),
+      implies_closure: !isPlannedWork(category) && status === 'closed',
     });
   }
   return out;

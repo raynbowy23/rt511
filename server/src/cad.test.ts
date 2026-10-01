@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { CadFeed, parseOhgoIncidents, type CadSource } from './cad.js';
+import { CadFeed, isPlannedWork, parseOhgoIncidents, type CadSource } from './cad.js';
 
 const body = (results: Record<string, unknown>[]): string => JSON.stringify({ totalPageCount: 1, results });
 const crash = { id: 'A1', latitude: 39.96, longitude: -83.0, location: 'I-70 at Rt 315', description: 'Crash, right lane blocked', category: 'Crash', direction: 'Westbound', routeName: 'I-70', roadStatus: 'Partially closed' };
@@ -30,6 +30,23 @@ test('OHGO records are road-relevant, a closed road implies closure, and the cat
   assert.equal(a?.label, 'Crash');
   assert.equal(a?.location, 'I-70 Westbound I-70 at Rt 315');
   assert.equal(a?.reported_at, null, 'OHGO publishes no report time');
+});
+
+test('planned work earns no floor, closed or not, and stays listed with its label', () => {
+  // The categories and statuses as the live statewide feed listed them on 30 September 2026.
+  const [maintenance, closedWork, weather] = parseOhgoIncidents(
+    body([
+      { ...crash, id: 'C3', category: 'Repairs/Maintenance', roadStatus: 'Restricted' },
+      { ...crash, id: 'D4', category: 'Repairs/Maintenance', roadStatus: 'Closed' },
+      { ...crash, id: 'E5', category: 'Weather', roadStatus: 'Restricted' },
+    ]),
+  );
+  assert.equal(maintenance?.road_relevant, false);
+  assert.equal(closedWork?.road_relevant, false);
+  assert.equal(closedWork?.implies_closure, false, 'a planned closure is not an incident');
+  assert.equal(closedWork?.label, 'Repairs/Maintenance');
+  assert.equal(weather?.road_relevant, true);
+  assert.ok(isPlannedWork('Construction') && isPlannedWork('Work Zone') && !isPlannedWork('Crash') && !isPlannedWork(null));
 });
 
 test('an undated record is dated by first sighting only when the feed is configured to, and keeps that date', async (t) => {

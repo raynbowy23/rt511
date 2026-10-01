@@ -158,7 +158,7 @@ A Noul acts at a probability of at least 0.8, and a Score or Choice at a confide
 
 ## 5. Deliberate Non-Goals
 
-- **No vision model for suppressing roadwork.** Incident feeds publish construction as its own category, so the feed is used rather than a detector.
+- **No vision model for suppressing roadwork.** Incident feeds publish planned work as its own category, so the feed's category decides it rather than a detector. Planned work is listed but earns no floor.
 - **No invented labels.** Agency codes are shown as published until someone supplies their meaning.
 - **No age cutoff on incidents.** Relevance classification does most of that work, and an arbitrary limit would drop long-running records such as missing-person alerts.
 

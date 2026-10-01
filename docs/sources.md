@@ -66,7 +66,7 @@ An incident feed is added only for a state whose cameras are shown, because an i
 
 | Source | Feed | Terms | Notes |
 | --- | --- | --- | --- |
-| `ohgo` | OHGO Public API `/api/v1/incidents`, with your own key, read every two minutes while an Ohio city is open | Public domain per ODOT, under the same key and rate cap as the cameras | No report time is published, so a record is dated by when this server first saw it (`undated: first_seen`), which restarts its floor's decay if the server restarts. `RoadStatus: Closed` implies a closure, every record is treated as road-relevant, and ODOT's category is shown as its label. |
+| `ohgo` | OHGO Public API `/api/v1/incidents`, with your own key, read every two minutes while an Ohio city is open | Public domain per ODOT, under the same key and rate cap as the cameras | No report time is published, so a record is dated by when this server first saw it (`undated: first_seen`), which restarts its floor's decay if the server restarts. `RoadStatus: Closed` implies a closure. Planned work, meaning ODOT's Repairs/Maintenance category or any construction or work-zone category, is listed but earns no floor, closed or not, and every other record is road-relevant. ODOT's category is shown as its label. |
 
 The 511 SF Bay open-data events published by MTC, under a license that permits redistribution, are the next candidate, for the Bay Area.
 
