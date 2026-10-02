@@ -1,6 +1,4 @@
-/** The wire contract between the rt511 server and the wall.
- *
- * Both sides import these, which is the point of the port: the shapes are declared once rather than described in Python and re-declared in TypeScript. Coordinate order is part of the contract and is carried in the type, because `[lat, lon]` and `[lon, lat]` are both pairs of numbers and a swap renders a plausible rotated map instead of failing. */
+/** The wire contract between the rt511 server and the wall, imported by both so the shapes are declared once. Coordinate order is carried in the type. */
 
 export type { LatLon, LonLat } from './coords.js';
 export { asLatLon, asLonLat, latLon, lonLat, latOf, lonOf, latOfLonLat, lonOfLonLat, toLatLon, toLonLat } from './coords.js';
@@ -45,7 +43,7 @@ export interface Site {
   mile_marker: number | null;
   bearing: number | null;
   cameras: number[];
-  /** Where each of this site's cameras was snapped onto the road network, in the same order as `cameras`, sometimes with one extra entry for the opposite carriageway. Written by the graph builder; absent only on a graph built before it was. */
+  /** Where each of this site's cameras was snapped onto the road network, in the same order as `cameras`, sometimes with one extra entry for the opposite carriageway. */
   snaps?: Snap[] | undefined;
 }
 
@@ -132,7 +130,7 @@ export interface Graph {
 export interface CameraState {
   id: number;
   region?: string | undefined;
-  /** How often this camera is actually being polled right now, in seconds, which is not the source default: a camera on screen runs at its source's period, one in a watched city that nobody can see runs slowly, and a camera with nothing happening in front of it is stretched further still. Staleness is judged against this number, so it has to be the effective one or perfectly good tiles gray out. */
+  /** How often this camera is actually being polled right now, in seconds, which is not the source default. Staleness is judged against this number, so it has to be the effective one or perfectly good tiles gray out. */
   period_s: number;
   frames: number;
   polls: number;
@@ -146,7 +144,7 @@ export interface CameraState {
   diff: number | null;
   /** 0..1 against this camera's own recent behavior, or null before it has enough history and its region has none to lend. */
   activity: number | null;
-  /** What the scorer thinks this camera is worth looking at, 0..1, or null while nothing is known about it yet. `activity` above is untouched by it and still means exactly what it always did. */
+  /** What the scorer thinks this camera is worth looking at, 0..1, or null while nothing is known about it yet. `activity` above is untouched by it. */
   attention: number | null;
   /** The parts `attention` was made of, for the wall to explain itself and for the decision log to be checked against. Null alongside a null `attention`. */
   axes: AttentionAxes | null;
@@ -158,7 +156,7 @@ export type ScalePriorSource = 'aadt' | 'capacity' | 'class' | 'default';
 export interface AttentionAxes {
   /** How far the current frame difference is from what this camera does at this hour of the week. Identical to `activity` until the hourly profile has samples. */
   anomaly: number | null;
-  /** The movement term the spectacle axis contributes, on its own. The scale prior is no longer folded in here; it is reported as `scale_amplifier` and applied once to the weighted sum of both axes. */
+  /** The movement term the spectacle axis contributes, on its own, without the scale prior, which is reported as `scale_amplifier`. */
   spectacle: number | null;
   /** The floor a nearby dispatch incident puts under this camera, already decayed by the incident's age and adjusted by the arbiter where it had something to say. Zero when there is none. */
   incident_floor: number;
@@ -179,17 +177,17 @@ export interface AttentionAxes {
   baseline_n: number;
   /** Sample standard deviation of the hour cell before the newest frame, with at least two earlier frames required. */
   baseline_sd: number | null;
-  /** The frame changed by almost nothing although this hour usually shows movement, which is either stopped traffic or an empty road. A frozen feed cannot raise it, because a poll returning the same bytes is never flagged. Recorded on every poll, and acted on only through `gate` below, when the arbiter says the traffic has stopped. */
+  /** The frame changed by almost nothing although this hour usually shows movement, which is either stopped traffic or an empty road. A poll returning the same bytes is never flagged, so a frozen feed cannot raise it. Acted on only through `gate` below. */
   ambiguous_zero: boolean;
   /** What the arbiter said about an ambiguous zero on this camera, and the floor that answer put under it. Null whenever the gate has not fired, nothing was asked, or the answer was too weak to act on. */
   gate: GateInfluence | null;
   /** What the arbiter said about the incident that set this camera's floor, or null when nothing was asked or nothing came back. Model output about public data: it is shown and logged, never obeyed. */
   jev: JevInfluence | null;
-  /** The arbiter's second look at the top of this camera's city, and the factor it put on the movement term. Null when the camera was not among those looked at, the look is older than its hold, or the answer was not confident enough to act on. Optional so a state recorded before it existed still reads. */
+  /** The arbiter's second look at the top of this camera's city, and the factor it put on the movement term. Null when the camera was not looked at, the look has expired, or the answer was not confident enough to act on. */
   review?: ReviewInfluence | null | undefined;
-  /** The score the fixed equation alone gives this camera, with no second look applied. The baseline every other ranking is compared against. Equal to the attention whenever no look has acted. */
+  /** The score the fixed equation alone gives this camera, with no second look applied. */
   equation?: number | null | undefined;
-  /** The movement term on its own, after the road-size amplifier and any second look, clamped to 0 to 1. What a capped ranking scores a floor-held camera by once the cap is reached. */
+  /** The movement term on its own, after the road-size amplifier and any second look, clamped to 0 to 1. */
   movement?: number | undefined;
 }
 
@@ -207,10 +205,7 @@ export interface ReviewInfluence {
   model: string;
 }
 
-/** One incident's arbitration, as it reached one camera. The probabilities are the model's; the multiplier is this project's arithmetic over them. */
-/** The arbiter's reading of one still picture on a camera whose hour usually moves.
- *
- * Both answers are Noul probabilities, which carry no confidence of their own, so the threshold applied to them is the whole of the gating. `floor` is what the reading put under the camera, which is zero whenever neither answer cleared its threshold. */
+/** The arbiter's reading of one still picture on a camera whose hour usually moves. Noul probabilities carry no confidence of their own, so the threshold applied to them is the whole of the gating. */
 export interface GateInfluence {
   /** Probability that the stillness is stopped traffic rather than an empty road. */
   standstill: number;
@@ -221,7 +216,7 @@ export interface GateInfluence {
   model: string;
 }
 
-/** One answer, reduced to what a reader watching the arbitration needs. The full call is in the log; this is the shape that goes over the wire many times a minute, so it carries numbers rather than prose. */
+/** One answer, reduced to numbers because it goes over the wire many times a minute. The full call is in the log. */
 export interface VerdictPoint {
   at: number;
   score: number;
@@ -231,7 +226,7 @@ export interface VerdictPoint {
   supported: number;
   chosen: number | null;
   chosen_confidence: number;
-  /** What this answer did to the floor, recomputed from the answer alone so that the series can be read without the incidents beside it. */
+  /** What this answer did to the floor, recomputed from the answer alone. */
   multiplier: number;
   gated: string[];
 }
@@ -261,7 +256,7 @@ export interface JevSnapshot {
   input_tokens: number;
   output_tokens: number;
   reask_after_s: number;
-  /** How many regions are being polled. Zero means the viewer is at the country level, where nothing is watched, no dispatch feed is read, and so nothing can be arbitrated. */
+  /** How many regions are being polled. Zero means the viewer is at the country level, where nothing can be arbitrated. */
   watching_regions: number;
   /** How many dispatch feeds have been read at least once. Zero with a region watched means the first read has not come back yet. */
   feeds_read: number;
@@ -273,7 +268,7 @@ export interface JevSnapshot {
   linked_incidents: number;
   /** Of those, the ones whose code is about the road at all. */
   relevant_incidents: number;
-  /** Of those, the ones naming at least one camera this server actually polls. Records are matched against every camera the source publishes, so a server running a single city sees many records whose cameras it does not hold, and those can never become askable here. */
+  /** Of those, the ones naming at least one camera this server actually polls, since records are matched against every camera the source publishes. */
   servable_incidents: number;
   /** Of those, the ones with at least one camera holding a picture, which is the last condition before a record is asked about. */
   ready_incidents: number;
@@ -289,6 +284,7 @@ export interface JevSnapshot {
   cameras: { uid: number; latest: GatePoint | null; history: GatePoint[] }[];
 }
 
+/** One incident's arbitration, as it reached one camera. The probabilities are the model's; the multiplier is this project's arithmetic over them. */
 export interface JevInfluence {
   /** Where the incident sits on the screen-worthiness rubric, between zero and the top level. */
   score: number;
@@ -307,11 +303,11 @@ export interface JevInfluence {
 }
 
 export interface CamerasResponse {
-  /** The shortest poll period among the served sources. Kept for the status line; judge a single camera's staleness by its own `period_s`, because a wall serving Wisconsin at 30 s and Florida at 60 s would otherwise call every Florida tile stale twice as early as it should. */
+  /** The shortest poll period among the served sources, for the status line. Judge a single camera's staleness by its own `period_s`, because sources poll at different periods. */
   interval_s: number;
   started_at: number;
   cameras: CameraState[];
-  /** How often the AMBIGUOUS_ZERO flag fires, over every poll since this process started. Nothing acts on the flag, so this is here to answer whether it is worth acting on. */
+  /** How often the AMBIGUOUS_ZERO flag fires, over every poll since this process started. */
   ambiguous_zero: AmbiguousZeroStats;
 }
 
@@ -402,7 +398,7 @@ export interface NationalResponse {
   regions: NationalRegion[];
 }
 
-/** One computer-aided dispatch record. The type is the agency's own signal code, carried through exactly as published: the codes are not documented anywhere we have, so the wall shows the code rather than a label somebody guessed. */
+/** One computer-aided dispatch record. The type is the agency's own code, carried through exactly as published so the wall never shows a guessed label. */
 export interface Incident {
   id: string;
   type: string;
@@ -424,7 +420,7 @@ export interface Incident {
   implies_closure: boolean;
 }
 
-/** Three of these four are ordinary: `unconfigured` means this city's state has no dispatch feed, `idle` means it has one that nobody has asked for yet because the city is not being watched, and `ok` means the list is current. Only `unavailable` is a fault, and even then the rest of the wall carries on without it. */
+/** `unconfigured` means this city's state has no dispatch feed, `idle` means the city is not being watched, and `ok` means the list is current. Only `unavailable` is a fault. */
 export type IncidentStatus = 'ok' | 'unconfigured' | 'idle' | 'unavailable';
 
 export interface IncidentsResponse {
@@ -445,7 +441,7 @@ export interface StreamResponse {
   direct: boolean;
 }
 
-/** FastAPI's error body, which the wall reads to tell an unpolled camera from one that publishes no stream. The port keeps the shape so the two servers are interchangeable. */
+/** FastAPI's error body, which the wall reads to tell an unpolled camera from one that publishes no stream. */
 export interface ErrorResponse {
   detail: string;
 }
@@ -596,7 +592,7 @@ export interface CountResponse {
   frame_ts?: number;
 }
 
-/** The camera open in the panel: how often its source refreshes the picture when that is faster than the wall's poll, and when the newest picture was taken. `period_s` is null for a source with no focus period. `poll_s` is how often the wall itself is fetching this camera right now, which is what a snapshot camera without a focus period is refreshed at. */
+/** The camera open in the panel: how often its source refreshes the picture when that is faster than the wall's poll, and when the newest picture was taken. `period_s` is null for a source with no focus period. `poll_s` is how often the wall itself is fetching this camera right now. */
 export interface LiveResponse {
   id: number;
   period_s: number | null;

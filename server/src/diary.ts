@@ -1,8 +1,6 @@
 /** A written record of what the wall noticed each day, for reading back later.
  *
- * It stands in for a highlight reel. A reel would mean keeping the pictures, and the imagery belongs to the state transportation departments that publish it, for individual use and not for re-use. So the diary keeps words and numbers only: when, which camera, what the highlight said at the time, and the city's sky turning. Opening an entry opens the camera as it is now.
- *
- * One file per local day under `out/`, append-only, and it survives restarts the way the wall's own memory does not. */
+ * Words and numbers only, never pictures, because the imagery belongs to the agencies that publish it and is not for re-use. One append-only file per local day under `out/`. */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -89,7 +87,7 @@ export class Diary {
       .reverse();
   }
 
-  /** One day's entries, oldest first. An unknown or malformed day is an empty day. A line that does not parse, which a crash mid-write could leave, is skipped rather than losing the rest. */
+  /** One day's entries, oldest first. An unknown or malformed day is an empty day, and a line cut short by a crash is skipped. */
   read(day: string): DiaryEntry[] {
     if (!DAY.test(day)) return [];
     const path = join(this.dir, `diary-${day}.jsonl`);

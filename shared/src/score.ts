@@ -1,4 +1,4 @@
-/** The scoring constants and the combination rule that the server's scorer and the browser's live line both use. Defined once here, because the live line mirrors the server's formula and a rule copied into two places drifts. */
+/** The scoring constants and the combination rule that the server's scorer and the browser's live line both use, defined once so the two cannot drift. */
 export const SCORE = {
   /** A frame difference equal to the camera's baseline scores this, so an ordinary camera doing an ordinary thing sits mid-range and twice the baseline saturates. */
   ANOMALY_AT_BASELINE: 0.5,
@@ -13,7 +13,7 @@ export const SCORE = {
 
 /** The attention score from the movement term and the strongest floor.
  *
- * The rule is lexicographic. A camera held by a floor of at least FLOOR_HOLD_MIN scores in the upper band, from 0.6 to 1, ordered by the larger of its floor and its movement. Every other camera scores in the lower band, from 0 to 0.5, ordered the same way. Consequence therefore always outranks movement, which a single `max` of the two did not guarantee, since an ordinary busy freeway's movement term exceeded the stopped-traffic and queue floors. */
+ * The rule is lexicographic. A camera held by a floor of at least FLOOR_HOLD_MIN scores in the upper band, from 0.6 to 1, ordered by the larger of its floor and its movement. Every other camera scores in the lower band, from 0 to 0.5, ordered the same way, so consequence always outranks movement even on a busy freeway. */
 export function combineAttention(movement: number, floor: number): number {
   const level = Math.min(1, Math.max(0, movement, floor));
   return floor >= SCORE.FLOOR_HOLD_MIN ? SCORE.BAND + (1 - SCORE.BAND) * level : SCORE.BAND * level;

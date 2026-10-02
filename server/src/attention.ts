@@ -1,8 +1,6 @@
 /** What is worth looking at, and why.
  *
- * `activity` answers one question well, whether this camera is busier than it usually is. It cannot answer the two that follow from it. A residential street at twice its own median outranks an interstate at its own median, although one carries six lanes of traffic and the other a car. And a camera whose traffic has stopped scores like a camera whose road is empty.
- *
- * So the score is built from parts that are kept apart and reported apart. `anomaly` is movement against this camera's own profile for this hour of the week, shrunk toward the rolling median until the hour has enough samples of its own. The road-size amplifier scales that movement by how much traffic the road carries. Three floors carry consequence, an incident record nearby, a queue that could have reached the camera from further down the road, and stopped traffic confirmed by the arbiter on a still picture.
+ * The score is built from parts that are kept apart and reported apart. `anomaly` is movement against this camera's own profile for this hour of the week, shrunk toward the rolling median until the hour has enough samples of its own. The road-size amplifier scales that movement by how much traffic the road carries. Three floors carry consequence, an incident record nearby, a queue that could have reached the camera from further down the road, and stopped traffic confirmed by the arbiter on a still picture.
  *
  * The combination is lexicographic, in `combineAttention`. A camera held by a floor of at least `SCORE.FLOOR_HOLD_MIN` scores in an upper band, above every camera that is not, and within each band the larger of its movement and its floor sets the level. */
 
@@ -13,27 +11,25 @@ import { CORRIDOR } from './corridor.js';
 import { JsonLog } from './jsonlog.js';
 import { ACTIVE_DIFF, ACTIVITY_FLOOR, ACTIVITY_MIN_SAMPLES, median, warmupCap, type CameraSlot, type Scored } from './poller.js';
 
-/** Every number the score depends on, in one place, because a constant buried in the expression that uses it is a constant nobody ever revisits. */
+/** Every number the score depends on, in one place. */
 export const TUNING = {
-  /** Effective sample size of the rolling median in the baseline blend. An hour-of-week cell needs five polls of its own before it carries as much weight as the median it is displacing: five minutes for a camera on screen, closer to half an hour for one in a watched city that nobody is looking at. */
+  /** Effective sample size of the rolling median in the baseline blend. An hour-of-week cell needs five polls of its own before it carries as much weight as the median it is displacing. */
   SHRINKAGE_K: 5,
-  /** Frame difference equal to the baseline scores this, so an ordinary camera doing an ordinary thing sits in the middle of the range and twice the baseline saturates. Inherited from `activity` and kept identical on purpose: it is what makes the two agree exactly before any hourly history exists. */
+  /** Kept identical to `activity`'s constant on purpose, so the two agree exactly before any hourly history exists. */
   ANOMALY_AT_BASELINE: SCORE.ANOMALY_AT_BASELINE,
-  /** The two axes weigh the same. Anomaly alone is today's behavior, spectacle alone would rank a quiet interstate above a busy side street forever, and there is no measurement yet that says either deserves more. */
+  /** The two axes weigh the same, since there is no measurement yet that says either deserves more. */
   WEIGHT_ANOMALY: 0.5,
   WEIGHT_SPECTACLE: 0.5,
-  /** How much of the spectacle term comes from absolute movement rather than movement relative to the camera's own baseline. Shipped at zero: there is no absolute measure of how many vehicles are in a frame in this project, only a mean absolute pixel difference, which varies with camera resolution, lens, weather and time of day and is not comparable between cameras. The term is wired so that a real volume measure can be weighed in by changing this one number, and until there is one it contributes nothing. */
+  /** How much of the spectacle term comes from absolute movement rather than movement relative to the camera's own baseline. Zero, because a mean absolute pixel difference varies with resolution, lens, weather and time of day and is not comparable between cameras; the term is wired for a real volume measure later. */
   ALPHA_ABSOLUTE: 0,
   /** The frame difference the absolute term would call saturated. A stand-in, not a measurement, and it has no effect while ALPHA_ABSOLUTE is zero. */
   ABSOLUTE_FULL_SCALE: 0.05,
-  /** What a scale prior of 0 and a scale prior of 1 multiply the visual sum by. The prior enters the score here, as one amplifier on the weighted sum of both visual axes, rather than as a factor buried inside the spectacle axis.
-   *
-   * Two reasons for the move. The prior was previously applied to spectacle and the weighted sum then applied spectacle at half weight, so its real effect on the score was an amplifier over 0.5 to 1.0 that no constant in this file stated. And with the prior inside one axis, that axis was no longer a measure of movement, which made the two axes harder to read apart in the log than the design intends.
+  /** What a scale prior of 0 and a scale prior of 1 multiply the weighted sum of both visual axes by, applied once so each axis stays a pure measure of movement.
    *
    * The range is deliberately narrow and its lower end is well above zero. The prior describes how much traffic a road carries, which is a reason to prefer one camera over another when both are doing something, and never a reason to hide a residential street where something is plainly happening. */
   SCALE_AMPLIFIER_MIN: SCORE.SCALE_AMPLIFIER_MIN,
   SCALE_AMPLIFIER_MAX: SCORE.SCALE_AMPLIFIER_MAX,
-  /** Traffic counts are mapped through log10(1 + aadt) and then onto 0..1 between these two. A thousand vehicles a day is a street nobody would watch and two hundred thousand is an urban interstate; the five published files this project has joined run from 650 to 253,000, so both ends of the scale are reachable and neither is crowded. */
+  /** Traffic counts are mapped through log10(1 + aadt) and then onto 0..1 between these two. A thousand vehicles a day is a street nobody would watch and two hundred thousand is an urban interstate. */
   AADT_LOG_MIN: Math.log10(1 + 1000),
   AADT_LOG_MAX: Math.log10(1 + 200_000),
   /** A one-lane street at 40 km/h anchors the bottom of the capacity proxy; logarithms keep large roads from overwhelming smaller roads, as with AADT. */
@@ -53,7 +49,7 @@ export const TUNING = {
   } as Record<string, number>,
   /** A ramp carries a fraction of the road it serves, so `motorway_link` scores below `motorway`. A judgment rather than a measurement: nothing in the data says what the fraction is. */
   LINK_FACTOR: 0.7,
-  /** A camera the graph builder could not place on a road at all. Scored as an ordinary street rather than as nothing, because an unplaced camera is usually a rest area or a bridge view, not a driveway. */
+  /** A camera the graph builder could not place on a road at all, scored as an ordinary street because it is usually a rest area or a bridge view. */
   DEFAULT_PRIOR: 0.3,
   /** A dispatch code that says the road itself is blocked. High enough that such a camera is on the wall whatever the picture is doing. */
   FLOOR_CLOSURE: 0.9,
@@ -63,7 +59,7 @@ export const TUNING = {
   FLOOR_OTHER: 0,
   /** An upstream queue is inferred rather than seen, so it receives only sixty percent of the scene floor. */
   UPSTREAM_SHARE: 0.6,
-  /** A record keeps its full floor for this long after it is reported. A feed lists a record only while it is open, so for the first hour the record's presence is the evidence that it still matters, and a decay over that hour pulled a crash camera below ordinary busy freeways within minutes. */
+  /** A record keeps its full floor for this long after it is reported, because a feed lists a record only while it is open, so for the first hour its presence is the evidence that it still matters. */
   INCIDENT_FULL_S: 3600,
   /** After the full hour, the floor halves every half hour, so a record a dispatcher has left open for days does not hold a camera on the wall for days. */
   INCIDENT_HALF_LIFE_S: 1800,
@@ -75,21 +71,19 @@ export const TUNING = {
   INCIDENT_NEAR_KM: 0.25,
   /** What is left of the floor at the edge of the linking radius, tapering linearly from the near distance out to it. A camera 1.5 km away may be pointed at the right road, which is why it is not zero. */
   INCIDENT_FAR_FACTOR: 0.25,
-  /** An hour-of-week cell whose mean frame difference is above this is an hour that moves, so a frame with no movement in it is worth flagging. Twice the noise floor, the same threshold the poller uses to decide a camera has woken up.
-   *
-   * Judged against the cell's own mean rather than against the blended baseline: the whole claim the flag makes is that *this hour* expects traffic, and a blend that is mostly the rolling median would let it fire about a camera nothing is known about. */
+  /** An hour-of-week cell whose mean frame difference is above this is an hour that moves, so a frame with no movement in it is worth flagging. Twice the noise floor, the same threshold the poller uses to decide a camera has woken up. Judged against the cell's own mean rather than the blended baseline, because the flag claims that this hour expects traffic. */
   AMBIGUOUS_EXPECT_DIFF: ACTIVE_DIFF,
-  /** How many frames an hour-of-week cell needs before it is allowed to expect anything. A cell holding one busy frame and one still one technically expects activity, and a flag that fires on that measures how new the profile is rather than anything about the road: an earlier build with no such guard fired on 34% of polls three minutes into a run and on 12.8% over a longer one. Five, the same as the shrinkage constant, because that is the point at which the cell is already trusted as much as the rolling median. */
+  /** How many frames an hour-of-week cell needs before it is allowed to expect anything, so the flag does not measure how new the profile is. Five, the same as the shrinkage constant, where the cell is trusted as much as the rolling median. */
   AMBIGUOUS_MIN_SAMPLES: 5,
-  /** How many cameras are written to the decision log per ranking. The wall shows nothing like thirty at once, so this covers everything a viewer could have seen and a margin of what nearly made it. */
+  /** How many cameras are written to the decision log per ranking, which covers everything a viewer could have seen and a margin. */
   LOG_TOP_N: 30,
-  /** Never log twice within this many seconds. The wall asks for state every ten seconds; two browsers would otherwise double the log for the same decisions. */
+  /** Never log twice within this many seconds, so two browsers do not double the log for the same decisions. */
   LOG_MIN_INTERVAL_S: 10,
-  /** A day's log stops at this size. At thirty lines every ten seconds a day comes to a few hundred megabytes if nothing stops it, and the useful part of a log is the beginning of the problem, not the end of the day. */
+  /** A day's log stops at this size, since the useful part of a log is the beginning of the problem, not the end of the day. */
   LOG_MAX_BYTES: 32 * 1024 * 1024,
 } as const;
 
-/** Where one camera's scale prior came from, kept alongside the number so that the log can say why a camera was ranked where it was. */
+/** Where one camera's scale prior came from, so the log can say why a camera was ranked where it was. */
 export interface ScalePriorFact {
   prior: number;
   source: ScalePriorSource;
@@ -100,7 +94,7 @@ export interface ScalePriorFact {
   highway: string | null;
 }
 
-/** 24 hours by 7 days. Indexed day * 24 + hour, in the server's local time: a camera's rush hour is a fact about the road in front of it, and the server and the road are in the same country but not always in the same time zone, so this is right for the states nearest the server and approximate for the rest. */
+/** 24 hours by 7 days. Indexed day * 24 + hour, in the server's local time, which is exact for cameras in the server's time zone and approximate for the rest. */
 const CELLS = 168;
 
 export function hourOfWeek(ts: number): number {
@@ -108,7 +102,7 @@ export function hourOfWeek(ts: number): number {
   return when.getDay() * 24 + when.getHours();
 }
 
-/** One camera's history, as a running mean and Welford variance per hour-of-week cell. Running rather than a window: the mean of everything this camera has done at this hour is exactly what the blend wants, and it costs three numbers per cell instead of a list. In memory only. A restart loses every profile and the blend falls back to the rolling median, which is where it started. */
+/** One camera's history, as a running mean and Welford variance per hour-of-week cell. In memory only; a restart loses every profile and the blend falls back to the rolling median. */
 class Profile {
   readonly n = new Int32Array(CELLS);
   readonly mean = new Float64Array(CELLS);
@@ -132,9 +126,9 @@ export interface ScoreInputs {
 
 export class AttentionEngine {
   private readonly profiles = new Map<number, Profile>();
-  /** Whether the newest poll of each camera was an ambiguous zero, which is what the wire reports. The counters below are what the rate is measured from. */
+  /** Whether the newest poll of each camera was an ambiguous zero, which is what the wire reports. */
   private readonly flagged = new Map<number, boolean>();
-  /** The hour-of-week cell each camera's newest poll fell in, as it stood before that poll was folded into it. A frame has to be judged against the hour it arrived into rather than the hour it has already changed, or a camera that suddenly moves raises the very expectation it is being measured against and reads as less of a surprise than it is. */
+  /** The hour-of-week cell each camera's newest poll fell in, as it stood before that poll was folded into it, so a sudden movement is not measured against an expectation it has already raised. */
   private readonly beforeLatest = new Map<number, { cell: number; n: number; mean: number; m2: number }>();
   /** When each camera's current run of unusual pictures began, for the learning rule in `observe`. */
   private readonly unusualSince = new Map<number, number>();
@@ -144,10 +138,10 @@ export class AttentionEngine {
   private readonly flagsByHour = new Int32Array(24);
   private lastLog = 0;
   private readonly log: JsonLog;
-  /** Set by whoever owns an arbiter. Without it the incident floor is exactly the deterministic one, which is what it was before Jev existed. */
+  /** Set by whoever owns an arbiter. Without it the incident floor is exactly the deterministic one. */
   modulate: Modulate | undefined = undefined;
   chosenQueue: ChosenQueue | undefined = undefined;
-  /** Set by whoever owns an arbiter. Without it an ambiguous zero is recorded and nothing acts on it, which is what it was before the gate had anywhere to ask. */
+  /** Set by whoever owns an arbiter. Without it an ambiguous zero is recorded and nothing acts on it. */
   gate: GateFloor | undefined = undefined;
   /** Set by whoever owns an arbiter. Without it the movement term is exactly the equation's. */
   review: ReviewFactor | undefined = undefined;
@@ -161,7 +155,7 @@ export class AttentionEngine {
 
   /** Folds one poll into the camera's hourly profile and decides whether it was an ambiguous zero.
    *
-   * Only a fresh frame's difference counts. A poll that returned byte-identical bytes looks like a difference of zero and is tempting to fold in as one, but the cell has to measure what the rolling median measures, and that median is taken over changed frames alone. Mixing the two drags every cell below its own rolling median as the identical polls accumulate, and the score drifts upwards for no reason in the world. */
+   * Only a fresh frame's difference counts, because the cell has to measure what the rolling median measures, which is taken over changed frames alone. Folding byte-identical polls in as zeros would drag every cell below its rolling median and drift the score upwards. */
   observe(slot: CameraSlot, result: 'fresh' | 'unchanged', now = Date.now() / 1000): void {
     if (result !== 'fresh') return;
     const diff = slot.latest?.diff ?? null;
@@ -182,7 +176,7 @@ export class AttentionEngine {
       this.flagCount++;
       this.flagsByHour[hour] = (this.flagsByHour[hour] as number) + 1;
     }
-    // An event is not folded into the usual. A picture well above what the cell expects, or a stillness the cell does not expect, is left out, so a camera that sends pictures four times as often does not absorb an ongoing event four times as fast. An unusual level lasting LEARN_RESUME_S is accepted as the new usual.
+    // An event is not folded into the usual, so a camera polled faster does not absorb an ongoing event faster. An unusual level lasting LEARN_RESUME_S is accepted as the new usual.
     const unusual = flag || (known && diff >= TUNING.LEARN_SKIP_RATIO * (profile.mean[cell] as number));
     if (unusual) {
       const since = this.unusualSince.get(slot.uid) ?? now;
@@ -209,10 +203,10 @@ export class AttentionEngine {
 
   /** The baseline this camera is measured against right now: its own hour-of-week cell, shrunk towards the rolling median by how many samples the cell has.
    *
-   * At N = 0 this returns the rolling median exactly, which is the number `activity` already uses, so a cold process ranks cameras exactly as it did before this file existed. */
+   * At N = 0 this returns the rolling median exactly, which is the number `activity` uses. */
   baseline(uid: number, rollingMedian: number | null, cell: number): { mu: number | null; n: number; cellMean: number; sd: number | null } {
     const profile = this.profiles.get(uid);
-    // The cell without this camera's newest poll in it, when that poll is what is being scored. A camera that has not been polled this hour is scored against the whole cell, because nothing in it is the frame in hand.
+    // The cell without this camera's newest poll in it, when that poll is what is being scored.
     const before = this.beforeLatest.get(uid);
     const usable = before && before.cell === cell ? before : null;
     const n = usable ? usable.n : profile ? (profile.n[cell] as number) : 0;
@@ -233,7 +227,7 @@ export class AttentionEngine {
   private score(slot: CameraSlot, fallbackBaseline: number | null, inputs: ScoreInputs, cell: number): Scored {
     const frame = slot.latest;
     const diff = frame ? frame.diff : null;
-    // The same choice of rolling median `activity` makes, taken the same way, so that the two cannot diverge over a change to one of them.
+    // The same choice of rolling median `activity` makes, so the two cannot diverge.
     const rolling = slot.diffs.length >= ACTIVITY_MIN_SAMPLES ? median(slot.diffs) : fallbackBaseline;
     const { mu, n, sd } = this.baseline(slot.uid, rolling, cell);
 
@@ -242,16 +236,16 @@ export class AttentionEngine {
     const prior = this.scalePrior(slot.uid);
     const absolute = diff === null ? 0 : Math.min(1, diff / TUNING.ABSOLUTE_FULL_SCALE);
     const relative = anomaly ?? 0;
-    // Movement alone. The scale prior used to be applied here and is now applied once to the weighted sum of both axes, so that it cannot enter the score twice and so that this number stays a measure of what the picture is doing.
+    // Movement alone. The scale prior is applied once to the weighted sum of both axes below.
     const spectacle = anomaly === null ? null : round(TUNING.ALPHA_ABSOLUTE * absolute + (1 - TUNING.ALPHA_ABSOLUTE) * relative, 3);
     const amplifier = scaleAmplifier(prior.prior);
 
     const floor = incidentFloor({ uid: slot.uid, lat: slot.camera.lat, lon: slot.camera.lon, now: inputs.now, modulate: this.modulate }, inputs.incidents);
-    // A camera the gate fired on, that the arbiter has since called stopped traffic, carries a floor of its own. Kept apart from the incident floor rather than folded into it: one comes from a dispatcher and the other from a picture, and a log that cannot tell them apart cannot be used to calibrate either.
+    // Stopped traffic confirmed by the arbiter carries a floor of its own, kept apart from the incident floor so the log can tell a dispatcher's evidence from a picture's.
     const gate = this.gate ? this.gate(slot.uid, inputs.now) : null;
     const queued = queueFloor(slot.uid, inputs.queue, inputs.now, this.chosenQueue, this.gate);
     const gateValue = gate?.value ?? 0;
-    // The second look at the top of the city. It scales movement and nothing else, so an incident or stopped traffic keeps exactly the floor it earned whatever a reviewer thinks of the picture.
+    // The second look scales movement and nothing else, so an incident or stopped traffic keeps exactly the floor it earned.
     const review = this.review ? this.review(slot.uid, inputs.now) : null;
 
     const axes: AttentionAxes = {
@@ -273,21 +267,19 @@ export class AttentionEngine {
       jev: floor.jev,
       review,
     };
-    // Nothing is known about this camera yet and no incident is pointing at it, so it has no score rather than a score of zero: a camera that has not returned a frame and one that has returned a still frame are different things and the wall treats them differently.
+    // Nothing is known about this camera yet and nothing is pointing at it, so it has no score rather than a score of zero, which would mean a still frame.
     if (anomaly === null && floor.value === 0 && queued.value === 0 && gateValue === 0) return { attention: null, axes };
     const movement = amplifier * (TUNING.WEIGHT_ANOMALY * (anomaly ?? 0) + TUNING.WEIGHT_SPECTACLE * (spectacle ?? 0));
     const strongest = Math.max(floor.value, queued.value, gateValue);
-    // The fixed equation on its own, kept beside the score the wall uses so the baseline stays clean however the look moves the wall.
+    // The fixed equation on its own, without the second look.
     axes.equation = round(combineAttention(movement, strongest), 3);
     const looked = movement * (review?.acted ? review.factor : 1);
-    // The movement term on its own, clamped, which is what a capped ranking falls back to for a camera held by a floor.
+    // What a capped ranking falls back to for a camera held by a floor.
     axes.movement = round(clamp(looked), 3);
     return { attention: round(combineAttention(looked, strongest), 3), axes };
   }
 
-  /** One line per camera in the top of the ranking, so that a decision the wall made ten minutes ago can still be taken apart.
-   *
-   * Rotated by day and capped, and written off the request path: a log that blocked the state endpoint or filled the disk would be a worse bug than anything it could help find. */
+  /** One line per camera in the top of the ranking, so that a decision the wall made ten minutes ago can still be taken apart. */
   logRanking(states: CameraState[], now = Date.now() / 1000): void {
     if (now - this.lastLog < TUNING.LOG_MIN_INTERVAL_S) return;
     this.lastLog = now;
@@ -356,13 +348,13 @@ export function scaleAmplifier(prior: number): number {
   return TUNING.SCALE_AMPLIFIER_MIN + span * clamp(prior);
 }
 
-/** What a camera is worth to the arbiter, if anything was asked about it. Passed in rather than imported so that the scorer stays arithmetic and knows nothing about where the adjustment came from. */
+/** What a camera is worth to the arbiter, if anything was asked about it. Injected so the scorer stays arithmetic. */
 export type Modulate = (incident: Incident, uid: number, deterministic: number) => { value: number; influence: JevInfluence | null };
 
-/** What a still camera is worth, if anything was asked about it. Passed in for the same reason `Modulate` is: the scorer stays arithmetic and knows nothing about where the answer came from. */
+/** What a still camera is worth, if anything was asked about it. Injected like `Modulate`. */
 export type GateFloor = (uid: number, now: number) => { value: number; at: number; influence: GateInfluence } | null;
 
-/** The factor a second look put on one camera's movement term, if any. Injected for the same reason as the others. */
+/** The factor a second look put on one camera's movement term, if any. */
 export type ReviewFactor = (uid: number, now: number) => ReviewInfluence | null;
 
 export interface FloorContext {
@@ -375,9 +367,9 @@ export interface FloorContext {
 
 /** The highest floor any nearby incident puts under a camera, which incident it was, and what the arbiter did to it.
  *
- * Distance and age both only ever reduce it. An incident with no readable date gets no floor at all: the feed lists incidents for days, and a floor with nothing to decay against would pin a camera to the top of the wall for as long as the dispatcher left the record open.
+ * Distance and age both only ever reduce it. An incident with no readable date gets no floor at all, because a floor with nothing to decay against would pin a camera for as long as the record stayed open.
  *
- * The modulation is applied inside the loop rather than to the winner, because an incident the arbiter has lifted may deserve the camera more than the one that was ahead of it on distance and age alone. `base` is kept alongside so the two numbers can be compared in the log. */
+ * The modulation is applied inside the loop rather than to the winner, because an incident the arbiter has lifted may deserve the camera more than the one ahead of it on distance and age alone. */
 export function incidentFloor(ctx: FloorContext, incidents: Incident[]): { value: number; base: number; incident: string | null; jev: JevInfluence | null } {
   let best = 0;
   let deterministic = 0;
@@ -424,7 +416,7 @@ interface IncidentQueueEntry {
 /** Injected like Modulate so the scorer need not know how a neighbor was chosen. Null means no confident choice. */
 export type ChosenQueue = (incident: Incident, uid: number, recordFloor: number) => number | null;
 
-/** The inferred floor rises as a queue could arrive, then decays with the record's half-life. Reach is a ramp because the wave speed is an uncited design setting and a hard arrival cutoff would imply false precision. */
+/** The inferred floor rises as a queue could arrive, then decays with the record's half-life. Reach is a ramp because the wave speed is not measured on these corridors and a hard arrival cutoff would imply false precision. */
 export function queueFloor(uid: number, entries: QueueEntry[], now: number, chosen?: ChosenQueue, gate?: GateFloor): { value: number; queue: AttentionAxes['queue'] } {
   let value = 0;
   let queue: AttentionAxes['queue'] = null;
@@ -467,7 +459,7 @@ function distanceFactor(km: number): number {
   return 1 - (1 - TUNING.INCIDENT_FAR_FACTOR) * ((km - TUNING.INCIDENT_NEAR_KM) / span);
 }
 
-/** A published count mapped onto 0..1. Logarithmic because the counts span three orders of magnitude and the difference between 1,000 and 10,000 vehicles a day matters far more than the difference between 190,000 and 200,000. */
+/** A published count mapped onto 0..1, logarithmically because the counts span three orders of magnitude. */
 export function aadtPrior(aadt: number): number {
   const scaled = (Math.log10(1 + Math.max(0, aadt)) - TUNING.AADT_LOG_MIN) / (TUNING.AADT_LOG_MAX - TUNING.AADT_LOG_MIN);
   return clamp(scaled);
@@ -494,9 +486,7 @@ export function classPrior(highway: string | null): number | null {
   return null;
 }
 
-/** One scale prior per camera, from the counts where a region has them and from capacity or road class elsewhere.
- *
- * Camera ids here are the global ones, because that is what the rest of the server speaks by the time this runs. The count files are written by the Python pipeline, which only ever sees one site at a time and therefore keys them by native id, so the block arithmetic is undone to look a camera up. */
+/** One scale prior per camera, from the counts where a region has them and from capacity or road class elsewhere. Camera ids here are global, while count files are keyed by native id, so the block arithmetic is undone to look a camera up. */
 export function buildScalePriors(options: { regions: string[]; graphs: Map<string, Graph>; root: string; uidBlock: number }): Map<number, ScalePriorFact> {
   const priors = new Map<number, ScalePriorFact>();
   for (const region of options.regions) {
@@ -524,7 +514,7 @@ export function buildScalePriors(options: { regions: string[]; graphs: Map<strin
   return priors;
 }
 
-/** The road segment a camera was snapped to. A site's snaps are written in the same order as its cameras, so a camera with several at one site gets its own; the first stands in when the lists have drifted apart, which is what the count pipeline does for every camera at a site. */
+/** The road segment a camera was snapped to. A site's snaps are written in the same order as its cameras; the first stands in when the lists have drifted apart. */
 function cameraSnap(site: Site | undefined, uid: number): Snap | null {
   const snaps = site?.snaps;
   if (!site || !snaps || snaps.length === 0) return null;

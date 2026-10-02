@@ -1,6 +1,6 @@
 /** Background snapshot poller.
  *
- * Each 511 site regenerates a snapshot on demand once its cached copy has expired, and stamps Last-Modified with the time of the request that regenerated it. A poll that lands even slightly early makes the edge re-cache the stale image for another period, so the next poll is scheduled at the newest Last-Modified plus the source's poll period plus a safety margin, never on a fixed clock. The regenerated image is frequently byte-identical to the previous one because the picture behind it changes more slowly than the cache expires, so a frame is appended only when the bytes change. Cameras start at staggered offsets to spread the load. */
+ * A source may regenerate a snapshot on demand once its cached copy has expired and stamp Last-Modified with the time of that request, so a poll that lands slightly early re-caches the stale image for another period. The next poll is therefore scheduled at the newest Last-Modified plus the poll period plus a margin, never on a fixed clock. The regenerated image is often byte-identical, so a frame is appended only when the bytes change. */
 
 import sharp from 'sharp';
 import { RADAR } from './radar.js';
@@ -14,32 +14,32 @@ export const MARGIN_S = 4;
 const MIN_DELAY_S = 10;
 const UNAVAILABLE_S = 300;
 export const ACTIVITY_MIN_SAMPLES = 3;
-/** Frame differences a camera needs of its own before its movement score may reach the top of the range. A baseline of a handful of differences is noisy, and without this most of a freshly opened city read 1.00 for its first minutes, which said more about the missing history than about the roads. Ten is ten minutes on screen. */
+/** Frame differences a camera needs of its own before its movement score may reach the top of the range, because a baseline of a handful of differences is noisy. */
 const ACTIVITY_WARMUP_SAMPLES = 10;
 
-/** The highest movement score a camera with this much history may have: the score of an ordinary picture, 0.5, with nothing of its own, rising to the full 1 at ACTIVITY_WARMUP_SAMPLES. A cap rather than a pull towards the middle, so a still picture still reads 0 from the start and only the saturation waits for evidence. */
+/** The highest movement score a camera with this much history may have, rising from 0.5 to 1 at ACTIVITY_WARMUP_SAMPLES. A cap rather than a pull towards the middle, so a still picture still reads 0 from the start. */
 export function warmupCap(samples: number): number {
   return 0.5 + 0.5 * Math.min(1, samples / ACTIVITY_WARMUP_SAMPLES);
 }
 /** A frame difference below this is sensor noise on a still scene, and dividing by it would make an empty rural camera look busy. */
 export const ACTIVITY_FLOOR = 0.004;
+/** Frames kept per camera for the replay scrub. Each is tens to a couple of hundred kilobytes, so this multiplies by every polled camera. Raise it with --ring for longer history. */
 export const DEFAULT_RING = 10;
-/** Frames kept per camera for the replay scrub. Each one is the snapshot as the site sent it, tens to a couple of hundred kilobytes, so this number multiplies by however many cameras are polled: ten frames across 669 cameras is roughly half a gigabyte at the top end. Ten gives about ten minutes of replay, since a picture changes about once a minute. Raise it with --ring if you have the memory and want longer history. */
 export const DIFF_HISTORY = 24;
 
-/** A camera in a watched city that nobody can see still needs the occasional frame, because the map colors its nodes by activity and a stale activity score is a lie. Ten minutes keeps that honest at a tenth of the cost. */
+/** A camera in a watched city that nobody can see still needs the occasional frame, because the map colors its nodes by activity. */
 export const SLOW_PERIOD_S = 600;
 
-/** What one server asks of one agency, whatever the size of the wall: at most one on-screen picture every ON_SCREEN_S, and one off-screen picture every OFF_SCREEN_S. A wall of forty cameras then refreshes each tile every three minutes or so, and a wall of ten every minute, so the load on the agency stays about what one person watching its own 511 site puts on it. The budget sets each camera's period and is also enforced when each request is sent, because periods alone bound only the average. A live trace in Columbus had every camera on screen come due in the same minute, again and again, at up to three times the budget per minute while the average held. The camera open in the panel is outside the budget and keeps its source's own rate, as the agency's site would show it. */
+/** What one server asks of one agency, whatever the size of the wall: at most one on-screen picture every ON_SCREEN_S, and one off-screen picture every OFF_SCREEN_S, so the load stays about what one person watching the agency's own site puts on it. The budget sets each camera's period and is also enforced when each request is sent, because periods alone bound only the average and cameras can come due together. The camera open in the panel is outside the budget and keeps its source's own rate. */
 export const BUDGET = {
   ON_SCREEN_S: 5,
   OFF_SCREEN_S: 10,
-  /** How long a count of cameras per tier is reused before it is taken again. Counting is a pass over every camera and periods are asked for constantly. */
+  /** How long a count of cameras per tier is reused, since counting is a pass over every camera. */
   RECOUNT_MS: 5000,
 } as const;
-/** Visibility is a claim with a shelf life. The wall restates it every ten seconds; if it stops, either the viewer left the wall or the tab is asleep, and everything falls back to the slow tier on its own. */
+/** Visibility is a claim with a shelf life. If the wall stops restating it, everything falls back to the slow tier on its own. */
 export const VISIBLE_TTL_S = 30;
-/** How far a quiet camera's period may stretch, as a multiple of its source's own period. Four minutes on a sixty second source is the point where the picture is old enough to be worth refreshing whatever the scene is doing. */
+/** How far a quiet camera's period may stretch, as a multiple of its source's own period. */
 const MAX_STRETCH = 4;
 /** One step per quiet poll, so a camera eases out to its longest period over several minutes rather than jumping there after one still frame. */
 const STRETCH_STEP = 0.5;
@@ -58,23 +58,18 @@ export interface Frame {
   diff: number | null;
 }
 
+/** `unchanged` means a fresh timestamp but identical bytes, so the next regeneration time is known. `not_modified` means a 304, which says nothing about when the next one is due. */
 export type PollResult = 'fresh' | 'unchanged' | 'not_modified' | 'unavailable';
-/** `unchanged` means the server handed us a fresh timestamp but identical bytes, so the next regeneration time is known. `not_modified` means a 304, which tells us nothing about when the next one is due. The two need different schedules. */
 
-/** Grayscale 64x48 thumbnail, its mean brightness, its contrast, and the mean absolute difference against the previous one.
- *
- * Contrast is the standard deviation of the thumbnail's luma. Rain on the lens, fog and low cloud all flatten a picture, so a whole city's cameras losing contrast together is the sky page's hint that the weather has turned. It is measured here because the thumbnail already exists and costs nothing more to read.
- *
- * Resizing and then taking the luma is the same operation as PIL's convert-then-resize: both are linear, so they commute. The luma weights are ITU-R 601-2, which is what PIL's "L" conversion uses. */
 /** A pixel counts as white when every channel is bright and the three are close together: snow, not a sunlit red truck or a yellow sky. */
 const WHITE_MIN = 0.72 * 255;
 const WHITE_SPREAD = 0.12 * 255;
 
 /** Seconds until a camera's next poll, never sooner than its source's refresh period allows on average.
  *
- * A fresh Last-Modified says when the agency last made a picture, so the next one is due a period later, and the poll is timed to land just after it: one request per new picture. That is the case this was written for, a site that regenerates an image when asked.
+ * A fresh Last-Modified says when the agency last made a picture, so the poll is timed to land just after the next one: one request per new picture.
  *
- * A Last-Modified already more than a period old says the camera is not updating on that schedule right now; the image servers most sources use keep the same time on an unchanged picture for minutes. Timing to it would put the next poll in the past and fall back to the ten-second floor, asking six times a minute about a picture that has not moved, which is what a live run measured at up to four times the intended rate. So it waits a full period, as it does after a 304, which carries no time at all. A camera with no feed backs off for five minutes. */
+ * A Last-Modified already more than a period old says the camera is not updating on that schedule right now, and timing to it would poll at the ten-second floor about a picture that has not moved. So it waits a full period, as it does after a 304. A camera with no feed backs off for five minutes. */
 export function nextPollDelay(result: PollResult, lastModified: string | null, period: number, now: number): number {
   if (result === 'unavailable') return UNAVAILABLE_S;
   const full = period + MARGIN_S;
@@ -82,14 +77,15 @@ export function nextPollDelay(result: PollResult, lastModified: string | null, p
   const stamp = Date.parse(lastModified);
   if (!Number.isFinite(stamp)) return full;
   const target = stamp / 1000 + full - now;
-  // Only a picture made within the last period is a schedule worth timing to. One made near the end of it is still on schedule, and waits the short floor rather than a full period, which would land a picture late.
+  // Only a picture made within the last period is a schedule worth timing to.
   if (target < 0) return full;
   return Math.min(full, Math.max(MIN_DELAY_S, target));
 }
 
+/** Grayscale 64x48 thumbnail, its mean brightness, its contrast (the standard deviation of luma, for the sky page), its white share, and the mean absolute difference against the previous one. Luma weights are ITU-R 601-2, as PIL's "L" conversion uses. */
 export async function analyze(data: Buffer, prevThumb: Float32Array | null): Promise<{ thumb: Float32Array; brightness: number; contrast: number; white: number; diff: number | null }> {
   const { data: raw } = await sharp(data)
-    // Bilinear, matching PIL's BILINEAR in the Python this replaces.
+    // Bilinear, matching PIL's BILINEAR.
     .resize(THUMB_W, THUMB_H, { fit: 'fill', kernel: 'linear' })
     .removeAlpha()
     .toColorspace('srgb')
@@ -135,7 +131,7 @@ export function median(values: number[]): number {
 export class CameraSlot {
   readonly frames: Frame[] = [];
   readonly diffs: number[] = [];
-  /** Contrast of the newest frame, and of recent ones, for the sky page. Kept on the slot rather than the frame because nothing reads it for a frame in the replay ring. */
+  /** Contrast of the newest frame, and of recent ones, for the sky page. */
   contrast: number | null = null;
   readonly contrasts: number[] = [];
   /** The white share of the newest frame and of recent ones, for the snow hint. */
@@ -153,7 +149,7 @@ export class CameraSlot {
   readonly freshAt: number[] = [];
   /** Multiplier on this camera's base period, raised while nothing is happening in front of it and dropped the moment something is. */
   stretch = 1;
-  /** The timer this camera is waiting on, and when it is due, so that a camera scrolling into view can be pulled forward instead of sitting out a five minute sleep. */
+  /** The timer this camera is waiting on, and when it is due, so that a camera scrolling into view can be pulled forward. */
   timer: NodeJS.Timeout | null = null;
   dueAt = 0;
   /** True while this camera waits for a turn it has already been given, so it does not ask for a second one when it wakes. */
@@ -172,9 +168,7 @@ export class CameraSlot {
 
   /** How busy this camera looks right now on a 0 to 1 scale, relative to its own recent behavior rather than to other cameras.
    *
-   * A quiet rural camera and a downtown intersection have frame differences an order of magnitude apart, so an absolute threshold would leave the wall permanently showing the same few busy cameras. Scoring each camera against its own median puts them on equal footing: sitting at the median reads as 0.5, twice the median saturates.
-   *
-   * A camera needs several frames before its own median means anything, and a Florida camera only yields a frame every minute or two, so it would take the best part of ten minutes for the wall to start breathing. Until then the region's median stands in, which is a decent prior because cameras in one region share a refresh rate and a scene type. */
+   * Frame differences vary by an order of magnitude between cameras, so each is scored against its own median: sitting at the median reads as 0.5, twice the median saturates. Until a camera has enough frames, the region's median stands in. */
   activity(fallbackBaseline: number | null): number | null {
     const frame = this.latest;
     if (!frame || frame.diff === null) return null;
@@ -208,7 +202,7 @@ export class CameraSlot {
   }
 }
 
-/** What a scorer hands back for one camera. Declared here rather than imported so that the poller stays unaware of how the score is arrived at. */
+/** What a scorer hands back for one camera. */
 export interface Scored {
   attention: number | null;
   axes: AttentionAxes | null;
@@ -258,7 +252,7 @@ export class Poller {
     return periods.size > 0 ? Math.min(...periods) : 60;
   }
 
-  /** Called after every poll that says something about the scene in front of the camera, which is a fresh frame or byte-identical bytes; a 304 or an unavailable camera says nothing and is not reported. Set by whoever wants to accumulate history; the poller itself does nothing with it and its own scheduling does not depend on it. */
+  /** Called after every poll that says something about the scene, which is a fresh frame or byte-identical bytes; a 304 or an unavailable camera is not reported. */
   onPoll: ((slot: CameraSlot, result: PollResult) => void) | null = null;
 
   /** Regions with viewer demand. Outside this set only radar anchors and explicit priority claims may poll. */
@@ -292,14 +286,14 @@ export class Poller {
     return [...this.priority.values()].some((claim) => now < claim.expires && claim.ids.has(uid));
   }
 
-  /** The wall names the cameras on screen on every state poll. An absent list leaves the previous one alone, because the country view and any other client have no notion of visible tiles; an empty list is a positive statement that nothing is on screen, which is what the city map view sends. */
+  /** The wall names the cameras on screen on every state poll. An absent list leaves the previous one alone, because some clients have no notion of visible tiles; an empty list says that nothing is on screen. */
   setVisible(region: string, ids: number[] | null): void {
     if (ids === null) return;
     const before = this.visible.get(region)?.ids ?? new Set<number>();
     const now = Date.now() / 1000;
     const after = new Set(ids);
     this.visible.set(region, { ids: after, at: now });
-    // A camera that has just come into view may be asleep for another few minutes. Pull it forward rather than making the viewer wait for a tile that is already on their screen.
+    // A camera that has just come into view may be asleep for another few minutes, so pull it forward.
     for (const id of after) {
       if (before.has(id)) continue;
       const slot = this.cameras.get(id);
@@ -328,10 +322,10 @@ export class Poller {
     return counts;
   }
 
-  /** The period this camera is actually being polled at: its source's own period when it is on screen, the slow period when it is not, and stretched further while nothing is happening in front of it. The wall judges staleness against this number, so it has to be the real one rather than the source default. */
+  /** The period this camera is actually being polled at, which the wall judges staleness against, so it has to be the real one rather than the source default. */
   periodFor(slot: CameraSlot, tier: Tier = this.tierOf(slot)): number {
     const base = this.clients.get(slot.camera.source)?.source.poll_period_s ?? 60;
-    // The camera open in the panel is what the viewer is looking at, so it keeps its source's own rate, outside the budget.
+    // The camera open in the panel keeps its source's own rate, outside the budget.
     if (this.inPanel(slot.uid)) return base;
     if (tier === 'radar') return RADAR.RADAR_PERIOD_S;
     const counts = this.budgetCounts();
@@ -385,7 +379,7 @@ export class Poller {
   /** Release viewer demand while retaining scored history for the national board and the next radar frame. */
   unwatch(region: string): void {
     if (!this.watching.delete(region)) return;
-    // Keep the newest picture and the difference history, which is a few dozen numbers, so a radar anchor in this city carries on differencing without a gap and the board can still show its latest frame. Drop the rest of the replay ring. Each frame is tens to a couple of hundred kilobytes, and keeping every ring after its city closed would let a session that browses the country hold the replay of every camera it ever showed, on the order of a gigabyte.
+    // Keep the newest picture and the difference history, so a radar anchor carries on differencing and the board can still show its latest frame. Drop the rest of the replay ring, or a session that browses the country would hold the replay of every camera it ever showed.
     for (const slot of this.cameras.values()) {
       if (slot.camera.region !== region || slot.frames.length <= 1) continue;
       slot.frames.splice(0, slot.frames.length - 1);
@@ -415,7 +409,6 @@ export class Poller {
         // Staggered starts: one camera's poll every period/n rather than the whole region at once.
         this.schedule(slot, (period * i) / slots.length);
       });
-      // The rate is no longer simply the camera count over the period: only the cameras on screen run at that period, and the rest tick over slowly, so what this run actually costs is printed every minute instead.
       console.log(`watching ${slots.length} cameras from ${key}: at most one picture every ${String(BUDGET.ON_SCREEN_S)}s on screen and every ${String(BUDGET.OFF_SCREEN_S)}s off it, each camera no faster than every ${period.toFixed(0)}s`);
     }
   }
@@ -440,7 +433,7 @@ export class Poller {
   /** When each source may next be asked for a picture, per tier. */
   private readonly nextTurn = new Map<string, number>();
 
-  /** Seconds until this camera's source may next be asked for an on-screen or off-screen picture, with that turn reserved for it, so that requests are spaced by the budget however the cameras' own timers line up. The camera open in the panel and radar anchors are outside the budget. */
+  /** Seconds until this camera's source may next be asked for a picture in its tier, with that turn reserved for it, so that requests are spaced by the budget however the cameras' own timers line up. The camera open in the panel and radar anchors are outside the budget. */
   private turn(slot: CameraSlot): number {
     const tier = this.tierOf(slot);
     if (this.inPanel(slot.uid) || (tier !== 'fast' && tier !== 'slow')) return 0;
@@ -468,7 +461,7 @@ export class Poller {
     slot.reserved = false;
     slot.polling = true;
     slot.lastPollAt = Date.now() / 1000;
-    // The period is read now rather than when this poll was scheduled, so a tile that scrolled into view, or a scene that woke up, takes effect on the next hop rather than the one after.
+    // Read now rather than when this poll was scheduled, so a change in tier or stretch takes effect on the next hop.
     const period = this.periodFor(slot);
     let delay = period;
     try {
@@ -496,7 +489,7 @@ export class Poller {
 
   /** Stretches a quiet camera's period and snaps it back the instant something moves.
    *
-   * The signal is the frame difference the poller already computes; there is no second measurement. Up is gradual and down is immediate on purpose: a rural road easing out to four minutes overnight costs nothing, but a camera that wakes up must be back on its normal period for the very next poll, or a stretch would quietly become a way to miss an incident. */
+   * Up is gradual and down is immediate on purpose, because a camera that wakes up must be back on its normal period for the very next poll, or a stretch would quietly become a way to miss an incident. */
   private adapt(slot: CameraSlot, result: PollResult): void {
     if (result === 'unavailable' || result === 'not_modified') return;
     const diff = result === 'fresh' ? slot.latest?.diff ?? null : 0;
@@ -508,7 +501,7 @@ export class Poller {
     if (diff !== null && diff <= ACTIVITY_FLOOR) slot.stretch = Math.min(MAX_STRETCH, slot.stretch + STRETCH_STEP);
   }
 
-  /** Seconds until this camera's next poll. Whenever the server handed us a Last-Modified, fresh bytes or not, the next regeneration is that time plus the poll period, so wait until then plus a margin. A 304 carries no new timestamp, so retry sparsely. A placeholder means the camera has no feed right now, so back off. */
+  /** Seconds until this camera's next poll, by `nextPollDelay`. */
   private nextDelay(slot: CameraSlot, result: PollResult, period: number): number {
     return nextPollDelay(result, slot.last_modified_seen, period, Date.now() / 1000);
   }
@@ -534,7 +527,6 @@ export class Poller {
       return 'unchanged';
     }
     const { thumb, brightness, contrast, white, diff } = await analyze(snap.data, slot.lastThumb);
-    // Only the newest thumbnail is ever read, to diff the next frame against. Keeping one per retained frame cost 12 KB times the ring times every camera, for nothing.
     slot.lastThumb = thumb;
     slot.frames.push({
       ts: snap.fetched_at,
@@ -561,7 +553,7 @@ export class Poller {
 
   /** Per-camera state, with each region's median frame difference supplied as the baseline for cameras that do not yet have enough history of their own.
    *
-   * `score` decorates each camera with its attention score. It is passed the same regional fallback the activity number uses, so the two cannot be measured against different baselines. Without it every camera reports a null score and nothing else changes. */
+   * `score` decorates each camera with its attention score, passed the same regional fallback the activity number uses so the two share a baseline. */
   summaries(score?: (slot: CameraSlot, fallbackBaseline: number | null) => Scored): WireCameraState[] {
     const byRegion = new Map<string, number[]>();
     for (const slot of this.cameras.values()) {

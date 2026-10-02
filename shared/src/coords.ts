@@ -1,6 +1,4 @@
-/** Two coordinate orders arrive from the same backend: `/api/graph` and `/api/roads` send `[lat, lon]`, `/api/national` sends GeoJSON `[lon, lat]`. Both are pairs of numbers, so a swap compiles cleanly and draws a plausible rotated map, which is worse than crashing.
- *
- * Branding them apart makes that swap a compile error. The only place a raw pair becomes a branded one is the validation layer, where the order is read off the endpoint's documented contract once. */
+/** Two coordinate orders arrive from the same backend: `/api/graph` and `/api/roads` send `[lat, lon]`, `/api/national` sends GeoJSON `[lon, lat]`. Both are pairs of numbers, so a swap compiles cleanly and draws a plausible rotated map, which is worse than crashing. Branding them apart makes that swap a compile error, and only the validation layer turns a raw pair into a branded one. */
 
 declare const LatLonOrder: unique symbol;
 declare const LonLatOrder: unique symbol;

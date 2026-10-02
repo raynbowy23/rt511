@@ -1,6 +1,4 @@
-/** Where the sun is, so that a dark camera can be told apart from a camera looking at night.
- *
- * The low-precision almanac formula: about a hundredth of a degree over this century, which is far finer than anything here needs. Shared because the server uses it to keep dusk from reading as weather and the map uses it to label the sunset wave. */
+/** Where the sun is, so that a dark camera can be told apart from a camera looking at night. The low-precision almanac formula, accurate to about a hundredth of a degree this century. */
 
 const RAD = Math.PI / 180;
 

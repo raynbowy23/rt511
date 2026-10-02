@@ -1,10 +1,8 @@
 /** What the sky is doing over each city, read from the cameras rather than from a weather service.
  *
- * Two readings. Brightness is the median of the cameras' mean luma, which is what the national map paints as the sunset wave: the east coast going dark first and Las Vegas last. And a murk hint, when most of a city's cameras lose contrast against their own recent pictures at the same time in daylight, which is what rain on the lens, fog and low cloud look like to a thumbnail.
+ * Brightness is the median of the cameras' mean luma, which the national map paints as the sunset wave. The murk hint fires when most of a city's cameras lose contrast against their own recent pictures at once, and the snow hint when several turn white together.
  *
- * A third reading, snow, is the white share of each picture against its own recent pictures: a city where several cameras turned white together in daylight has most likely had snow. Iowa's rural weather-station cameras make this the most useful of the three in winter.
- *
- * The murk and snow hints are toys, not measurements. Its thresholds below are guesses that nobody has checked against real weather, and it says so wherever it is shown. It is only ever read in daylight, because dusk flattens every picture in a city at once and would otherwise be reported as a storm every evening. */
+ * The murk and snow hints are toys, not measurements, with unchecked thresholds. They are only read in daylight, because dusk flattens every picture in a city at once and would otherwise be reported as a storm every evening. */
 
 import { solarElevation, type SkyRegion } from '../../shared/src/index.js';
 import { round } from './config.js';
@@ -37,7 +35,7 @@ export interface SkyCamera {
   contrast: number | null;
   /** Recent contrasts, oldest first, with the newest last. */
   contrasts: readonly number[];
-  /** The white share of the newest frame and of recent ones, oldest first. Absent for cameras recorded before it was measured. */
+  /** The white share of the newest frame and of recent ones, oldest first. */
   white?: number | null;
   whites?: readonly number[];
 }

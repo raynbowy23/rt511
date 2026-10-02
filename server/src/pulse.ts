@@ -1,8 +1,6 @@
-/** Each city's pulse: how much its cameras moved, minute by minute, through the day.
+/** Each city's pulse: the median frame difference across its recently seen cameras, minute by minute, through the day. A median so that one camera pointed at a flag in the wind does not become the city's heartbeat.
  *
- * The number is the median frame difference across the city's cameras that returned a picture in the last few minutes, which is plain movement, measured the same way all day, so rush hours show as bumps and the small hours as a flat line. It is a median rather than a mean so that one camera pointed at a flag in the wind does not become the city's heartbeat. A city nobody has open is read from its sparse radar cameras, so its line is thinner but still there.
- *
- * Numbers only, never a picture. Kept in memory for the page and appended to `out/pulse-<date>.jsonl`, so a restart keeps the day it is in. */
+ * Numbers only, never a picture. Kept in memory and appended to `out/pulse-<date>.jsonl`, so a restart keeps the day it is in. */
 
 import { existsSync, readFileSync } from 'node:fs';
 import type { PulsePoint } from '../../shared/src/index.js';
@@ -60,7 +58,6 @@ export class Pulse {
   /** Records one minute for every city with enough recent pictures, and returns what was recorded. */
   record(cameras: Iterable<PulseCamera>, now = Date.now() / 1000): { region: string; point: PulsePoint }[] {
     const today = localDay(now);
-    // A new day starts a new line.
     if (today !== this.day) {
       this.day = today;
       this.points.clear();

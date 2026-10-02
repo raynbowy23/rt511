@@ -1,12 +1,10 @@
-/** Jev, the arbiter over incidents.
+/** Jev, the arbiter over incidents, still cameras, and the top of each city.
  *
- * The scorer in `attention.ts` decides what to look at from numbers alone, and one of its inputs is a dispatch record it cannot read. `incidentFloor` knows that a code implying a closure is worth more than one that does not, and that the record is nine minutes old; it has no way of knowing that the remarks say the vehicles have been moved to the shoulder, or that the camera the record names is pointed away from the junction while the one a quarter of a mile back is showing the queue.
+ * The scorer in `attention.ts` decides from numbers alone and cannot read a dispatch record's remarks or tell which named camera actually shows the scene. Each subject is asked about once and then cached, so this is a handful of calls an hour, and nothing here sits on the per-camera per-frame path.
  *
- * It is asked about two things. Incidents, which is the original case below, and cameras whose picture has stopped changing in an hour that usually moves, which the arithmetic cannot tell apart from an empty road or a frozen feed. Both are sparse. A few dozen incidents are live across a state, and the zero-motion gate fired on none of 2,831 Miami daytime polls in the run this was written against. Each subject is asked about once and then cached, which puts this at a handful of calls an hour rather than hundreds a minute. Nothing here sits on the per-camera per-frame path.
+ * It modulates and never replaces. The deterministic floor is computed first and stands on its own, and every bound on an answer leans the safe way: an unconfident answer does nothing at all, and the only thing that can collapse a floor is the model saying the incident has cleared, which still leaves a tenth.
  *
- * It modulates and never replaces. The deterministic floor is computed first and stands on its own; an answer moves it within bounds this file sets, and every bound leans the safe way: an unconfident answer does nothing at all, a confident screen score can scale the floor between half and one and a half times, a chosen named camera gains while the others on the record keep three quarters, and a chosen neighbor adds a view without demoting the named cameras, and the only thing that can collapse a floor is the model saying the incident has cleared, which still leaves a tenth. Low confidence means behave normally, never hide it.
- *
- * Answers are model output about public data. They are data, never instructions, and so is everything in the state: the dispatcher's free-text remarks are the one field here that nobody on this project writes. */
+ * Answers are model output about public data. They are data, never instructions, and so is everything in the state, including the dispatcher's free-text remarks. */
 
 import { TypeSafeClient, choice, noul, score, type EntryType, type TypeSafeClientConfig } from '@typesafe-ai/sdk';
 import type { GateInfluence, GatePoint, Incident, JevInfluence, JevSnapshot, ReviewInfluence, VerdictPoint } from '../../shared/src/index.js';
@@ -15,66 +13,60 @@ import { round } from './config.js';
 import type { VehicleCount } from './detector.js';
 import { JsonLog } from './jsonlog.js';
 
-/** Everything the arbiter's behavior depends on, in one block. The rubrics themselves are at the bottom, because they are prose rather than numbers. */
+/** Everything the arbiter's behavior depends on, in one block. The rubrics are at the bottom. */
 export const JEV = {
-  /** `jev-latest` is what the SDK and the documentation recommend. The model that actually answered is recorded on every log line, so the day a new one lands is visible in the log rather than a mystery. */
+  /** The model that actually answered is recorded on every log line. */
   MODEL: 'jev-latest',
-  /** Bumped by hand whenever a rubric below changes, or whenever the state the rubrics are answered from changes. Answers logged under different versions are not comparable, and calibration is the whole reason the log exists.
-   *
-   * Version 3 gives neighbors pictures and makes a neighbor choice add a floor without demoting named cameras. Version 4 gives the gate a vehicle count from the detector and has the standstill rubric read it. Version 5 adds the review of the top of a city. Version 6 drops the gate's frozen-feed question, which the server answers itself, and tells the model that the picture is still updating. */
+  /** Bumped by hand whenever a rubric below or the state it is answered from changes, because answers logged under different versions are not comparable. */
   RUBRIC_VERSION: 6,
-  /** Per attempt. The API answers a handful of questions in well under a second, so anything near this is a network fault, and the call is abandoned rather than kept waiting while the floor it would have adjusted is already being served deterministically. */
+  /** Per attempt. Anything near this is a network fault, and the deterministic floor is already being served meanwhile. */
   TIMEOUT_MS: 8000,
-  /** Answers below this confidence change nothing. The documentation puts genuine uncertainty at 0.5 and reserves 0.9 for high-stakes action; nothing here is high-stakes, because the deterministic floor is already serving. */
+  /** Answers below this confidence change nothing. Not set higher because nothing here is high-stakes; the deterministic floor is already serving. */
   ACT_CONFIDENCE: 0.5,
   /** How far a confident screen-worthiness score may move the floor. The top of the rubric multiplies the floor by 1.5, the bottom by 0.5, and the middle leaves it where it was. */
   SCORE_SWING: 0.5,
-  /** A Noul carries no confidence, so its own probability is the gate, and it is set high. The documentation also warns that a threshold does not transfer between primitives, which is why this is not the same number as the confidence gate. */
+  /** A Noul carries no confidence, so its own probability is the gate, and it is set high. A threshold does not transfer between primitives, so this is not the confidence gate's number. */
   NOUL_THRESHOLD: 0.8,
   /** What is left of the floor when the model is sure the incident has cleared. Not zero: the record is still open, and a camera the dispatcher has not released yet is still worth more than an ordinary one. */
   CLEARED_RESIDUE: 0.1,
-  /** How much a confident yes to "the cameras support this" may lift a floor. Small, and one-sided: a no never lowers anything, because a frozen camera and an empty road look the same to the telemetry this question is answered from, and that is exactly the case the floor exists for. */
+  /** How much a confident yes to "the cameras support this" may lift a floor. Small, and one-sided: a no never lowers anything, because the telemetry cannot tell a camera missing the scene from a scene with nothing in it. */
   SUPPORTED_LIFT: 1.2,
   /** What the camera the model picks gains, and what the others keep. A named choice redistributes because being the second-best view of a crash is still worth something. A neighbor choice adds a view and leaves the named cameras alone. */
   CHOSEN_GAIN: 1.25,
   CHOSEN_OTHERS: 0.75,
-  /** At most this many options on the Choice. The limit is 255 and we will never approach it, but a state full of cameras the incident has nothing to do with is a distractor, and the documentation is explicit that accuracy falls as irrelevant state grows. */
+  /** At most this many options on the Choice, because accuracy falls as irrelevant state grows. */
   MAX_OPTIONS: 10,
   /** How many corridor neighbors to offer beyond the cameras the incident itself names. */
   MAX_NEIGHBORS: 4,
-  /** What the arbiter puts under a camera when it says the stillness in front of it is stopped traffic. The same level a road-relevant dispatch code gets, because that is what it is, an incident nobody has reported yet. A floor rather than a score, for the same reason an incident is one: the thing that makes it worth watching is exactly the thing that makes the picture stop changing. */
+  /** What the arbiter puts under a camera when it says the stillness in front of it is stopped traffic. The same level a road-relevant dispatch code gets, because it is an incident nobody has reported yet. */
   GRIDLOCK_FLOOR: 0.6,
-  /** How long a gate answer keeps its floor before the camera has to earn one again. Short, because a standstill that has drained is an ordinary camera again and nothing in the telemetry would say so. */
+  /** How long a gate answer keeps its floor. Short, because nothing in the telemetry would say a standstill has drained. */
   GATE_HOLD_S: 600,
-  /** A camera whose gate has fired is not asked about again inside this window, whatever the answer was. Deliberately shorter than GATE_HOLD_S, so that a standstill which is still standing is re-read twice before the floor it earned expires. The reverse ordering, which this constant had at first, let a genuine jam lose its floor for five minutes before anything was allowed to ask about it again. */
+  /** A camera whose gate has fired is not asked about again inside this window. Deliberately shorter than GATE_HOLD_S, so that a standstill which is still standing is re-read before the floor it earned expires. */
   GATE_REASK_AFTER_S: 300,
-  /** At most this many cameras are asked about per ranking. The gate fires on a camera at a time, not on a city at once, and this is what stops a region-wide feed fault from becoming a region-wide spend.
-   *
-   * MAX_IN_FLIGHT usually binds before this does, because a pass is synchronous and no call it starts has come back by the time it ends. This is the cap that still holds once they do. */
+  /** At most this many cameras are asked about per ranking, so a region-wide feed fault cannot become a region-wide spend. MAX_IN_FLIGHT usually binds first. */
   MAX_GATE_PER_PASS: 3,
-  /** Calls per rolling minute across every region, and how many may be in the air at once. A city produces a handful an hour in ordinary weather; these exist so that a feed suddenly listing two hundred incidents cannot become two hundred calls. */
+  /** Calls per rolling minute across every region, and how many may be in the air at once, so a feed suddenly listing two hundred incidents cannot become two hundred calls. */
   MAX_CALLS_PER_MINUTE: 20,
   MAX_IN_FLIGHT: 2,
-  /** The soonest a record may be asked about again. Set to one camera period, because that is the rate at which the evidence can actually change, and asking faster than the pictures arrive would spend calls to be told the same thing.
-   *
-   * This bound is not the whole of the cadence. A re-ask also requires that at least one of the record's cameras has returned a new frame since the last answer, which makes the arbitration track the polling tier by itself: a record on cameras somebody is watching is re-read about once a minute, and the same record on idle cameras about once every five. */
+  /** The soonest a record may be asked about again: one camera period, the rate at which the evidence can change. A re-ask also requires a new frame from one of the record's cameras, so the cadence tracks the polling tier. */
   REASK_AFTER_S: 60,
-  /** How many past answers are kept per subject for the arbitration pane. Forty points at one a minute is a little over half an hour of history, which is longer than an incident floor survives. In memory only, and dropped on restart like every other verdict here. */
+  /** How many past answers are kept per subject for the arbitration pane, in memory only. */
   HISTORY_POINTS: 40,
   /** After a failed call, leave that incident alone for this long. The SDK already retries the retryable statuses twice inside one call. */
   RETRY_AFTER_S: 120,
   LOG_MAX_BYTES: 16 * 1024 * 1024,
   /** The review: a second look at the top of a city the equation has already ranked. How many of its leading cameras are looked at together, in one call, so each is judged against the others rather than alone. */
   REVIEW_TOP_K: 8,
-  /** The soonest a city is looked at again, and only once a picture among its leaders has changed. Two minutes is two pictures on most feeds, which is as fast as the leaders can change. */
+  /** The soonest a city is looked at again, and only once a picture among its leaders has changed. */
   REVIEW_EVERY_S: 120,
   /** How long a camera keeps the factor its last look gave it. Long enough to outlast the next look, short enough that a camera which has dropped out of the leaders is judged by the equation alone again. */
   REVIEW_HOLD_S: 600,
-  /** How far a confident look may move a camera's movement term: the top of the rubric multiplies it by 1.25 and the bottom by 0.75. Enough to reorder cameras the equation scores close together, too little to lift a still picture over a busy one. */
+  /** How far a confident look may move a camera's movement term, from 0.75 to 1.25 times. Enough to reorder cameras the equation scores close together, too little to lift a still picture over a busy one. */
   REVIEW_SWING: 0.25,
 } as const;
 
-/** What one camera looks like right now, as the scorer already knows it. Assembled by the caller so that this file never reaches into the poller. */
+/** What one camera looks like right now, as the scorer already knows it. */
 export interface CameraTelemetry {
   uid: number;
   roadway: string;
@@ -100,7 +92,7 @@ export interface Neighbor {
   tt_s: number;
   /** Directed graph hops from the camera this neighbor was found from. One is adjacent. */
   hops: number;
-  /** How long a queue tail standing at the incident would take to reach this camera, from the road distance and the stopping-wave speed. Null for anything that is not upstream, where the quantity has no meaning. */
+  /** How long a queue tail standing at the incident would take to reach this camera, from the road distance and the stopping-wave speed. Null for anything that is not upstream. */
   wave_s: number | null;
 }
 
@@ -122,7 +114,7 @@ export interface JevVerdict {
 }
 
 export interface AskResult {
-  /** The answer alone. The fingerprints and the timestamp are the caller's to attach, because the model is never told what it is being compared against. */
+  /** The answer alone; the caller attaches the fingerprints and the timestamp. */
   verdict: Omit<JevVerdict, 'incidentId' | 'key' | 'at' | 'evidence'>;
   usage: { input_tokens: number; output_tokens: number };
   /** The answers as the API returned them, for the log. */
@@ -130,7 +122,7 @@ export interface AskResult {
   latencyMs: number;
 }
 
-/** One call to the model: the state, and the cameras it may choose between as an option name to description map. Injected rather than imported so that the arbiter can be tested without a network. */
+/** One call to the model: the state, and the cameras it may choose between as an option name to description map. Injected so the arbiter can be tested without a network. */
 export type Ask = (state: unknown, options: Record<string, string>) => Promise<AskResult>;
 
 /** What the arbiter holds about one camera whose picture stopped changing in an hour that usually moves. */
@@ -148,20 +140,20 @@ export interface GateAskResult {
   latencyMs: number;
 }
 
-/** The second call this file can make. Separate from `Ask` because it answers a different question from a different state, and because a project running without it should keep the incident arbitration it already had. */
+/** The second call this file can make, separate from `Ask` so incident arbitration works without it. */
 export type GateAsk = (state: unknown) => Promise<GateAskResult>;
 
-/** One camera the zero-motion gate has fired on, with the corridor around it. The caller assembles this so that this file never reaches into the poller. */
+/** One camera the zero-motion gate has fired on, with the corridor around it. */
 export interface GateCandidate {
   camera: CameraTelemetry;
   neighbors: Neighbor[];
-  /** Whether any dispatch record already names this camera. A standstill next to a reported crash is explained; one with nothing reported near it is the case this gate exists for. */
+  /** Whether any dispatch record already names this camera. */
   incidentNearby: boolean;
-  /** What the detector counted in the frame the gate fired on. Null when there is no detector or it could not count this frame, and the question is then asked from telemetry alone, as it was before the detector existed. */
+  /** What the detector counted in the frame the gate fired on. Null when there is no count, and the question is then asked from telemetry alone. */
   vehicles: VehicleCount | null;
 }
 
-/** One of the leading cameras of a city, as the review describes it. Assembled by the caller from what the scorer already knows. */
+/** One of the leading cameras of a city, as the review describes it. */
 export interface ReviewCandidate {
   camera: CameraTelemetry;
   freeway: boolean;
@@ -195,9 +187,7 @@ export interface ReviewAskResult {
 /** The third call this file can make: one Score per leading camera of a city, in one call. */
 export type ReviewAsk = (state: unknown, cameras: { uid: number; view: string }[]) => Promise<ReviewAskResult>;
 
-/** Describes an incident to the model and turns what comes back into a multiplier on the deterministic floor.
- *
- * Every path through this class has a no-op: no key, no network, a malformed answer, a rate limit, a timeout, an incident nobody has asked about yet. In all of them `modulate` hands back the number it was given. */
+/** Describes an incident to the model and turns what comes back into a multiplier on the deterministic floor. Whenever there is no usable answer, `modulate` hands back the number it was given. */
 export class JevArbiter {
   private readonly verdicts = new Map<string, JevVerdict>();
   /** Record fingerprints currently in the air, so the same one is never asked twice at once. */
@@ -240,7 +230,7 @@ export class JevArbiter {
     return this.ask !== null;
   }
 
-  /** The record's own content, because the feed publishes no update timestamp. A dispatcher editing the remarks or the code changes this and the incident is asked about again; a feed republishing the same record every two minutes does not. */
+  /** The record's own content, because the feed publishes no update timestamp. An edited record is asked about again; a republished identical one is not. */
   static key(incident: Incident): string {
     return JSON.stringify([incident.id, incident.type, incident.reported_at, incident.location, incident.remarks]);
   }
@@ -251,7 +241,7 @@ export class JevArbiter {
     return held;
   }
 
-  /** Asks about anything worth asking about, and returns at once. A verdict lands for the next ranking rather than this one, which is the point: nothing waits on a network call to draw a wall. */
+  /** Asks about anything worth asking about, and returns at once. A verdict lands for the next ranking, so nothing waits on a network call to draw a wall. */
   consider(incidents: Incident[], telemetry: (uid: number) => CameraTelemetry | null, neighbors: (uid: number) => Neighbor[], now = Date.now() / 1000): void {
     if (!this.ask) return;
     for (const incident of incidents) {
@@ -261,9 +251,7 @@ export class JevArbiter {
     }
   }
 
-  /** What the record's cameras are showing, reduced to a string that changes when and only when one of them returns a new frame.
-   *
-   * This is what makes a one-minute re-ask window affordable. The window says how soon an answer may be replaced; this says whether replacing it could produce anything different. A record whose cameras have all gone quiet holds its answer until one of them speaks again. */
+  /** What the record's cameras are showing, reduced to a string that changes when and only when one of them returns a new frame, so an answer is replaced only when it could come out different. */
   static evidence(incident: Incident, telemetry: (uid: number) => CameraTelemetry | null): string {
     const parts: string[] = [];
     for (const uid of incident.cameras) {
@@ -309,7 +297,7 @@ export class JevArbiter {
     const cameras = incident.cameras.map(telemetry).filter((camera): camera is CameraTelemetry => camera !== null);
     // Every camera this record names is unpolled, so there is nothing to describe and nothing a verdict could move.
     if (cameras.length === 0) return;
-    // Not one of them has returned a picture yet, which happens in the first minutes of a run. This guard is load-bearing rather than thrifty: asked about a record whose every camera reads "no picture yet", the model scores the screen rubric on its lower levels, because those levels ask for a camera showing something. Measured against the live feed with the guard bypassed, eight real records all came back between 0.3 and 1.1 of 3 whatever their code said, including two open roadblocks. A floor must not be lowered for a gap in our own coverage. Neither asked nor marked, so it goes out on a later pass once there is something to look at.
+    // Not one of them has returned a picture yet. Load-bearing rather than thrifty: with no pictures the model scores the screen rubric low, and a floor must not be lowered for a gap in our own coverage. Neither asked nor marked, so it goes out on a later pass.
     if (!cameras.some((camera) => camera.diff !== null)) return;
     const extra = corridorOptions(cameras, neighbors);
     const options = choiceOptions(incident, cameras, extra);
@@ -354,7 +342,7 @@ export class JevArbiter {
     } catch (error) {
       this.errors++;
       this.failedUntil.set(key, Date.now() / 1000 + JEV.RETRY_AFTER_S);
-      // Never the body and never the headers: the key is in one of them. A name and a status are enough to tell a rate limit from a DNS failure.
+      // Never the body and never the headers, because the key is in one of them.
       const status = typeof (error as { status?: unknown }).status === 'number' ? ` ${String((error as { status: number }).status)}` : '';
       const name = error instanceof Error ? error.name : 'Error';
       if (!this.failing) console.warn(`jev unavailable (${name}${status}), incidents keep their deterministic floor`);
@@ -366,7 +354,7 @@ export class JevArbiter {
 
   /** Asks about cameras the zero-motion gate has fired on, and returns at once.
    *
-   * The gate is a question the arithmetic cannot answer. A frame that changed by nothing in an hour that usually moves is stopped traffic, an empty road, or a feed that has frozen, and the three are identical in a mean absolute pixel difference. Only the last two deserve nothing. So the ones the gate flags are described and asked about, at a few per pass, and an answer that clears its threshold puts a floor under the camera the way a dispatch record would. */
+   * A frame that changed by nothing in an hour that usually moves is stopped traffic or an empty road, which the pixel difference cannot tell apart. An answer that clears its threshold puts a floor under the camera the way a dispatch record would. */
   considerGate(candidates: GateCandidate[], now = Date.now() / 1000): void {
     if (!this.askGate) return;
     let asked = 0;
@@ -382,7 +370,7 @@ export class JevArbiter {
     const uid = candidate.camera.uid;
     // The flag is what is being asked about, so without it there is no question.
     if (!candidate.camera.ambiguousZero) return false;
-    // A camera with no picture cannot have been still, and a camera with no baseline has no hour to be still against. Both are states the flag should never reach, and both would read to the model as evidence of stopped traffic rather than as the gap in our own coverage they are.
+    // A camera with no picture or no baseline should never be flagged, and would read to the model as stopped traffic rather than a gap in our own coverage.
     if (candidate.camera.diff === null || candidate.camera.baseline === null) return false;
     if (this.gatePending.has(uid)) return false;
     const asked = this.gateAskedAt.get(uid);
@@ -449,7 +437,7 @@ export class JevArbiter {
 
   /** Looks again at the leading cameras of one city, and returns at once.
    *
-   * The equation ranks every camera from its numbers. This asks for a second opinion on the few at the top, judged together, because being worth a person's attention is relative: a busy interstate at rush hour is less remarkable beside five others doing the same. What comes back moves each camera's movement term within REVIEW_SWING and never touches a floor, so it can reorder cameras the equation scores close together but cannot bury an incident or invent one. */
+   * A second opinion on the few at the top, judged together, because being worth a person's attention is relative. What comes back moves each camera's movement term within REVIEW_SWING and never touches a floor, so it cannot bury an incident or invent one. */
   considerReview(region: string, cityName: string, candidates: ReviewCandidate[], now = Date.now() / 1000): void {
     if (!this.askReview) return;
     const leaders = candidates.slice(0, JEV.REVIEW_TOP_K);
@@ -486,8 +474,7 @@ export class JevArbiter {
       this.outputTokens += usage.output_tokens;
       const at = Date.now() / 1000;
       for (const [uid, verdict] of verdicts) this.reviews.set(uid, { ...verdict, at });
-      // The shadow record: both rankings of the same cameras at the same moment, whether or not the look was confident enough to move the wall. This is what the look is evaluated from, rather than from the bounded factor the wall applies.
-      // Ties in either ranking are broken by camera id, which favors neither, so a tie never counts as the two agreeing.
+      // The shadow record: both rankings of the same cameras at the same moment, whether or not the look acted. Ties are broken by camera id, which favors neither.
       const equationOrder = [...leaders].sort((a, b) => b.equation - a.equation || a.camera.uid - b.camera.uid).map((candidate) => candidate.camera.uid);
       const lookOrder = [...verdicts].sort((a, b) => b[1].level - a[1].level || a[0] - b[0]).map(([uid]) => uid);
       if (this.failing) console.log('jev recovered');
@@ -548,9 +535,7 @@ export class JevArbiter {
 
   /** The floor a gate answer puts under one camera, or null when there is none to apply.
    *
-   * Three ways to get nothing. No answer, an answer older than the hold window, or an answer that did not clear its threshold.
-   *
-   * A frozen feed is not asked about. The server decides it: a poll that returns the same bytes as the last one is recorded as unchanged and is never folded into a baseline or flagged, so a feed that has stopped updating can never reach this gate. Only a picture whose bytes changed can be flagged, and the model is told so. */
+   * A frozen feed can never reach this gate, because a poll that returns the same bytes is never flagged. */
   gateFloor(uid: number, now = Date.now() / 1000): { value: number; at: number; influence: GateInfluence } | null {
     const verdict = this.gateVerdicts.get(uid);
     if (!verdict) return null;
@@ -571,13 +556,13 @@ export class JevArbiter {
     };
   }
 
-  /** What one verdict does to a floor, as a multiplier and the list of answers that were not acted on. Pure arithmetic over the answer, so the arbitration pane can report exactly what the scorer applied rather than an approximation of it. */
+  /** What one verdict does to a floor, as a multiplier and the list of answers that were not acted on. Shared by the scorer and the arbitration pane so the two report the same thing. */
   private static effect(verdict: JevVerdict, uid: number, namedChoice = true): { multiplier: number; gated: string[] } {
     const gated: string[] = [];
     let multiplier = 1;
 
     if (verdict.cleared >= JEV.NOUL_THRESHOLD) {
-      // The one answer allowed to take a floor away, and the answer to a record that has been open for a hundred and seventy days.
+      // The one answer allowed to take a floor away.
       multiplier *= JEV.CLEARED_RESIDUE;
     } else gated.push('cleared');
 
@@ -596,7 +581,7 @@ export class JevArbiter {
     return { multiplier, gated };
   }
 
-  /** Keeps one answer for the pane, and only for the pane. Nothing in the scorer reads this. */
+  /** Keeps one answer for the pane. Nothing in the scorer reads this. */
   private remember(incident: Incident, verdict: JevVerdict): void {
     const series = this.history.get(incident.id) ?? [];
     // Reported for the camera the model picked, which is the largest the multiplier gets. The others take CHOSEN_OTHERS in its place.
@@ -617,7 +602,7 @@ export class JevArbiter {
     this.history.set(incident.id, series);
   }
 
-  /** The arbitration as it stands, for the pane. Assembled on request and holding no reference to anything the scorer uses. */
+  /** The arbitration as it stands, for the pane. */
   snapshot(incidents: Incident[], hasPicture: (uid: number) => boolean, context: { watching: number; feedsRead: number; prioritized: number }, isServable: (uid: number) => boolean): JevSnapshot {
     const live = new Map(incidents.map((incident) => [incident.id, incident]));
     const linked = incidents.filter((incident) => incident.cameras.length > 0);
@@ -679,7 +664,7 @@ export class JevArbiter {
     return recordFloor * JevArbiter.effect(verdict, uid).multiplier;
   }
 
-  /** The deterministic floor, adjusted by whatever is known about this incident. Hands back exactly what it was given whenever there is no verdict, the verdict belongs to an older version of the record, or every answer in it is below its gate. */
+  /** The deterministic floor, adjusted by whatever is known about this incident, or exactly what it was given when there is no current verdict. */
   modulate(incident: Incident, uid: number, deterministic: number): { value: number; influence: JevInfluence | null } {
     const verdict = this.verdictFor(incident);
     if (!verdict || deterministic <= 0) return { value: deterministic, influence: null };
@@ -712,7 +697,7 @@ export class JevArbiter {
   }
 }
 
-/** The cameras the model may pick between, each with the one line that tells it apart. The state carries the detail; this map only has to make the labels distinguishable. */
+/** The cameras the model may pick between, each with the one line that tells it apart. */
 export function choiceOptions(incident: Incident, cameras: CameraTelemetry[], neighbors: Neighbor[]): Record<string, string> {
   const options: Record<string, string> = {};
   for (const camera of cameras) {
@@ -742,9 +727,7 @@ function corridorOptions(cameras: CameraTelemetry[], neighbors: (uid: number) =>
   return [...found.values()].sort((a, b) => (a.side === b.side ? a.length_m - b.length_m : rank[a.side] - rank[b.side])).slice(0, JEV.MAX_NEIGHBORS);
 }
 
-/** How long ago, in words.
- *
- * Words rather than a timestamp on purpose: the model's own documentation says it reads dates as text rather than as ordered quantities, so the arithmetic is done here and it is handed the answer. */
+/** How long ago, in words, because the model reads dates as text rather than as ordered quantities. */
 export function ago(seconds: number): string {
   if (seconds < 90) return 'less than two minutes ago';
   const minutes = Math.round(seconds / 60);
@@ -754,7 +737,7 @@ export function ago(seconds: number): string {
   return `${Math.round(hours / 24)} days ago`;
 }
 
-/** What the picture is doing, against what this camera usually does at this hour. A ratio and a phrase, both worked out here, because the model is documented not to be a calculator. */
+/** What the picture is doing, against what this camera usually does at this hour. A ratio and a phrase, worked out here because the model is not a calculator. */
 export function picture(camera: Pick<CameraTelemetry, 'diff' | 'baseline'>): { summary: string; frame_difference: number | null; usual: number | null; times_usual: number | null } {
   const { diff, baseline } = camera;
   if (diff === null) return { summary: 'no picture yet', frame_difference: null, usual: baseline, times_usual: null };
@@ -826,9 +809,7 @@ export function buildState(incident: Incident, cameras: CameraTelemetry[], neigh
   };
 }
 
-/** What the arbiter is told about one still camera. Deliberately narrow: this question is about one picture and the road it sits on, and the documentation is explicit that accuracy falls as irrelevant state grows.
- *
- * The corridor is included because it is the evidence that separates the two answers. Traffic standing still at this camera while the cameras behind it on the same road are also slowing is a queue. The same stillness with the approach moving normally is an empty road or a dead picture. */
+/** What the arbiter is told about one still camera. Deliberately narrow, because accuracy falls as irrelevant state grows. The corridor is included because a slowing approach is what separates a queue from an empty road. */
 export function buildGateState(candidate: GateCandidate, now: number): Record<string, unknown> {
   const { camera, neighbors, incidentNearby, vehicles } = candidate;
   const state = picture(camera);
@@ -862,7 +843,7 @@ export function buildGateState(candidate: GateCandidate, now: number): Record<st
   };
 }
 
-/** How the leading cameras of a city are described for the review. The equation's own score is left out on purpose, so the answer is a second opinion rather than an echo of the first. Its parts are in, because they are the evidence. */
+/** How the leading cameras of a city are described for the review. The equation's own score is left out on purpose, so the answer is a second opinion rather than an echo. */
 export function buildReviewState(cityName: string, leaders: ReviewCandidate[], now: number): Record<string, unknown> {
   return {
     city: cityName,
@@ -890,7 +871,7 @@ export function buildReviewState(cityName: string, leaders: ReviewCandidate[], n
   };
 }
 
-/** Kendall's tau between two orderings of the same items, 1 for the same order and -1 for the reverse. Null with fewer than two items in common. Both arguments are orders, so a tie in the underlying scores has already been broken by whoever made them. */
+/** Kendall's tau between two orderings of the same items, 1 for the same order and -1 for the reverse. Null with fewer than two items in common. */
 export function kendallTau(first: number[], second: number[]): number | null {
   const common = first.filter((uid) => second.includes(uid));
   if (common.length < 2) return null;
@@ -906,7 +887,7 @@ export function kendallTau(first: number[], second: number[]): number | null {
   return round((concordant - discordant) / (concordant + discordant), 3);
 }
 
-/** The review's one question, asked once per camera. A Score because the answer is a place on an ordered scale, and relative because the cameras are judged side by side in one state. */
+/** The review's one question, asked once per camera, relative because the cameras are judged side by side in one state. */
 const REVIEW_RUBRIC = {
   type: 'score',
   instructions: 'How much does this camera deserve the attention of a person watching this city right now, compared with the other cameras listed?',
@@ -918,9 +899,7 @@ const REVIEW_RUBRIC = {
   ],
 } as const;
 
-/** The question asked about a still picture. A Noul, because it is a single yes or no about the state of the road, and not a judgment about the wall.
- *
- * Whether the feed has frozen is not asked. Measured on the synthetic benchmark, the model read a near-zero frame difference as a frozen feed with a probability of about 0.9 whatever else it was told, which cancelled every stopped-traffic answer. The server knows the answer exactly, since a frozen feed returns the same bytes and is never flagged, so it states that the picture is updating instead of asking. */
+/** The question asked about a still picture. Whether the feed has frozen is not asked, because the server knows exactly and states it, while the model tends to read any near-zero difference as a frozen feed. */
 export const GATE_RUBRICS = {
   standstill: {
     type: 'noul',
@@ -932,9 +911,7 @@ export const GATE_RUBRICS = {
   },
 } as const;
 
-/** The rubrics, written once and logged at the top of each day's file so that an answer can be read against the question that produced it.
- *
- * Each one asks a single thing. The documentation is explicit that a question needing several steps of reasoning should be split and recombined in code, and the recombination is `modulate` above, where this project's own weights already live. */
+/** The rubrics, logged at the top of each day's file so that an answer can be read against the question that produced it. Each asks a single thing, and `modulate` recombines them in code. */
 const RUBRICS = {
   supported: {
     type: 'noul',
@@ -968,9 +945,7 @@ const RUBRICS = {
   },
 } as const;
 
-/** The binding for the zero-motion gate. One Noul, one call, and the same client contract as the incident ask above.
- *
- * Shares the key with `createAsk` and nothing else. A deployment that wants incident arbitration without per-camera calls simply does not build this one, and the gate goes back to being recorded and never acted on. */
+/** The binding for the zero-motion gate. One Noul, one call. Without it the gate is recorded and never acted on. */
 export function createGateAsk(apiKey: string, overrides: Partial<TypeSafeClientConfig> = {}): GateAsk {
   const client = new TypeSafeClient({ apiKey, timeout: JEV.TIMEOUT_MS, defaultModel: JEV.MODEL, ...overrides });
   return async (state) => {
@@ -1021,11 +996,9 @@ export function createReviewAsk(apiKey: string, overrides: Partial<TypeSafeClien
   };
 }
 
-/** The binding to the SDK. The only place in this project that holds the key, and it is handed one rather than reading the environment itself.
- *
- * All four questions go in one call. They are evaluated independently and in parallel, so asking four costs barely more than asking one, and one of them is speculative: the Choice is answered whether or not the Score turns out to be high enough to act on. */
+/** The binding to the SDK. It is handed the key rather than reading the environment itself. All four questions go in one call, since they are evaluated independently and in parallel. */
 export function createAsk(apiKey: string, overrides: Partial<TypeSafeClientConfig> = {}): Ask {
-  // `overrides` exists so a test can hand in its own `fetch` and so an operator can point at another base URL. Nothing in the running server passes it.
+  // `overrides` lets a test hand in its own `fetch`.
   const client = new TypeSafeClient({ apiKey, timeout: JEV.TIMEOUT_MS, defaultModel: JEV.MODEL, ...overrides });
   return async (state, options) => {
     const started = Date.now();
@@ -1040,7 +1013,7 @@ export function createAsk(apiKey: string, overrides: Partial<TypeSafeClientConfi
     });
     const latencyMs = Date.now() - started;
     const { supported, cleared, screen, camera } = result.answers;
-    // A response that does not carry what the questions asked for is a failure, not a verdict of zero. Thrown here, it is caught one level up and the deterministic floor stands.
+    // A response that does not carry what the questions asked for is a failure, not a verdict of zero, and the deterministic floor stands.
     if (typeof supported?.noul !== 'number' || typeof cleared?.noul !== 'number' || typeof screen?.score !== 'number' || typeof camera?.choice !== 'string') {
       throw new Error('answer missing a question');
     }
@@ -1050,7 +1023,7 @@ export function createAsk(apiKey: string, overrides: Partial<TypeSafeClientConfi
         supported: supported.noul,
         cleared: cleared.noul,
         score: screen.score,
-        // Taken from the legend the answer itself carries rather than from the rubric constant, so that a rubric edited in one place and not the other cannot silently rescale the multiplier.
+        // From the answer's own legend rather than the rubric constant, so the two cannot drift and silently rescale the multiplier.
         scoreLevels: Object.keys(screen.legend).length,
         scoreConfidence: typeof screen.confidence === 'number' ? screen.confidence : 0,
         chosen: Number.isInteger(chosen) && camera.choice in options ? chosen : null,

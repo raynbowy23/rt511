@@ -7,15 +7,15 @@ import { ago, JEV, picture, type JevVerdict, type Neighbor } from './jev.js';
 /** Five events give an ambient wall a short ribbon that can be read without competing with its pictures. */
 export const HIGHLIGHTS_SIZE = 5;
 
-/** An event below this attention is not a highlight. The first live run ranked a three-hour-old record at 0.015 into the ribbon because nothing else was happening, which is exactly when the ribbon should stay empty. A road-relevant record's floor falls to this level about forty minutes after its report, and a closure's about fifty, so the ribbon holds events from roughly the last hour. */
+/** An event below this attention is not a highlight, so a quiet wall leaves the ribbon empty rather than promoting an old record. A road-relevant record's floor falls to this level about forty minutes after its report, and a closure's about fifty, so the ribbon holds events from roughly the last hour. */
 export const HIGHLIGHT_MIN_ATTENTION = 0.25;
 
-/** A queue is mentioned only through an upstream camera whose queue floor reaches this. The formula always admits some floor once the wave could have arrived, and on a decayed record that let a brief claim a queue 4.9 km back behind a score of 0.015. The sentence must not claim more than the number supports. */
+/** A queue is mentioned only through an upstream camera whose queue floor reaches this. The formula always admits some floor once the wave could have arrived, and the sentence must not claim more than the number supports. */
 export const QUEUE_MENTION_MIN = 0.1;
 
 const DIRECTIONS: Record<string, string> = { NB: 'northbound', SB: 'southbound', EB: 'eastbound', WB: 'westbound' };
 
-/** Dispatch feeds and camera catalogs write in capitals and shorthand. Route designators and ordinals are kept recognizable, direction codes are spelled out, and everything else becomes ordinary capitalization, so "I-95 NB x[US-1/DOWNTOWN]" reads as "I-95 northbound at US-1 / Downtown". */
+/** Dispatch feeds and camera catalogs write in capitals and shorthand. Route designators and ordinals are kept recognizable, direction codes are spelled out, and everything else becomes ordinary capitalization. */
 const SMALL_WORDS = new Set(['at', 'and', 'of', 'the', 'to', 'on', 'in', 'near', 'by', 'from']);
 
 function word(raw: string): string {
@@ -32,14 +32,14 @@ function core(token: string): string {
   return token.charAt(0).toUpperCase() + token.slice(1).toLowerCase();
 }
 
-/** Only text that arrives in capitals is rewritten. A name that already reads naturally, such as "I-4 at Ivanhoe Blvd", is left as its owner wrote it apart from spacing around slashes. */
+/** Only text that arrives in capitals is rewritten. A name that already reads naturally is left as its owner wrote it apart from spacing around slashes. */
 function tidy(value: string): string {
   const spaced = value.replace(/\s*\/\s*/g, ' / ').replace(/\s+/g, ' ').trim();
   if (/[a-z]/.test(spaced)) return spaced;
   return spaced.split(' ').map((token) => (token === '/' ? token : word(token))).join(' ');
 }
 
-/** "ROAD DIR x[CROSS]" is the Florida dispatch shape. Anything else is tidied as it stands rather than guessed at. */
+/** "ROAD DIR x[CROSS]" is a dispatch location shape. Anything else is tidied as it stands rather than guessed at. */
 export function placeName(raw: string): string {
   const match = /^(.+?)\s+(NB|SB|EB|WB)?\s*x\[(.+)\]\s*$/i.exec(raw.trim());
   if (!match) return tidy(raw);

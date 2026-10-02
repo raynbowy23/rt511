@@ -1,6 +1,6 @@
 /** Incident feeds: what an agency is responding to right now, configured in `data/cad_sources.json`.
  *
- * One feed per state rather than one per city, fetched only while some city in that state is being watched, at the interval the feed itself asks for. Ohio's OHGO incidents are the one feed configured today. A feed is added only for a state whose cameras the wall shows, because an incident with no camera to put it on is information without a picture, and each format has a parser registered in PARSERS. */
+ * One feed per state, fetched only while some city in that state is being watched, at the interval the feed itself asks for. Each format has a parser registered in PARSERS. */
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -22,7 +22,7 @@ export interface CadSource {
   notes: string;
   /** Code table this feed's type codes belong to, loaded from data/codes/<codes>.json. Null when the agency publishes none. */
   codes: CodeTable | null;
-  /** What to do with a record the feed publishes no report time for. `null` leaves it undated, so it gets no floor at all. `first_seen` dates it by when this server first saw it, which the config has to ask for explicitly because it restarts the decay whenever the server does. */
+  /** What to do with a record the feed publishes no report time for. `null` leaves it undated, so it gets no floor at all. `first_seen` dates it by when this server first saw it, which must be asked for explicitly because it restarts the decay whenever the server does. */
   undated: 'first_seen' | null;
   /** The environment variable holding the user's own key for this feed, and how to send it. Null when the feed needs none. */
   auth: { env: string; header: string; format: string } | null;
@@ -122,7 +122,7 @@ export interface RawIncident {
   implies_closure?: boolean;
 }
 
-/** ODOT categories that describe planned work on the road rather than something that has happened to it. Matched as words, so ODOT's own "Repairs/Maintenance", which is most of the feed on an ordinary day, and any construction or work-zone category it adds are caught alike. */
+/** ODOT categories that describe planned work on the road rather than something that has happened to it, matched as words so "Repairs/Maintenance" and any construction or work-zone category are caught alike. */
 const PLANNED_WORK = /\b(repairs?|maintenance|construction|road ?work|work ?zone)\b/i;
 
 /** Whether an OHGO category is planned work. */
@@ -130,7 +130,7 @@ export function isPlannedWork(category: string | null): boolean {
   return category !== null && PLANNED_WORK.test(category);
 }
 
-/** Parses OHGO's incidents. A record is road-relevant, and a closed road in the record implies closure, unless it is planned work. Planned work earns no floor, closed or not: it is scheduled, it stays listed for hours or days, and the wall is for unplanned change. Measured on a live Columbus wall, two routine maintenance records otherwise held every one of the top eight places, since the lexicographic bands rank any floor above all movement. The record is still listed and labeled. The category is ODOT's own word for the event and is shown as it stands. OHGO publishes no report time, so records come back undated. */
+/** Parses OHGO's incidents. A record is road-relevant, and a closed road in the record implies closure, unless it is planned work. Planned work earns no floor, closed or not, because it stays listed for hours or days and the bands rank any floor above all movement; it is still listed and labeled. OHGO publishes no report time, so records come back undated. */
 export function parseOhgoIncidents(body: string): RawIncident[] {
   const data = JSON.parse(body) as { results?: Record<string, unknown>[] };
   const out: RawIncident[] = [];
@@ -220,7 +220,7 @@ export class CadFeed {
     return !this.failing;
   }
 
-  /** Everything this feed is holding, however far away it is. The scorer wants the incidents by the camera they name rather than by a city's box, and it must never trigger a fetch of its own. */
+  /** Everything this feed is holding, however far away it is. Never triggers a fetch. */
   current(): Incident[] {
     return this.incidents;
   }
@@ -230,7 +230,7 @@ export class CadFeed {
     return this.incidents.filter((i) => i.lat >= south && i.lat <= north && i.lon >= west && i.lon <= east);
   }
 
-  /** Reads the feed if the interval has elapsed. Safe to call on every request: it is a no-op while the copy in hand is younger than the feed's own refresh interval, and concurrent callers share one fetch. */
+  /** Reads the feed if its own refresh interval has elapsed. Safe to call on every request; concurrent callers share one fetch. */
   async refresh(): Promise<void> {
     const now = Date.now() / 1000;
     if (this.fetchedAt !== null && now - this.fetchedAt < this.source.poll_period_s) return;
@@ -277,7 +277,7 @@ export class CadFeed {
       if (this.failing) console.log(`${this.source.key} incidents recovered`);
       this.failing = false;
     } catch (error) {
-      // A feed that cannot be read must not take anything else with it: the wall keeps its cameras, its map and its video, and simply shows no incidents.
+      // A feed that cannot be read must not take anything else with it; the wall simply shows no incidents.
       if (!this.failing) console.warn(`${this.source.key} incidents unavailable: ${error instanceof Error ? error.message : String(error)}`);
       this.failing = true;
     }

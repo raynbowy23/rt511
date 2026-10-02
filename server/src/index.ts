@@ -3,7 +3,7 @@
  *   pnpm start                                  every city you have built, polled on demand
  *   pnpm start --regions oakland-ca,des-moines-ia    those cities, polled from the start
  *
- * With no --regions, every built city is loaded so the national map and all the city maps work, but no camera is polled until you open one. Opening a city starts its cameras; leaving it stops them again. That keeps a default launch at zero request rate instead of guessing which city you meant.
+ * With no --regions, every built city is loaded but no camera is polled until you open one, so a default launch makes no requests beyond the sparse radar.
  */
 
 import { existsSync } from 'node:fs';
@@ -54,7 +54,7 @@ function parseArgs(argv: string[]): Args {
 
 const args = parseArgs(process.argv.slice(2));
 
-// Keys live in .env, which is gitignored and read here rather than anywhere deeper, so that exactly one place in the process knows where they come from. A missing file is the ordinary case: every key is optional and the service says at startup what it is doing without each one.
+// Keys live in .env, which is gitignored and read only here. A missing file is the ordinary case, since every key is optional.
 const envFile = join(args.root, '.env');
 if (existsSync(envFile)) {
   try {
@@ -81,7 +81,7 @@ try {
 
 const server = createServer((req, res) => void app.router.handle(req, res));
 
-// Without this, a busy port throws an unhandled 'error' event and prints a stack trace, which buries the one fact that matters.
+// Without this, a busy port prints a stack trace that buries the one fact that matters.
 server.on('error', (error: NodeJS.ErrnoException) => {
   if (error.code === 'EADDRINUSE') {
     console.error(`Port ${args.port} is already in use, so rt511 cannot start.`);

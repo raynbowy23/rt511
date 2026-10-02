@@ -1,8 +1,8 @@
 /** Counts vehicles in a still frame, for the zero-motion gate.
  *
- * The gate fires on a frame that changed by nothing in an hour that usually moves. Frame difference cannot say whether that is traffic standing still or a road with nothing on it, and those are the two answers the arbiter is asked to choose between. A count of vehicles in the picture is the evidence that separates them, so the frame the gate fired on is posted to the detector and the count is handed to the arbiter alongside the telemetry it already reads. The count decides nothing here. It is evidence, and the floor stays the arbiter's to set.
+ * Frame difference cannot tell traffic standing still from an empty road, so the frame the gate fired on is posted to the detector and the count is handed to the arbiter as evidence. The count decides nothing here; the floor stays the arbiter's to set.
  *
- * The detector is a separate process, `uv run rt511 detect`, because the model behind it is AGPL-3.0 and optional. Every path through this file has a way out that leaves the gate exactly as it was before the detector existed: no process listening, a timeout, an error, a frame it cannot decode. In all of them the arbiter is asked without a count rather than not asked. */
+ * The detector is a separate process, `uv run rt511 detect`, because the model behind it is AGPL-3.0 and optional. Whenever it is missing, slow or failing, the arbiter is asked without a count rather than not asked. */
 
 import type { Frame } from './poller.js';
 import { round } from './config.js';
@@ -13,9 +13,9 @@ export const DETECTOR = {
   URL: 'http://127.0.0.1:8513',
   /** Per frame. Inference takes tens of milliseconds once warm, so anything near this is a process that has gone away rather than one that is busy. */
   TIMEOUT_MS: 5000,
-  /** Frames in the air at once. The gate fires on a camera at a time, and the detector serves one frame at a time anyway, so more than this would only queue on its side. */
+  /** Frames in the air at once. The detector serves one frame at a time, so more than this would only queue on its side. */
   MAX_IN_FLIGHT: 2,
-  /** After the detector fails to answer, it is left alone for this long and still cameras are asked about without a count. Also how often a detector that was not running at startup is looked for again, so starting it later needs no restart of the server. */
+  /** After the detector fails to answer, it is left alone for this long. Also how often a detector that was not running at startup is looked for again, so starting it later needs no restart. */
   RETRY_AFTER_S: 60,
   LOG_MAX_BYTES: 8 * 1024 * 1024,
 } as const;
@@ -79,7 +79,7 @@ export class Detector {
       });
   }
 
-  /** The count for a camera's newest frame, starting one if there is none yet. Never waits: a count lands for the next pass of the gate rather than this one, which is ten seconds on a watched wall. */
+  /** The count for a camera's newest frame, starting one if there is none yet. Never waits; a count lands for the next pass of the gate. */
   evidence(uid: number, frame: Frame | null, now = Date.now() / 1000): Evidence {
     if (!this.detect || !frame) return null;
     if (this.model === null) {

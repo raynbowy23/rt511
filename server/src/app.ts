@@ -39,12 +39,12 @@ import { RADAR, selectRadarAnchors } from './radar.js';
 import { buildBoard } from './board.js';
 import { selectHighlights } from './highlights.js';
 
-/** Each 511 site gets its own block of ids. No site publishes anywhere near ten million cameras; the largest has under five thousand. */
+/** Each source gets its own block of ids, far larger than any source's camera count. */
 const UID_BLOCK = 10_000_000;
 
 /** How many of a record's cameras the arbitration pane keeps awake, and how many it may keep awake in total.
  *
- * One camera with a picture is all a record needs to become askable, and two gives it a second chance when the first is a frozen feed. The overall cap is what keeps an open pane at well under one request a second even on a feed listing a hundred records, which matters because none of this is worth costing a state transportation department anything. */
+ * One camera with a picture is all a record needs to become askable, and two gives it a second chance when the first is a frozen feed. The overall cap keeps an open pane at well under one request a second however many records the feed lists. */
 const JEV_WATCH_PER_INCIDENT = 2;
 const JEV_WATCH_MAX = 24;
 /** How far outside a city's own box an incident still counts as that city's, in degrees: about five kilometers. */
@@ -109,15 +109,14 @@ export function createApp(options: AppOptions): App {
     const graph = loadGraph(path);
     const source = sources[region.source];
     if (!source) throw new Error(`unknown source ${region.source}`);
-    // The project is built on these services' public data, so every view points back to the official source.
-    // Published traffic counts carry a license of their own, and a credit like CC BY is only met when it is visible, so the region's count attribution travels with its camera attribution.
+    // Every view points back to the official source, and published traffic counts carry a license of their own whose credit must be visible, so the count attribution travels with the camera attribution.
     const counts = loadAadt(root, region.key);
     Object.assign(graph.meta, { source: region.source, source_name: source.name, site_url: source.base_url, states: [...source.states], attribution: source.attribution, license: source.license, terms_url: source.terms_url, notice: source.notice, counts_attribution: counts?.attribution ?? '', counts_terms_url: counts?.terms_url ?? '', time_zone: region.time_zone ?? source.time_zone });
     graphs.set(region.key, graph);
     selected = selected.concat(selectCameras(loadCatalog(catalogPath(root, region.key)), graph, spec));
   }
 
-  // Camera ids are unique only within one 511 site, so serving several states at once needs a global id. Each site gets a disjoint block, which keeps the ids integers and stable across runs, and a local source cannot move a published one.
+  // Camera ids are unique only within one source, so each source gets a disjoint block of global ids, stable across runs.
   const ordinal = sourceBlocks(sources);
   const byId = new Map<number, CatalogCamera>();
   for (const camera of selected) {
@@ -138,13 +137,13 @@ export function createApp(options: AppOptions): App {
   const poller = new Poller(clients, byId, ring);
   const focus = new Focus((camera) => clients.get(camera.source));
 
-  // What is worth looking at, scored from the cameras' own history, the traffic they carry and what the state patrol is attending. The poller feeds it every poll that says something about a scene; nothing the poller does depends on it, and `activity` is untouched.
+  // What is worth looking at, scored from the cameras' own history, the traffic they carry and nearby incidents. Nothing the poller does depends on it.
   const attention = new AttentionEngine(buildScalePriors({ regions: regions.map((r) => r.key), graphs, root, uidBlock: UID_BLOCK }), join(root, 'out'));
   poller.onPoll = (slot, result) => {
     if (result === 'fresh') attention.observe(slot, result);
   };
 
-  // The arbiter over incidents. With no key it is inert: `createAsk` is never called, `consider` returns at once and the floor every camera gets is exactly the deterministic one. The key is read here and passed once; nothing else in the process sees it.
+  // The arbiter. With no key it is inert and every floor is exactly the deterministic one. The key is read here and passed once; nothing else in the process sees it.
   const jevKey = process.env.JEV_API?.trim();
   const jev = new JevArbiter(jevKey ? createAsk(jevKey) : null, join(root, 'out'), jevKey ? createGateAsk(jevKey) : null, jevKey ? createReviewAsk(jevKey) : null);
   attention.chosenQueue = (incident, uid, floor) => jev.chosenQueue(incident, uid, floor);
@@ -156,7 +155,7 @@ export function createApp(options: AppOptions): App {
   for (const graph of graphs.values()) for (const camera of graph.cameras) if (camera.is_freeway) onFreeway.add(camera.id);
   console.log(jev.enabled ? 'jev arbitration on, incidents and still cameras will be asked about once each, and the leading cameras of each open city looked at again every few minutes' : 'no JEV_API, incidents keep their deterministic floor and still cameras keep none');
 
-  // The vehicle detector the gate hands its still frames to. Optional and out of process: until `rt511 detect` answers, still cameras are asked about from telemetry alone, and it is looked for again once a minute so it can be started after the server.
+  // The vehicle detector the gate hands its still frames to. Optional and out of process, and looked for again once a minute so it can be started after the server.
   const detectorUrl = process.env.RT511_DETECTOR_URL?.trim() || DETECTOR.URL;
   const binding = createDetect(detectorUrl);
   const detector = new Detector(binding.detect, join(root, 'out'), binding.probe);
@@ -170,7 +169,7 @@ export function createApp(options: AppOptions): App {
 
   const merged = mergeGraphs(regions.map((r) => graphs.get(r.key) as Graph));
 
-  // The road background for the in-app map. There is no tile layer anywhere in this project, so the map is drawn from the same cached Overpass extract the graph was built from. Loaded once at startup because the extracts are several megabytes of JSON.
+  // The road background for the in-app map, loaded once at startup because the extracts are several megabytes of JSON.
   const roads = new Map<string, Record<string, unknown>>();
   for (const region of regions) {
     const background = roadBackground(join(root, 'data', `osm_${region.key}.json`));
@@ -180,14 +179,14 @@ export function createApp(options: AppOptions): App {
     }
   }
 
-  // Dispatch feeds, one per state, fetched only while a city in that state is being watched. A state with no entry here simply has no incidents, which the wall shows as nothing at all rather than an error.
+  // Dispatch feeds, one per state, fetched only while a city in that state is being watched. A state with no entry simply has no incidents.
   const cadSources = loadCadSources(root);
   const feeds = new Map<string, CadFeed>();
   const national = loadNationalIndex(root);
   const states = loadStates(root);
   if (Object.keys(national.sources).length === 0) console.warn('no national index, run `rt511 index` for the country map');
 
-  // Incidents carry the global camera ids so the wall can link straight to a camera, which means the positions this matches against have to be numbered the same way.
+  // Incidents carry global camera ids, so the positions they are matched against are numbered the same way.
   for (const [key, source] of Object.entries(cadSources)) {
     const block = ordinal.get(key);
     const index = national.sources[key];
@@ -223,7 +222,7 @@ export function createApp(options: AppOptions): App {
     disclaimer,
   }));
 
-  /** Every served region at once by default. The wall polls cameras from all of them, so handing it one region's graph would leave the rest without metadata, and site ids are region-prefixed precisely so the union is safe. */
+  /** Every served region at once by default. Site ids are region-prefixed so the union is safe. */
   router.get('/api/graph', ({ query }) => {
     const region = query.get('region');
     if (region === null) return merged;
@@ -232,7 +231,7 @@ export function createApp(options: AppOptions): App {
     return graph;
   });
 
-  /** Everything the country-level map needs in one call: state outlines, every camera position on the platform, and which regions exist, have been built, and are being polled right now. */
+  /** Everything the country-level map needs in one call: state outlines, every camera position, and which regions exist, have been built, and are being polled right now. */
   router.get('/api/national', (): NationalResponse => {
     const served = new Set(regions.map((r) => r.key));
     const covered = new Set<string>();
@@ -272,7 +271,7 @@ export function createApp(options: AppOptions): App {
     };
   });
 
-  /** Road polylines per highway class for the map view, from the cached OpenStreetMap extract. Keyed by region because a merged map spanning two states would be useless. */
+  /** Road polylines per highway class for the map view, from the cached OpenStreetMap extract, keyed by region. */
   router.get('/api/roads', ({ query }) => {
     const region = query.get('region');
     if (region !== null && !roads.has(region)) throw new HttpError(404, 'region not served');
@@ -285,7 +284,7 @@ export function createApp(options: AppOptions): App {
     return { attribution: 'Road data © OpenStreetMap contributors (ODbL)', regions: out };
   });
 
-  // Opening a city is what starts its cameras. The wall names the city it is showing on every poll, so the server follows the viewer rather than guessing up front. A city nobody has asked about for IDLE_STOP_MS stops again and drops its frames.
+  // Opening a city is what starts its cameras. A city nobody has asked about for IDLE_STOP_MS stops again and drops its frames.
   const IDLE_STOP_MS = 150_000;
   const lastAsked = new Map<string, number>();
 
@@ -301,7 +300,7 @@ export function createApp(options: AppOptions): App {
     }
   };
 
-  /** Incidents near one city. Relevance is the city's own box with a small margin rather than the whole state, because a wall of Tallahassee should not list a crash in Miami. */
+  /** Incidents near one city: its own box with a small margin rather than the whole state. */
   router.get('/api/incidents', async ({ query }) => {
     const key = query.get('region');
     if (key === null) throw new HttpError(400, 'region is required');
@@ -329,23 +328,20 @@ export function createApp(options: AppOptions): App {
       period_s: feed.source.poll_period_s,
       attribution: feed.source.attribution,
       source_name: feed.source.name,
-      // A margin of a twentieth of a degree, about five kilometers, so an incident just outside the box still shows for a city it plainly concerns.
       incidents: feed.within(south - INCIDENT_MARGIN, west - INCIDENT_MARGIN, north + INCIDENT_MARGIN, east + INCIDENT_MARGIN),
     } satisfies IncidentsResponse;
   });
 
-  /** What the arbiter has been saying, for the pane that shows it. Read-only and never a fetch: it reports answers already formed, so opening the pane cannot cause a single call to anything. */
+  /** What the arbiter has been saying, for the pane that shows it. Reports answers already formed, so opening the pane causes no call to the model. */
   router.get('/api/jev', ({ query }) => {
     const live: Incident[] = [];
     for (const feed of feeds.values()) for (const incident of feed.current()) live.push(incident);
-    // With the pane open, keep a bounded set of incident cameras on the fast period so that records actually become askable. Without this the arbitration stalls on any view but the wall, because a camera nobody can see polls every five minutes and stretches to longer than that while it is quiet.
-    //
-    // Two cameras per record rather than all six, because one picture is enough to make a record askable and the rest are a choice the model makes from the state rather than from fresh frames. Capped overall, so a feed listing two hundred records cannot turn one open pane into two hundred cameras on the fast period.
+    // With the pane open, keep a bounded set of incident cameras on the fast period so that records actually become askable, since a camera nobody can see polls slowly.
     if (query.get('watch') === '1') {
       const wanted: number[] = [];
       for (const incident of live) {
         if (!incident.road_relevant && !incident.implies_closure) continue;
-        // Filter before taking the nearest few, never after. A record's cameras are matched against the whole state's camera index, so its two closest are often cameras this server has not loaded, and slicing first would skip a record whose third camera is one we poll every minute.
+        // Filter before taking the nearest few, never after, because a record's closest cameras are often ones this server has not loaded.
         const servable = incident.cameras.filter((uid) => {
           const slot = poller.cameras.get(uid);
           return slot !== undefined && poller.isWatching(slot.camera.region);
@@ -359,7 +355,7 @@ export function createApp(options: AppOptions): App {
     } else if (query.get('watch') === '0') {
       poller.setPriority('pane', []);
     }
-    // A record is only asked about once one of its cameras has something to show, so the pane is told how many get that far. An empty pane is almost always a camera that has not returned a second frame yet rather than anything wrong with the arbiter.
+    // A record is only asked about once one of its cameras has something to show, so the pane is told how many get that far.
     let feedsRead = 0;
     for (const feed of feeds.values()) if (feed.lastFetch !== null) feedsRead++;
     return jev.snapshot(
@@ -370,7 +366,7 @@ export function createApp(options: AppOptions): App {
         feedsRead,
         prioritized: poller.tierCounts().fast,
       },
-      // Whether this server could ever see the record at all. Dispatch records are matched against every camera the source publishes, and a server running one city holds a small fraction of them, so a record can be near a camera that exists and still be invisible here.
+      // Whether this server could ever see the record at all, since records are matched against every camera the source publishes.
       (uid) => {
         const slot = poller.cameras.get(uid);
         return slot !== undefined && poller.isWatching(slot.camera.region);
@@ -379,7 +375,7 @@ export function createApp(options: AppOptions): App {
   });
 
   const scoredCameras = () => {
-    // Incidents already in hand, indexed by the cameras they name. Never a fetch: the dispatch feeds are read on their own interval by /api/incidents, and the wall asking for camera state must not make the server ask a state for anything.
+    // Incidents already in hand, indexed by the cameras they name. Never a fetch: asking for camera state must not make the server ask an agency for anything.
     const byCamera = new Map<number, Incident[]>();
     for (const feed of feeds.values()) {
       for (const incident of feed.current()) {
@@ -416,7 +412,7 @@ export function createApp(options: AppOptions): App {
     return { highlights: currentHighlights(region) };
   });
 
-  // The sky over every served city, from the cameras' own pictures. Read-only: it reads frames the poller already holds and asks nothing of anyone.
+  // The sky over every served city, from frames the poller already holds.
   const skyRegions = regions.map((region) => {
     const [lat, lon] = centroid(region);
     return { key: region.key, name: region.name, lat, lon };
@@ -429,16 +425,15 @@ export function createApp(options: AppOptions): App {
     );
   router.get('/api/sky', (): SkyResponse => ({ regions: currentSky() }));
 
-  // What the wall noticed, written down once a minute so the day can be read back. Words and numbers only, never a picture.
+  // The diary and each city's pulse are recorded once a minute, from state the server already holds.
   const diary = new Diary(join(root, 'out'));
-  // Each city's pulse is recorded on the same minute, from frames the poller already holds.
   const pulse = new Pulse(join(root, 'out'));
   const diaryTimer = setInterval(() => {
     const now = Date.now() / 1000;
     diary.note(currentHighlights(null), currentSky(now), now);
     pulse.record([...poller.cameras.values()].map((slot) => ({ region: slot.camera.region, lastTs: slot.latest?.ts ?? null, diff: slot.latest?.diff ?? null })), now);
   }, DIARY.EVERY_S * 1000);
-  // Night shift: the detector counts the one camera a viewer has open, for display only. The count goes through the same client as the gate's, so each frame is counted once and logged, and it never enters the attention score.
+  // The detector counts the one camera a viewer has open, for display only; the count never enters the attention score.
   router.get('/api/count/:id', ({ params }): CountResponse => {
     const slot = poller.cameras.get(Number(params.id));
     if (!slot) throw new HttpError(404, 'camera not polled');
@@ -478,7 +473,7 @@ export function createApp(options: AppOptions): App {
   }));
   router.get('/api/board', ({ query }) => buildBoard(scoredCameras().cameras, byId, boardRegions, (uid) => poller.isRadar(uid), query.get('state'), query.get('region')));
 
-  /** Radar works without HTTP traffic. Its triggers share the existing global graph cap so viewer requests and national sampling cannot double the promotion budget. */
+  /** Radar runs without HTTP traffic. Its triggers share the global graph cap so viewer requests and national sampling cannot double the promotion budget. */
   const radarTick = (): void => {
     const now = Date.now() / 1000;
     if (options.pollOnDemand) {
@@ -524,7 +519,7 @@ export function createApp(options: AppOptions): App {
   router.get('/api/cameras', ({ query }) => {
     const region = query.get('region');
     followViewer(options.pollOnDemand ? (region ?? null) : null);
-    // Which cameras the viewer can actually see. Absent leaves the previous list alone, because a client with no notion of tiles must not wipe it; present, even empty, is a positive statement and is what the city map view sends.
+    // Which cameras the viewer can actually see. Absent leaves the previous list alone; present, even empty, is a positive statement.
     const visible = query.get('visible');
     if (region !== null && visible !== null) {
       poller.setVisible(
@@ -544,7 +539,7 @@ export function createApp(options: AppOptions): App {
     }
     restatePromotions(now);
     attention.logRanking(cameras);
-    // Asked about after the ranking, never before it: a verdict lands for the next poll rather than holding this response open on a network call. Nothing here waits.
+    // Asked about after the ranking, never before it: a verdict lands for the next poll rather than holding this response open.
     if (jev.enabled && byCamera.size > 0) {
       const telemetry = new Map<number, CameraTelemetry>();
       for (const state of cameras) {
@@ -568,15 +563,14 @@ export function createApp(options: AppOptions): App {
       for (const list of byCamera.values()) for (const incident of list) seen.add(incident);
       jev.consider([...seen], (id) => telemetry.get(id) ?? null, (id) => corridor.get(id) ?? []);
     }
-    // The other subject. A camera the gate fired on is asked about whether or not any incident names it, so `byCamera` being empty is no reason to skip this. The flagged ones are rare enough to scan for on every pass.
-    // The detector counts vehicles in the still frame whether or not there is an arbiter to hand the count to, so that the counts are logged and the gate can be calibrated against them before any floor depends on them.
+    // Still cameras are asked about whether or not any incident names them. The detector counts them even without an arbiter, so the counts are logged for calibration.
     const candidates: GateCandidate[] = [];
     for (const state of cameras) {
       if (state.axes?.ambiguous_zero !== true) continue;
       const camera = byId.get(state.id);
       if (!camera) continue;
       const evidence = detector.evidence(state.id, poller.cameras.get(state.id)?.latest ?? null, now);
-      // A count is on its way for this frame. The arbiter waits a pass for it rather than answering without the one piece of evidence that sees the road.
+      // A count is on its way for this frame, so the arbiter waits a pass for it.
       if (evidence === 'pending' || !jev.enabled) continue;
       candidates.push({
         camera: {
@@ -598,7 +592,7 @@ export function createApp(options: AppOptions): App {
       });
     }
     if (candidates.length > 0) jev.considerGate(candidates, now);
-    // The third subject, and the only one about ranking itself: the city the viewer has open, its leading cameras looked at together. Only cameras with a recent picture are offered, because a stale one has nothing new to be judged on.
+    // The review of the city the viewer has open, its leading cameras looked at together. Only cameras with a recent picture are offered.
     if (jev.enabled && region !== null && poller.isWatching(region)) {
       const leaders: ReviewCandidate[] = [];
       // Leaders by the fixed equation, not by the score the look has already moved, so the look never chooses its own shortlist.
@@ -653,11 +647,11 @@ export function createApp(options: AppOptions): App {
     };
   });
 
-  /** The camera open in the panel. Asking keeps it on its source's focus period for another half minute, and the answer says how often a new picture can be expected and when the newest was taken, so the panel reloads only when there is something new. A source with no focus period answers null and the panel carries on with the ring. */
+  /** The camera open in the panel. Asking keeps it on its source's focus period for another half minute, and the answer says how often a new picture can be expected and when the newest was taken, so the panel reloads only when there is something new. */
   router.get('/api/live/:id', ({ params }): LiveResponse => {
     const uid = Number(params.id);
     const slot = slotFor(params.id as string);
-    // The camera in the panel is the one camera the viewer is certainly looking at, whether or not its tile is on screen, so it is held on its source's own period rather than left on the slow tier the map view puts the rest of the city on. One claim per camera, so two viewers with different panels open do not take turns canceling each other.
+    // The camera in the panel is held on its source's own period. One claim per camera, so two viewers with different panels open do not cancel each other.
     poller.setPriority(`panel:${String(uid)}`, [uid]);
     const period = focus.claim(uid, slot.camera);
     const held = focus.frame(uid);
@@ -688,7 +682,7 @@ export function createApp(options: AppOptions): App {
     send(res, 200, frame.data, frame.content_type, { 'cache-control': 'no-store', 'x-frame-ts': String(frame.ts) });
   });
 
-  /** The two ways a stream request can fail are different problems and the caller needs to tell them apart: a camera the graph knows about but that this run is not polling is a selection question, while a camera with no published stream never has one. */
+  /** Tells a camera this run is not polling apart from one with no published stream, because the caller handles them differently. */
   const cameraFor = (id: number): CatalogCamera => {
     const camera = byId.get(id);
     if (!camera) {
@@ -700,7 +694,7 @@ export function createApp(options: AppOptions): App {
     return camera;
   };
 
-  // Every source publishes open streams that a browser can load itself, so this only says where the stream is. Nothing is proxied and nothing is fetched on the viewer's behalf.
+  // The browser loads each open stream itself, so this only says where it is. Nothing is proxied.
   router.get('/api/stream/:id', ({ params }) => {
     const id = Number(params.id);
     const camera = cameraFor(id);
@@ -722,7 +716,7 @@ export function createApp(options: AppOptions): App {
     console.warn('web/dist not built; the API is up but there is no interface. Run `npm install && npm run build` in web/.');
   }
 
-  // What this run costs the sites it reads, printed often enough to watch and rarely enough to ignore. Requests and bytes are counted in the client; the tiers come from the poller.
+  // What this run costs the agencies it reads, printed once a minute.
   const LOAD_EVERY_MS = 60_000;
   let lastRequests = 0;
   let lastBytes = 0;
@@ -769,11 +763,11 @@ export function createApp(options: AppOptions): App {
 
 /** The corridor around every camera, as the directed graph gives it rather than as a radius would.
  *
- * Upstream is the direction a queue grows, so it is the direction worth walking. An edge arriving at a site comes from where the traffic approaching it does, which makes that site upstream; the walk follows those edges backwards for up to CORRIDOR.MAX_UPSTREAM_HOPS and CORRIDOR.MAX_UPSTREAM_M of road, accumulating road distance rather than straight-line distance. Both bounds are needed. Hops alone run to 18 km through a ramp-dense interchange, which is further than a queue reaches inside the life of the floor that sent the query. Downstream and `nearby` are taken one hop only, because neither is a place a queue tail can be.
+ * Upstream is the direction a queue grows, so the walk follows incoming edges backwards for up to CORRIDOR.MAX_UPSTREAM_HOPS and CORRIDOR.MAX_UPSTREAM_M of road distance; both bounds are needed because hops alone can run far through a ramp-dense interchange. Downstream and `nearby` are taken one hop only, because neither is a place a queue tail can be.
  *
- * Road distance is the point of doing this on the graph at all. Two cameras 400 m apart in a straight line may be on opposite carriageways of a divided highway, on a frontage road, or on a crossing street, and a Euclidean neighborhood cannot tell any of those from the camera half a mile back on the same pavement. The graph can, because its edges are the pavement.
+ * Road distance is the point of doing this on the graph, since cameras close in a straight line may be on opposite carriageways or a crossing street.
  *
- * A `nearby` edge is the graph saying two sites are close without a road between them, so it carries no traffic direction. The separate promotion lookup walks two hops on every side to request pictures without expanding queue inference or the candidates offered to Jev. */
+ * A `nearby` edge carries no traffic direction. The separate promotion lookup walks two hops on every side to request pictures without expanding queue inference or the candidates offered to Jev. */
 export function buildCorridor(keys: string[], graphs: Map<string, Graph>, byId: Map<number, CatalogCamera>, promotion = false): Map<number, Neighbor[]> {
   const out = new Map<number, Neighbor[]>();
   const waveMs = (CORRIDOR.WAVE_SPEED_KMH * 1000) / 3600;
@@ -869,7 +863,7 @@ function renumber(graph: Graph, ordinal: Map<string, number>): void {
   for (const site of graph.sites) site.cameras = site.cameras.map((id) => remap.get(id) ?? id);
 }
 
-/** How many cameras this region's catalog holds, which is what a client wants to show for a region that exists but is not being polled in this run. */
+/** How many cameras this region's catalog holds, for a region that exists but is not being polled in this run. */
 function cataloged(root: string, key: string): number {
   const path = catalogPath(root, key);
   if (!existsSync(path)) return 0;

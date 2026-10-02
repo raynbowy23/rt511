@@ -9,7 +9,7 @@ export const BOARD_SIZE = 30;
 /** At most this many board places go to cameras held by a floor. Beyond it they compete on movement alone, so a burst of incidents in one state and the queues behind them cannot fill the national board. */
 const BOARD_HELD_LIMIT = BOARD_SIZE / 2;
 
-/** A camera whose newest picture is older than this is left off the board. Two radar periods, so a radar anchor survives one missed sample. A camera in a city that has just been closed stops being polled, and without this its last score would sit on the national board for as long as the process ran, ranked against cameras that are live. */
+/** A camera whose newest picture is older than this is left off the board. Two radar periods, so a radar anchor survives one missed sample, while a camera that has stopped being polled drops off rather than keeping its last score. */
 export const BOARD_MAX_AGE_S = 2 * RADAR.RADAR_PERIOD_S;
 
 /** Filter metadata describes all scored cameras, even when the requested slice is empty. Selection only reads the same scored states used by the wall. */

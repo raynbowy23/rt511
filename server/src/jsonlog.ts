@@ -1,6 +1,4 @@
-/** Append-only JSON lines, rotated by local day and capped.
- *
- * Two things write records here, the ranking and the arbiter, and both want the same treatment: one object per line, a file per day, a hard ceiling on the day's size, and never a write on the request path. A log that blocked an endpoint or filled the disk would be a worse bug than anything it could help find, so every failure here is swallowed after one warning. */
+/** Append-only JSON lines, rotated by local day and capped, and never written on the request path. A log that blocked an endpoint or filled the disk would be a worse bug than anything it could help find, so every failure here is swallowed after one warning. */
 
 import { appendFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';

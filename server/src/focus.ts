@@ -1,8 +1,8 @@
 /** The camera open in the panel, fetched as often as its agency refreshes the picture.
  *
- * The wall polls every camera on its source's period, a minute for most, because that is what the scoring needs and what a wall of dozens of tiles can politely ask for. One camera the viewer is actually looking at is a different request: where an agency says its pictures refresh every five seconds, as ODOT does, showing them a minute apart throws away most of what the agency publishes. So a source may name a `focus_period_s`, and the camera open in the panel is fetched at that period for as long as a viewer keeps saying it is open.
+ * Where a source names a `focus_period_s`, as ODOT does with five seconds, the camera open in the panel is fetched at that period for as long as a viewer keeps saying it is open, rather than at the wall's slower poll.
  *
- * These pictures are kept apart from the poller's ring on purpose. The ring's frames are what attention is scored from and what the replay scrubs through, and five-second frames would halve the replay's reach every time the panel opened and shrink the camera's movement baseline to five-second differences. Here only the newest picture is held, in memory, and it is dropped when the claim lapses. */
+ * These pictures are kept apart from the poller's ring on purpose, because fast frames would shorten the replay and shrink the camera's movement baseline to five-second differences. Only the newest picture is held, in memory, and it is dropped when the claim lapses. */
 
 import type { Client, Snapshot } from './client.js';
 import type { CatalogCamera } from './config.js';

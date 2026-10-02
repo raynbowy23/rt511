@@ -1,6 +1,4 @@
-/** Everything the service reads off disk. All of it is written by the Python pipeline; none of it is generated here.
- *
- * The parsers are deliberately strict. These files cross a language boundary, so a renamed field is exactly the kind of drift that would otherwise surface as an undefined in a draw call three layers away. */
+/** Everything the service reads off disk, all of it written by the Python pipeline. The parsers are deliberately strict, because these files cross a language boundary and a renamed field would otherwise surface as an undefined three layers away. */
 
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,7 +9,7 @@ export interface Source {
   name: string;
   base_url: string;
   states: string[];
-  /** What a working camera returns. These sites answer 200 with a placeholder graphic for a camera with no feed, and the content type is what distinguishes it. */
+  /** What a working camera returns. A camera with no feed can answer 200 with a placeholder graphic, and the content type is what distinguishes it. */
   snapshot_content_type: string;
   /** True when the stream needs a token handshake and an origin Referer, which also means a browser cannot play it and it must be proxied. */
   video_auth: boolean;
@@ -20,7 +18,7 @@ export interface Source {
   poll_period_s: number;
   token_url: string | null;
   notes: string;
-  /** `platform` is the shared vendor site. Anything else is an agency's own published feed, whose snapshot URLs are absolute and which needs no borrowed Referer. */
+  /** Anything other than the default `platform` is an agency's own published feed, whose snapshot URLs are absolute and which needs no borrowed Referer. */
   kind: string;
   license: string;
   terms_url: string;
@@ -28,7 +26,7 @@ export interface Source {
   notice: string;
   /** The most requests a second this project sends the source, at or below whatever the agency publishes. Null means only the concurrency budget applies. */
   max_requests_per_s: number | null;
-  /** How often the one camera open in the panel is fetched, where the agency's pictures refresh faster than the wall's poll period. Null keeps the open camera on the ordinary period, which is right wherever the picture itself changes no faster than that. */
+  /** How often the one camera open in the panel is fetched, where the agency's pictures refresh faster than the wall's poll period. Null keeps the open camera on the ordinary period. */
   focus_period_s: number | null;
   /** True for a source from data/local/sources.json rather than the published table. */
   local: boolean;
@@ -57,7 +55,7 @@ export interface RegionRecord {
 }
 
 export interface CatalogCamera {
-  /** Native id, unique only within its own 511 site. The global id is derived in the server. */
+  /** Native id, unique only within its own source. The global id is derived in the server. */
   id: number;
   region: string;
   source: string;
@@ -123,7 +121,7 @@ function bbox(value: unknown, where: string): BBox {
   return [num(items[0], where), num(items[1], where), num(items[2], where), num(items[3], where)];
 }
 
-/** The canonical table of 511 sites. Every measured fact about a site lives in this file so that the Python pipeline and this server cannot drift apart; nothing from it is duplicated in code. */
+/** The canonical table of camera sources, shared with the Python pipeline so the two cannot drift apart; nothing from it is duplicated in code. */
 export function loadSources(root: string): SourceTable {
   const data = obj(readJson(join(root, 'data', 'sources.json')), 'sources.json');
   const published = obj(data.sources, 'sources.json.sources');
@@ -187,7 +185,7 @@ export function loadRegions(root: string): Map<string, RegionRecord> {
   return regions;
 }
 
-/** The center to draw a region at. Regions created from a city carry a real center; the two built-in ones do not, so the middle of the bounding box stands in rather than every caller re-deriving it. */
+/** The center to draw a region at, or the middle of its bounding box when it carries no center. */
 export function centroid(region: RegionRecord): [number, number] {
   if (region.center) return region.center;
   const [south, west, north, east] = region.bbox;
@@ -200,7 +198,7 @@ function dataFile(root: string, name: string): string {
   return existsSync(local) ? local : join(root, 'data', name);
 }
 
-/** Each source's block in the global camera id space: the published sources in alphabetical order, then local ones after them. A camera's global id is its block times ten million plus its native id, so a published camera keeps its id whatever local sources a machine adds, and saved links and diary entries keep pointing at it. */
+/** Each source's block in the global camera id space: the published sources in alphabetical order, then local ones after them. A camera's global id is its block times ten million plus its native id, so a published camera keeps its id whatever local sources a machine adds. */
 export function sourceBlocks(sources: Record<string, Source>): Map<string, number> {
   const keys = Object.keys(sources);
   const ordered = [...keys.filter((key) => !sources[key]?.local).sort(), ...keys.filter((key) => sources[key]?.local).sort()];
@@ -266,15 +264,13 @@ export interface AadtRecord {
   year: number | null;
   county: string | null;
   truck_pct: number | null;
-  /** Meters from the camera to the count segment it was joined to. Measured across the five published files: median 7.8, ninetieth percentile 41.5, largest 138.6. */
+  /** Meters from the camera to the count segment it was joined to. */
   distance_m: number;
   /** Whether the segment's direction agreed with the camera's. */
   aligned: boolean;
 }
 
-/** Published traffic counts for one region, keyed by native camera id.
- *
- * Native, not the global id the server uses: this file is written by the Python pipeline, which only ever sees one 511 site at a time. */
+/** Published traffic counts for one region, keyed by native camera id rather than the global one, because the Python pipeline only ever sees one source at a time. */
 export interface AadtTable {
   region: string;
   source: string;
@@ -284,7 +280,7 @@ export interface AadtTable {
   cameras: Map<number, AadtRecord>;
 }
 
-/** Traffic counts for one region, or null where there are none. Absent is the ordinary case: only Florida publishes a count layer this project has joined, so every other city scores on road class alone. */
+/** Traffic counts for one region, or null where there are none, which is the ordinary case; such a city scores on road class alone. */
 export function loadAadt(root: string, region: string): AadtTable | null {
   const path = dataFile(root, `aadt_${region}.json`);
   if (!existsSync(path)) return null;
@@ -343,7 +339,7 @@ export interface StatesFile {
   states: Record<string, NationalState>;
 }
 
-/** State outlines. This file is the one place in the project that carries GeoJSON order, so the rings are branded as such here, at the boundary, and nowhere downstream can mix them with the graph's [lat, lon]. */
+/** State outlines, the one file in GeoJSON order, branded as such here at the boundary. */
 export function loadStates(root: string): StatesFile {
   const path = join(root, 'data', 'us_states.json');
   if (!existsSync(path)) return { attribution: '', states: {} };
@@ -366,7 +362,7 @@ export function loadStates(root: string): StatesFile {
   return { attribution: typeof data.attribution === 'string' ? data.attribution : '', states };
 }
 
-/** Road polylines grouped by highway class, from the cached Overpass extract the graph was built from. There is no tile layer anywhere in this project, so the map background is drawn from this. Coordinates are [lat, lon] rounded to five decimals, about a meter. */
+/** Road polylines grouped by highway class, from the cached Overpass extract the graph was built from, which is the map background since there is no tile layer. Coordinates are [lat, lon] rounded to five decimals, about a meter. */
 export function roadBackground(path: string): Record<string, LatLon[][]> {
   if (!existsSync(path)) return {};
   const data = obj(readJson(path), path);
@@ -382,9 +378,7 @@ export function roadBackground(path: string): Record<string, LatLon[][]> {
   return roads;
 }
 
-/** Rounds to a number of decimals the way Python's round(x, n) does.
- *
- * Not `Math.round(x * 10**n) / 10**n`: scaling first introduces its own error and rounds a negative half the wrong way, which showed up as fifth-decimal disagreements on about one road coordinate in a thousand against the Python server. `toFixed` converts the true binary value, and on every case checked it agrees with Python, including the ties where Python's round-half-to-even applies. */
+/** Rounds to a number of decimals the way Python's round(x, n) does. Not `Math.round(x * 10**n) / 10**n`, which introduces its own scaling error and rounds a negative half the wrong way; `toFixed` converts the true binary value. */
 export function round(value: number, digits: number): number {
   return Number(value.toFixed(digits));
 }

@@ -12,11 +12,11 @@ export const CORRIDOR = {
   PROMOTE_HOLD_S: 300,
   /** Movement at roughly 1.8 times usual deserves a fresh look at neighbors once the baseline is established. */
   PROMOTE_ANOMALY: 0.9,
-  /** How far up the corridor the candidate set for the queue-tail question reaches, in directed graph hops. A queue from a freeway closure routinely stands back further than the first camera upstream, and one hop can only ever offer the model a tail it has already passed. Three, because the corridor graph's sites are a few hundred meters to a couple of kilometers apart, so three hops covers the distance a queue reaches inside the half hour the incident floor survives. */
+  /** How far up the corridor the candidate set for the queue-tail question reaches, in directed graph hops. A queue from a freeway closure routinely stands back further than the first camera upstream, and sites are a few hundred meters to a couple of kilometers apart, so three hops covers the distance a queue reaches inside the half hour the incident floor survives. */
   MAX_UPSTREAM_HOPS: 3,
-  /** How fast a queue's tail travels back up the corridor, in kilometers per hour, against the traffic. A stopping wave behind a blockage runs at roughly this speed on a freeway, so the road distance to an upstream camera divided by it is the time before the tail should be visible there. Treiber, Kesting and Helbing (2010, Transportation Research Part B 44(8-9), 983-1000) report typical propagation speeds of congestion between 15 and 20 km/h against the traffic, varying with country and traffic composition. This setting sits at the slow end of that range, which errs towards inferring a queue later rather than sooner. It has not been measured on these corridors, and it is shared by scoring and by the candidate descriptions Jev reads. */
+  /** How fast a queue's tail travels back up the corridor, in kilometers per hour, against the traffic, so the road distance to an upstream camera divided by it is the time before the tail should be visible there. Treiber, Kesting and Helbing (2010, Transportation Research Part B 44(8-9), 983-1000) report 15 to 20 km/h. This sits at the slow end, which errs towards inferring a queue later rather than sooner, and has not been measured on these corridors. */
   WAVE_SPEED_KMH: 15,
-  /** How far up the corridor the walk may reach, in meters of road, whatever the hop count allows. Three hops through a ramp-dense interchange runs to 18 km on the Miami graph, and a queue standing that far back would have taken over an hour to get there, by which time the incident floor it belongs to has decayed through two half-lives. Five kilometers is about twenty minutes at the stopping-wave speed, which is the window the floor actually survives. */
+  /** How far up the corridor the walk may reach, in meters of road, whatever the hop count allows, because three hops through a ramp-dense interchange can run far beyond any queue the incident floor outlives. Five kilometers is about twenty minutes at the stopping-wave speed, which is the window the floor actually survives. */
   MAX_UPSTREAM_M: 5000,
 } as const;
 
@@ -69,7 +69,7 @@ export type HeldTrigger = PromotionTrigger & { at: number };
 
 /** Selection is pure so the same hold boundary and global cap can be checked without starting a poller.
  *
- * Hops come first in the ordering, ahead of trigger strength. A two-hop neighborhood through an interchange is large, and ordered by strength alone the two strongest triggers used the whole cap on live Florida data, leaving every other event with no neighbor looked at. Taking every trigger's adjacent cameras before anyone's second hop spreads the budget across events, and the adjacent camera is the one a queue or a moving disturbance reaches first. */
+ * Hops come first in the ordering, ahead of trigger strength, because a two-hop neighborhood through an interchange is large enough for the strongest triggers to use the whole cap. Taking every trigger's adjacent cameras before anyone's second hop spreads the budget across events. */
 export function selectPromotions(held: ReadonlyMap<number, HeldTrigger>, corridor: ReadonlyMap<number, Neighbor[]>, now: number): GraphPromotion[] {
   const sideRank = { upstream: 0, downstream: 1, nearby: 2 };
   const candidates = [...held].flatMap(([because, trigger]) => now - trigger.at >= CORRIDOR.PROMOTE_HOLD_S ? [] : (corridor.get(because) ?? []).filter((n) => n.uid !== because && n.hops <= CORRIDOR.PROMOTE_HOPS).map((n) => ({ uid: n.uid, because, reason: trigger.reason, strength: trigger.strength, hops: n.hops, side: sideRank[n.side], distance: n.length_m })));

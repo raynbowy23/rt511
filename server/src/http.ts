@@ -1,6 +1,4 @@
-/** A small router and static file server. The service has nine routes and one static mount; a framework would be more code than this.
- *
- * Error bodies are `{"detail": "..."}` with the matching status, which is what FastAPI produced and what the wall reads to tell an unpolled camera from one that publishes no stream. */
+/** A small router and static file server. Error bodies are `{"detail": "..."}` with the matching status, which the wall reads to tell an unpolled camera from one that publishes no stream. */
 
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { extname, join, normalize } from 'node:path';

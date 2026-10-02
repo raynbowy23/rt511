@@ -1,6 +1,6 @@
-/** One HTTP client per camera source: conditional snapshot fetches with a polite concurrency budget.
+/** One HTTP client per camera source, because the politeness budget is per agency: conditional snapshot fetches with a bounded concurrency.
  *
- * One per source rather than one per process, because the budget is per agency. Every request carries the project's identifying User-Agent and nothing else: no borrowed Referer or Origin, because every source publishes its images for exactly this kind of use. Video is never fetched here; the browser loads each agency's open stream itself. */
+ * Every request carries the project's identifying User-Agent and no borrowed Referer or Origin. Video is never fetched here; the browser loads each agency's open stream itself. */
 
 import type { Source } from './config.js';
 
@@ -36,7 +36,7 @@ class Limit {
   }
 }
 
-/** Paces request starts so that a source is never sent more than its published rate. The concurrency budget bounds how many are in the air; this bounds how many begin each second, which is what an agency's rate limit counts. */
+/** Paces request starts so that a source is never sent more than its published rate, which counts requests begun per second rather than requests in the air. */
 class Pace {
   private next = 0;
 
@@ -62,7 +62,7 @@ const SNAPSHOT_RE = /<cctvSnapshot\b[^>]*\bid="([^"]*)"[^>]*>([\s\S]*?)<\/cctvSn
 const SNIPPET_RE = /<snippet>([^<]*)<\/snippet>/;
 const XML_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
 
-/** Every picture in one state's C2C snapshot document, by device id. The document is a flat list of `cctvSnapshot` elements with the JPEG in base64, which a pair of patterns reads without an XML library; a camera with no picture carries an empty snippet and is left out. */
+/** Every picture in one state's C2C snapshot document, by device id. The document is a flat list of `cctvSnapshot` elements with the JPEG in base64; a camera with no picture carries an empty snippet and is left out. */
 export function parseCompassSnapshots(xml: string): Map<string, Buffer> {
   const out = new Map<string, Buffer>();
   for (const match of xml.matchAll(SNAPSHOT_RE)) {
@@ -83,11 +83,10 @@ export class Client {
   /** Bulk snapshot documents by network, and the fetch in flight for each, so that every camera in a state polling at once costs one document between them. */
   private readonly bulk = new Map<string, Bulk>();
   private readonly bulkInFlight = new Map<string, Promise<Bulk | null>>();
-  /** After a failed bulk fetch, when that network may be asked again. Without it every camera in the state would retry a multi-megabyte document on its own next poll. */
+  /** After a failed bulk fetch, when that network may be asked again, so every camera in the state does not retry a multi-megabyte document on its own. */
   private readonly bulkRetryAt = new Map<string, number>();
-  /** Counted for the politeness report: every outbound request to this source. */
+  /** Counted for the politeness report. */
   requests = 0;
-  /** Bytes received from this site, which is the half of the bill that a request count does not show. */
   bytes = 0;
 
   constructor(source: Source, userAgent: string, concurrency = 4) {
@@ -109,7 +108,7 @@ export class Client {
     if (imagePath.startsWith('compass:')) return this.bulkSnapshot(imagePath);
     const headers = { ...this.headers };
     if (ifModifiedSince) headers['If-Modified-Since'] = ifModifiedSince;
-    // A published feed hands out absolute image URLs. The platform hands out paths on its own site.
+    // Some sources hand out absolute image URLs, others paths on their own site.
     const url = /^https?:\/\//.test(imagePath) ? imagePath : `${this.source.base_url}${imagePath}`;
     const res = await this.limit.run(() => this.fetch(url, { headers }));
     if (res.status === 304) {
@@ -117,18 +116,17 @@ export class Client {
       return 'not_modified';
     }
     const ctype = (res.headers.get('content-type') ?? '').split(';')[0]?.trim() ?? '';
-    // A dead camera answers 200 with a placeholder graphic, and the content type is what distinguishes it. Sniffing magic bytes would not: Florida's placeholder is a valid PNG and Wisconsin's real cameras are PNG.
+    // A dead camera can answer 200 with a placeholder graphic, and the content type is what distinguishes it, since a placeholder can be a valid image in the same format as real pictures.
     if (res.status !== 200 || ctype !== this.source.snapshot_content_type) {
       await res.arrayBuffer().catch(() => undefined);
       return 'unavailable';
     }
     const data = Buffer.from(await res.arrayBuffer());
     this.bytes += data.byteLength;
-    // The site re-stamps Last-Modified on every regeneration even when the picture did not change, so the caller compares bytes as well.
     return { fetched_at: Date.now() / 1000, last_modified: res.headers.get('last-modified'), data, content_type: ctype };
   }
 
-  /** One camera's picture out of its state's bulk document, fetching the document only when the copy held is older than the source's poll period. Every camera in the state reads the same copy, and a camera polled between fetches gets the picture it already has, which the poller recognizes as unchanged by its bytes. */
+  /** One camera's picture out of its state's bulk document, fetching the document only when the copy held is older than the source's poll period. A camera polled between fetches gets the picture it already has, which the poller recognizes as unchanged by its bytes. */
   private async bulkSnapshot(imagePath: string): Promise<SnapshotResult> {
     const [network, device] = imagePath.slice('compass:'.length).split('/') as [string, string];
     const doc = await this.bulkDocument(network);
