@@ -907,7 +907,7 @@ export function kendallTau(first: number[], second: number[]): number | null {
 }
 
 /** The review's one question, asked once per camera. A Score because the answer is a place on an ordered scale, and relative because the cameras are judged side by side in one state. */
-export const REVIEW_RUBRIC = {
+const REVIEW_RUBRIC = {
   type: 'score',
   instructions: 'How much does this camera deserve the attention of a person watching this city right now, compared with the other cameras listed?',
   criteria: [
@@ -935,7 +935,7 @@ export const GATE_RUBRICS = {
 /** The rubrics, written once and logged at the top of each day's file so that an answer can be read against the question that produced it.
  *
  * Each one asks a single thing. The documentation is explicit that a question needing several steps of reasoning should be split and recombined in code, and the recombination is `modulate` above, where this project's own weights already live. */
-export const RUBRICS = {
+const RUBRICS = {
   supported: {
     type: 'noul',
     instructions: 'Do the camera pictures described in the state show something consistent with this dispatch record describing a real event at the reported location?',

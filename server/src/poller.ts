@@ -15,7 +15,7 @@ const MIN_DELAY_S = 10;
 const UNAVAILABLE_S = 300;
 export const ACTIVITY_MIN_SAMPLES = 3;
 /** Frame differences a camera needs of its own before its movement score may reach the top of the range. A baseline of a handful of differences is noisy, and without this most of a freshly opened city read 1.00 for its first minutes, which said more about the missing history than about the roads. Ten is ten minutes on screen. */
-export const ACTIVITY_WARMUP_SAMPLES = 10;
+const ACTIVITY_WARMUP_SAMPLES = 10;
 
 /** The highest movement score a camera with this much history may have: the score of an ordinary picture, 0.5, with nothing of its own, rising to the full 1 at ACTIVITY_WARMUP_SAMPLES. A cap rather than a pull towards the middle, so a still picture still reads 0 from the start and only the saturation waits for evidence. */
 export function warmupCap(samples: number): number {

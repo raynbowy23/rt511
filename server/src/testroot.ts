@@ -8,7 +8,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** The repository root, from `server/dist/server/src/` where the compiled tests run. */
-export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..');
 
 /** Cameras per synthetic city. Enough to fill a board of thirty for one state and leave radar anchors to choose from. */
 export const FIXTURE_CAMERAS = 40;

@@ -155,7 +155,7 @@ const DISAGREE_LOOK = 0.25;
 const DISAGREE_SHARE = 0.5;
 
 /** Whether two cameras' looks can be compared at all. The rubric is relative to the cameras judged together, so a level only means something beside another level from the same look, which every answer from one call shares the time of. */
-export function sameLook(a: Candidate, b: Candidate): boolean {
+function sameLook(a: Candidate, b: Candidate): boolean {
   return !!a.look && !!b.look && a.look.at === b.look.at;
 }
 

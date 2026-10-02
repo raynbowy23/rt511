@@ -6,7 +6,7 @@ import { HoverCard } from './HoverCard';
 const HISTORY_MS = 600_000;
 type Point = { at: number; value: number };
 const number = (value: number | null): string => value === null ? 'unknown' : value.toFixed(3);
-export const driverLabel = { movement: 'Movement', incident: 'Incident', queue: 'Queue upstream', still: 'Stopped traffic' };
+const driverLabel = { movement: 'Movement', incident: 'Incident', queue: 'Queue upstream', still: 'Stopped traffic' };
 
 function Sparkline({ points, now }: { points: Point[]; now: number }): ReactElement {
   return <svg className="score-spark" viewBox="0 0 240 34" preserveAspectRatio="none" role="img" aria-label="Attention over the last 10 minutes">

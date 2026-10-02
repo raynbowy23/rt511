@@ -180,7 +180,7 @@ export interface CameraPositions {
 }
 
 /** The cameras close enough to show an incident, nearest first. Nothing within the radius means an empty list: offering the nearest camera eight kilometers away would be worse than offering none. */
-export function camerasNear(incident: RawIncident, cameras: CameraPositions): number[] {
+function camerasNear(incident: RawIncident, cameras: CameraPositions): number[] {
   // A degree of latitude is about 111 km everywhere, so this box is a cheap filter before the real distance.
   const pad = CAMERA_RADIUS_KM / 111;
   const near: { id: number; km: number }[] = [];
