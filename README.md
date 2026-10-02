@@ -276,7 +276,12 @@ Each camera's score combines a movement term $M$ with the strongest of three con
 
 $$M = P \cdot R \cdot \big(0.5\,A + 0.5\,S\big), \qquad F = \max\big(F_{\text{incident}},\ F_{\text{queue}},\ F_{\text{gate}}\big), \qquad L = \min\big(1, \max(M, F)\big)$$
 
-$$\text{Attn} = \begin{cases} \tfrac{1}{2} + \tfrac{1}{2} L & \text{if } F \ge 0.2 \\ \tfrac{1}{2} L & \text{otherwise} \end{cases}$$
+$$
+\text{Attn} = \begin{cases} 
+  \frac{1}{2} + \frac{1}{2} L & \text{if } F \ge 0.2, \\ 
+  \frac{1}{2} L               & \text{otherwise.} 
+\end{cases}
+$$
 
 Here $A$ is anomaly, the frame difference $\Delta I$ against the camera's usual level $\mu$ for that hour of the week, $A = \min\big(c_n, \tfrac{1}{2}\,\Delta I / \mu\big)$, where the cap $c_n$ rises from 0.5 to 1 over the camera's first ten differences. $S$ is spectacle, $P$ is the road-size amplifier between 0.5 and 1.5, and $R$ is the second-look factor between 0.75 and 1.25, which is 1 without a confident look. A camera held by a floor of at least 0.2 therefore scores between 0.6 and 1, and every other camera between 0 and 0.5.
 
