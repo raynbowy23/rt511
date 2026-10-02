@@ -1,6 +1,6 @@
 """The camera catalog for a region: read from its agency's published feed, cut to the region, cached as JSON under data/, and loaded back as Camera records.
 
-Every source is an agency feed read by `feeds.py`, so this module only decides which of a feed's cameras belong to a region and records them in the shape the graph builder and the server expect. Everything state-specific is optional, because the feeds disagree on what they publish: Caltrans carries a direction and a milepost, Iowa a route and a linear reference, Kentucky often only a description."""
+Everything state-specific is optional, because the feeds disagree on what they publish: Caltrans carries a direction and a milepost, Iowa a route and a linear reference, others little more than a description."""
 
 import json
 from dataclasses import asdict, dataclass
@@ -33,12 +33,12 @@ class Camera:
 
     @property
     def at_intersection(self) -> bool:
-        """True when the name joins two roads with an ampersand, which is how the city-operated cameras describe a signalized junction. A freeway mainline camera is never at one. Wisconsin writes interchanges as "US 12/18 at Whitney Way" instead, which is a grade separation and not an intersection, so the ampersand stays a reliable marker."""
+        """True when the location joins two roads with an ampersand, which marks a signalized junction. Interchanges are written as "US 12/18 at Whitney Way" instead, so the ampersand stays a reliable marker."""
         return " & " in self.location
 
     @property
     def refs(self) -> frozenset[str]:
-        """Route tokens used to pull this camera onto the right carriageway, taken from the roadway field only. Intersection cameras get none: four of the Tallahassee city cameras carry roadway "I-10 South", meaning the southbound approach leg at a ramp terminal, and matching that to I-10 would snap them onto the mainline half a mile away."""
+        """Route tokens used to pull this camera onto the right carriageway, taken from the roadway field only. Intersection cameras get none: a camera at a ramp terminal can carry roadway "I-10 South", meaning the approach leg, and matching that to I-10 would snap it onto the mainline."""
         if self.at_intersection:
             return frozenset()
         return ref_tokens(self.roadway)
@@ -48,7 +48,7 @@ class Camera:
 
 
 def plausible(lat: float, lon: float) -> bool:
-    """Reject coordinates that cannot be a camera in the United States. Several sites carry junk: many entries sit at 0,0, and Georgia and New York both publish cameras with the longitude sign flipped, which would otherwise drag a bounding box across the Atlantic."""
+    """Reject coordinates that cannot be a camera in the United States. Some feeds carry entries at 0,0 or with the longitude sign flipped, which would otherwise drag a bounding box across the Atlantic."""
     return -170.0 < lon < -60.0 and 18.0 < lat < 72.0
 
 

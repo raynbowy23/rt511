@@ -1,6 +1,4 @@
-"""A national index of every camera the project's sources publish: one lightweight record per camera, used to draw the country-level map and to answer "what is near here" before any region exists.
-
-This reads the same feeds `rt511 catalog` does, once per source rather than once per region, and caches the result. It is the coarsest possible view, position and source only."""
+"""A national index of every camera the sources publish, position and source only, used to draw the country-level map and to answer "what is near here" before any region exists."""
 
 import asyncio
 import json
@@ -48,7 +46,7 @@ def index_path(root: Path) -> Path:
 
 
 def write_index(index: dict[str, list[IndexEntry]], root: Path) -> Path:
-    """Stored as parallel arrays per source rather than a list of objects, because twenty thousand `{"id":…,"lat":…}` records is several megabytes of punctuation."""
+    """Stored as parallel arrays per source, which is far smaller than a list of objects."""
     payload = {
         "sources": {
             key: {

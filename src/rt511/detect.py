@@ -15,7 +15,7 @@ from pathlib import Path
 
 # COCO class ids the gate counts. Pedestrians and bicycles are left out on purpose: the question is whether traffic is standing on the road, and a person on the pavement says nothing about that.
 VEHICLE_CLASSES = {2: "car", 3: "motorcycle", 5: "bus", 7: "truck"}
-# The largest snapshot any 511 site in the survey serves is a couple of hundred kilobytes, so anything far past that is not a camera frame.
+# Camera snapshots are a few hundred kilobytes at most, so anything far past that is not a camera frame.
 MAX_BODY = 8 * 1024 * 1024
 
 

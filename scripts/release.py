@@ -51,9 +51,8 @@ def bump(version: str) -> None:
 
 
 def changelog(version: str, previous_tag: str) -> None:
-    """Prepends this release's entry: its date and the subject of every commit since the last release, which in this repository are written to be read."""
+    """Prepends this release's entry: its date and the subject of every commit since the last release."""
     subjects = run("git", "log", "--reverse", "--format=%s", f"{previous_tag}..HEAD", capture=True).splitlines()
-    # A short summary written by hand, if there is one, reads before the full list.
     notes = ROOT / "docs" / "releases" / f"{version}.md"
     summary = notes.read_text().strip() + "\n\nEvery change:\n\n" if notes.exists() else ""
     entry = f"## {version} ({datetime.date.today().isoformat()})\n\n" + summary + "".join(f"- {subject}\n" for subject in subjects) + "\n"

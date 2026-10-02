@@ -1,6 +1,6 @@
 """The camera sources this project reads, loaded from `data/sources.json`.
 
-Every source is an agency's own published feed whose written terms allow a third-party viewer to show its cameras. The table lives in JSON rather than in code because the TypeScript server reads the same facts, and a fact duplicated in two languages drifts. Python and TypeScript both load that one file. See `docs/sources.md` for the survey behind the list."""
+Every source is an agency's own published feed whose written terms allow a third-party viewer to show its cameras. The table lives in JSON so that the TypeScript server reads the same facts. See `docs/sources.md` for the survey behind the list."""
 
 import json
 import os
@@ -10,7 +10,7 @@ from pathlib import Path
 USER_AGENT: str = json.loads((Path(__file__).resolve().parents[2] / "data" / "sources.json").read_text())["user_agent"]
 """The identifying User-Agent on every request, read from the source table so that the pipeline and the server name the project the same way."""
 DEFAULT_POLL_PERIOD_S = 60.0
-"""Sixty seconds is the polite default until a source's true picture-refresh rate has been measured. Caltrans publishes its own, five minutes, and its entry says so."""
+"""The polite default for a source whose picture-refresh rate is not known."""
 
 
 @dataclass(frozen=True)

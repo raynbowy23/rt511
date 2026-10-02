@@ -1,6 +1,4 @@
-"""Find where cameras actually cluster, so choosing a region is evidence rather than guesswork.
-
-The national index has a position for every camera but no notion of place. Binning those positions and merging neighboring bins into metro-sized groups answers the only question that matters when adding a region: where are there enough cameras to be worth watching."""
+"""Find where cameras actually cluster, so choosing a region is evidence rather than guesswork. Positions from the national index are binned and neighboring bins merged into metro-sized groups."""
 
 import json
 import time

@@ -1,6 +1,4 @@
-"""Command line entry points for the offline pipeline.
-
-This is a batch tool, not a service. It discovers where cameras are, fetches a region's catalog, snaps those cameras onto the road network and writes the site graph. Serving that work to a browser is the TypeScript server's job, in `server/`, which reads the files these commands write."""
+"""Command line entry points for the offline pipeline. The TypeScript server in `server/` reads the files these commands write."""
 
 import argparse
 import asyncio

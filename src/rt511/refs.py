@@ -1,15 +1,15 @@
-"""Route number matching between 511 camera names and OpenStreetMap `ref` tags. This is what lets a camera find its own carriageway instead of a frontage road, and it works in any state, unlike mile markers which only Florida's freeway cameras carry.
+"""Route number matching between 511 camera names and OpenStreetMap `ref` tags. This is what lets a camera find its own carriageway instead of a frontage road, and it works in any state, unlike mile markers, which few feeds carry.
 
 A camera named "I-39/US 51 at County B" and an OSM way tagged `ref=I 39;US 51` both reduce to {I39, US51}. The slash form "US 12/18" means US 12 and US 18, so a bare number after a slash inherits the previous prefix."""
 
 import re
 
 STATE_PREFIXES = ("AK", "AZ", "CA", "CT", "FL", "GA", "IA", "ID", "KY", "LA", "ME", "NC", "NH", "NV", "NY", "OH", "OR", "PA", "RI", "UT", "VT", "WI", "WIS")
-"""Abbreviations states use for their own routes, e.g. "NY 33", "WIS 30" or "OR 217". Route tokens are only ever read from a camera's roadway field and from OpenStreetMap `ref` tags, never from free text, which is what makes "OR" safe here: it would match ordinary prose, and neither of those fields is prose. "IN" stays out until Indiana is a source."""
+"""Abbreviations states use for their own routes, e.g. "NY 33", "WIS 30" or "OR 217". Route tokens are only read from a camera's roadway field and from OpenStreetMap `ref` tags, never from free text, which is what makes "OR" safe here. "IN" stays out until Indiana is a source."""
 
 TOKEN_RE = re.compile(r"\b(I|IH|US|USH|SR|SH|STH|CR|CTH|" + "|".join(STATE_PREFIXES) + r")[\s-]*(\d+)((?:\s*/\s*\d+)*)", re.IGNORECASE)
 PREFIX_ALIASES = {"IH": "I", "USH": "US", "STH": "SR", "SH": "SR", "CTH": "CR", **{p: "SR" for p in STATE_PREFIXES}}
-"""State route prefixes all normalize to SR, because a camera name and an OSM tag rarely agree on the spelling: Wisconsin publishes "WIS 30" while OpenStreetMap tags the same road "WI 30"."""
+"""State route prefixes all normalize to SR, because a camera name and an OSM tag rarely agree on the spelling, as in "WIS 30" against "WI 30"."""
 
 
 def ref_tokens(text: str | None) -> frozenset[str]:

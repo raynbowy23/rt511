@@ -1,6 +1,4 @@
-"""A region is the unit this project works in: a patch of one 511 site's coverage, small enough that the camera graph stays comprehensible and the polling load stays polite.
-
-Regions are created from a city name rather than hand-written coordinates, because with thousands of cameras available across several states, naming a place is the only sane way to choose a slice. Created regions persist in `data/regions.json`."""
+"""A region is the unit this project works in: a patch of one 511 site's coverage, small enough that the camera graph stays comprehensible and the polling load stays polite. Regions are created from a city name and persist in `data/regions.json`."""
 
 import json
 import math
@@ -24,11 +22,11 @@ class Region:
     center: tuple[float, float] | None = None
     radius_km: float | None = None
     limit: int | None = None
-    """Cap on cameras kept, nearest to the center first. With twenty thousand cameras on offer, a wall wants the dozens nearest a place, not everything in range."""
+    """Cap on cameras kept, nearest to the center first."""
 
     @property
     def centroid(self) -> tuple[float, float]:
-        """The center to draw this region at. Regions created from a city carry a real center; the two hand-written ones do not, so fall back to the middle of the bounding box rather than making every caller re-derive it."""
+        """The center to draw this region at: its own center when it has one, otherwise the middle of the bounding box."""
         if self.center:
             return self.center
         s, w, n, e = self.bbox
@@ -72,7 +70,7 @@ def slugify(name: str) -> str:
 
 
 BUILTIN: dict[str, Region] = {}
-"""Every region now comes from `data/regions.json`. The two hand-written ones this project started with were on sources it no longer reads."""
+"""Empty: every region comes from `data/regions.json` or `data/local/regions.json`."""
 
 
 def _store(root: Path) -> Path:

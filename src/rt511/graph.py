@@ -201,7 +201,7 @@ def nearby_edges(sites: list[Site], adjacent: set[tuple[str, str]]) -> list[Edge
 
 
 def validate(cams: list[Camera], sites: list[Site], edges: list[Edge], snaps: dict[int, Snap]) -> dict:
-    """Checks that catch a bad snap. Both are optional by source: Wisconsin reports no direction code and no mile markers, so those sections come back empty rather than failing."""
+    """Checks that catch a bad snap. A source without direction codes or mile markers gets those sections back empty rather than failing."""
     report: dict = {}
     # A direction code names the route's signed direction, not a compass heading, so only a near-reversal is evidence of a bad snap. Anything less is a road that curves away from the way it is signed, which is ordinary.
     mismatches = []
@@ -247,7 +247,7 @@ def validate(cams: list[Camera], sites: list[Site], edges: list[Edge], snaps: di
     report["freeway_sites"] = sum(1 for s in sites if s.is_freeway)
     if snaps:
         report["snap_distance_m"] = {"max": round(max(s.distance_m for s in snaps.values()), 1), "mean": round(sum(s.distance_m for s in snaps.values()) / len(snaps), 1)}
-        # A camera that names a route should land on a road carrying it. Three outcomes, not two: the road may carry no route number at all, which is the normal case for a ramp or a service road and is no evidence either way. Only a road that names a different route is a real miss, and even that has an honest false positive, a road carrying two designations where the state and OpenStreetMap disagree on which to publish. Nevada still signs I-515 where OpenStreetMap tags I 11.
+        # A camera that names a route should land on a road carrying it. A road with no route number, normal for a ramp or a service road, is no evidence either way. Only a road naming a different route is a miss, and even that can be a road with two designations where the agency and OpenStreetMap publish different ones.
         matched = unknown = mismatched = 0
         for c in cams:
             if not c.refs or c.id not in snaps:

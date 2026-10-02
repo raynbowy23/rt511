@@ -1,8 +1,6 @@
 """Cameras from agencies that publish them as a feed under written terms: Caltrans's wholesale portal and the ArcGIS layers state agencies release as open data.
 
-These are the only sources the project reads, because they are the ones whose owners say in writing that a third-party viewer may show their cameras. There is one reader per kind of feed. What each field of a feed means is declared in `data/sources.json` rather than here, so that adding a second state that publishes the same kind of layer is a table entry and not a code change.
-
-Every reader returns the same flat record, and the catalog step does the rest exactly as it does for any other source: keep what falls in the region, nearest first, up to its limit."""
+There is one reader per kind of feed, and each returns the same flat record. What each field of a feed means is declared in `data/sources.json`, so a second state publishing the same kind of layer is a table entry and not a code change."""
 
 import asyncio
 import base64
@@ -290,7 +288,7 @@ def compass_snapshots(document: bytes) -> dict[str, bytes]:
 
 
 async def _dev511(http: httpx.AsyncClient, source: Source) -> list[FeedCamera]:
-    """The developer API of the vendor 511 platform several states run, `api/v2/get/cameras`, with the user's own key as a query parameter. One call returns the whole state. Every view of a camera is its own image and stream facing its own way, so each becomes its own camera, and only views the agency marks Enabled are kept."""
+    """A 511 developer API that several states share, `api/v2/get/cameras`, with the user's own key as a query parameter. One call returns the whole state. Every view of a camera is its own image and stream facing its own way, so each becomes its own camera, and only views the agency marks Enabled are kept."""
     r = await Pace(source).get(http, source.feed["url"], params={**auth_params(source), "format": "json"}, headers={**auth_headers(source), "Accept": "application/json"})
     r.raise_for_status()
     out: list[FeedCamera] = []
