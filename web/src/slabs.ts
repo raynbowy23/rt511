@@ -3,7 +3,7 @@ import { AlbersUsa, groupForState, type Box } from './albers';
 
 /** The covered states lifted out of the country and set side by side, west to east, on a tilted table.
  *
- * A map of the whole country with seven states lit is mostly blank states. This layout drops every state without a source and lays the rest out in a row, each one a slab that floats over the table with its cameras as lights on its top face. Everything here is plain geometry in "world" units, which the views scale and pan; how high a slab floats is left to the view, in screen pixels, so a hover can lift one without recomputing anything. */
+ * Every state without a source is dropped. Everything here is plain geometry in "world" units, which the views scale and pan; how high a slab floats is left to the view, in screen pixels, so a hover can lift one without recomputing anything. */
 
 /** The tilt: the row is turned this far from the screen's horizontal, then squashed vertically, which is what makes a flat map read as a table seen from a corner. */
 const TURN = (-22 * Math.PI) / 180;

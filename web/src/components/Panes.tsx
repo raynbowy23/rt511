@@ -5,7 +5,7 @@ import { MapView } from '../map';
 import { Minimap } from '../minimap';
 import { NationalView } from '../national';
 
-/** The canvas views stay imperative. React owns where they live and when they are told things; the drawing stays where it was, because putting thousands of paths through the virtual DOM would be strictly worse.
+/** The canvas views stay imperative. React owns where they live and when they are told things, because putting thousands of paths through the virtual DOM would be strictly worse.
  *
  * Each wrapper builds its view once per mount and destroys it on cleanup, which is what makes React's double-invoked development effects harmless. */
 
@@ -166,7 +166,7 @@ export function MinimapPane({
   activeSite: string | null;
   /** Folded down to its label, for while a camera is open and the panel needs the corner. It unfolds on hover. */
   compact?: boolean;
-  /** Opens the full city map. The minimap is a thumbnail of it, so clicking the thumbnail is the obvious way there. */
+  /** Opens the full city map. */
   onOpen?: () => void;
 }): ReactElement {
   const host = useRef<HTMLDivElement>(null);
@@ -192,7 +192,7 @@ export function MinimapPane({
     view.current?.setActive(activeSite);
   }, [activeSite]);
 
-  // The drawn minimap is a fixed-position child of this host, so clicks on it bubble here and the cursor inherits from here. That keeps the whole affordance on the host, with no stylesheet change, and a keyboard user reaches it as a button.
+  // The drawn minimap is a fixed-position child of this host, so clicks on it bubble here and the cursor inherits from here, and a keyboard user reaches it as a button.
   const open = onOpen
     ? {
         role: 'button' as const,

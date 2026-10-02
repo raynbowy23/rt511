@@ -1,6 +1,6 @@
 import type { AttentionAxes } from '@rt511/shared';
 
-/** Which part of the score set its level, in a word. The level is the larger of the movement term and the strongest of three floors, and a floor wins a tie, so the strongest floor is the reason when it is at least the movement term; otherwise it is movement. */
+/** Which part of the score set its level, in a word: the strongest floor when it is at least the movement term, since a floor wins a tie, otherwise movement. */
 export function driverOf(attention: number | null, axes: AttentionAxes | null): { key: string; word: string; title: string } | null {
   if (attention === null || !axes) return null;
   const floors: { key: string; word: string; title: string; value: number }[] = [

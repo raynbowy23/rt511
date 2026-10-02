@@ -2,9 +2,9 @@ import { solarElevation, type AttentionAxes } from '@rt511/shared';
 
 /** A person's own attention, learned from the choices they make in "Which would you watch?".
  *
- * Each choice between two cameras is a comparison: this one deserved attention more than that one. A Bradley–Terry model turns comparisons into weights over the same things the wall's equation looks at, so the person's attention and the equation's can be set side by side. P(a over b) = σ(w · (x_a − x_b)), fitted by gradient descent with a little L2, no intercept, so swapping the two cameras swaps the answer.
+ * A Bradley–Terry model turns each choice between two cameras into weights over the same things the wall's equation looks at. P(a over b) = σ(w · (x_a − x_b)), fitted by gradient descent with a little L2 and no intercept, so swapping the two cameras swaps the answer.
  *
- * Everything here is plain arithmetic on numbers the server already sends. The votes are kept in the browser and never leave it. */
+ * The votes are kept in the browser and never leave it. */
 
 export interface Factor {
   key: string;
@@ -86,7 +86,7 @@ const L2 = 0.02;
 const RATE = 0.5;
 const STEPS = 400;
 
-/** Fits the weights to every vote so far. A few hundred full passes over a few hundred votes is instant, and a fixed schedule from zero makes the result the same every time for the same votes. */
+/** Fits the weights to every vote so far. A fixed schedule from zero makes the result the same every time for the same votes. */
 export function train(votes: Vote[]): number[] {
   const w = FACTORS.map(() => 0);
   if (votes.length === 0) return w;
@@ -123,7 +123,7 @@ export function disagreements(votes: Vote[], limit = 3): { chosen: Vote['a']; pa
     .slice(0, limit);
 }
 
-/** The next pair to ask about. Early on, any two different cameras. Once there are a few votes, the pair the model is least sure about out of a random sample, so each answer teaches it the most. A camera shown in the last few pairs is avoided when there is any choice. */
+/** The next pair to ask about: early on any two different cameras, then the pair the model is least sure about out of a random sample. A camera shown in the last few pairs is avoided when there is any choice. */
 export function nextPair(candidates: Candidate[], weights: number[], votes: number, recent: Set<number>, random: () => number = Math.random): [Candidate, Candidate] | null {
   const fresh = candidates.filter((candidate) => !recent.has(candidate.id));
   const pool = fresh.length >= 2 ? fresh : candidates;
@@ -154,7 +154,7 @@ const DISAGREE_LOOK = 0.25;
 /** The share of evaluation pairs drawn from the disagreements, when there are any. The rest are uniform, which is what an overall figure is read from. */
 const DISAGREE_SHARE = 0.5;
 
-/** Whether two cameras' looks can be compared at all. The rubric is relative to the cameras judged together, so a level only means something beside another level from the same look, which every answer from one call shares the time of. */
+/** Whether two cameras' looks can be compared at all. The rubric is relative to the cameras judged together, so a level only means something beside another level from the same look. */
 function sameLook(a: Candidate, b: Candidate): boolean {
   return !!a.look && !!b.look && a.look.at === b.look.at;
 }
@@ -167,7 +167,7 @@ export function disagree(a: Candidate, b: Candidate): boolean {
   return Math.abs(byEquation) > DISAGREE_EQUATION && Math.abs(byLook) > DISAGREE_LOOK && byEquation * byLook < 0;
 }
 
-/** The next evaluation pair. Half the time, when there are any, one of the pairs the two rankings order differently, since those are the pairs that tell them apart. Otherwise any two cameras, uniformly. Never informed by the person's own model, which would bias the test towards it. */
+/** The next evaluation pair. Half the time, when there are any, a pair the two rankings order differently; otherwise any two cameras, uniformly. Never informed by the person's own model, which would bias the test towards it. */
 export function nextEvalPair(candidates: Candidate[], recent: Set<number>, random: () => number = Math.random): { pair: [Candidate, Candidate]; stratum: Stratum } | null {
   const fresh = candidates.filter((candidate) => !recent.has(candidate.id));
   const pool = fresh.length >= 2 ? fresh : candidates;
@@ -192,7 +192,7 @@ export interface RankerAgreement {
   total: number;
 }
 
-/** How often each ranking picked the camera the person chose, over evaluation choices only. The two are scored on exactly the same choices, those where the equation told the cameras apart and both cameras had levels from the same look that differed, so neither ranking is flattered by an easier set of pairs. The person's own model is left out, because it was trained on these same choices; the analysis script scores it on held-out choices instead. */
+/** How often each ranking picked the camera the person chose, over evaluation choices only. Both are scored on the same choices, those where the equation told the cameras apart and both cameras had differing levels from the same look, so neither is flattered by easier pairs. The person's own model is left out because it was trained on these choices. */
 export function evaluation(votes: Vote[]): { choices: number; disagreements: number; paired: number; equation: RankerAgreement; look: RankerAgreement } {
   const evaluated = votes.filter((vote) => vote.mode === 'evaluate');
   const equation = { agree: 0, total: 0 };

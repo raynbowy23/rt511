@@ -38,7 +38,7 @@ export class Topology {
     return flow.find((e) => e.kind === preferred) ?? flow[0] ?? null;
   }
 
-  /** Moves one hop along traffic flow from a camera, returning the next camera and the edge that got there. A camera the builder could not place has no site, so there is nothing to step along. */
+  /** Moves one hop along traffic flow from a camera, returning the next camera and the edge that got there. An unplaced camera has no site to step from. */
   hop(cameraId: number, direction: 'down' | 'up'): { camera: Camera; edge: Edge } | null {
     const camera = this.cameras.get(cameraId);
     if (!camera || camera.site === null) return null;

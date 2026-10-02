@@ -1,13 +1,13 @@
-/** Digital pan, tilt and zoom over a media element. These are public read-only feeds, so nothing here talks to the camera: it transforms what has already arrived, which is why the transform has to sit on a wrapper holding both the video and the replay still rather than on the video alone. */
+/** Digital pan, tilt and zoom over a media element. Nothing here talks to the camera: it transforms what has already arrived, which is why the transform has to sit on a wrapper holding both the video and the replay still rather than on the video alone. */
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 8;
-// Above this the source pixels are large enough that smoothing turns them to mush, so nearest-neighbor reads better than an upscale blur. Wisconsin publishes 352x240, which reaches that point quickly.
+// Above this the source pixels are large enough that smoothing turns them to mush, so nearest-neighbor reads better than an upscale blur.
 const PIXELATE_AT = 2.2;
 
 export class Ptz {
   private scale = 1;
-  /** Intrinsic aspect of what is playing. The media is fitted, not cropped, so the picture is usually smaller than the stage and the pan limits have to be computed from the picture rather than from the box. */
+  /** Intrinsic aspect of what is playing. The media is fitted, not cropped, so the pan limits come from the picture rather than the box. */
   private sourceAspect: number | null = null;
   private x = 0;
   private y = 0;

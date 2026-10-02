@@ -15,7 +15,7 @@ const HOVER_LIFT_PX = 12;
 /** Past this much zoom the cells are finer than the cameras are spaced, so individual positions are drawn instead. */
 const DOTS_FROM = 7;
 const PULSE_MS = 2600;
-/** How long the flight into a city takes. Long enough to read as travel, short enough not to be waited on. */
+/** How long the flight into a city takes. */
 const ZOOM_MS = 900;
 
 interface View {
@@ -40,7 +40,7 @@ interface Marker {
   sky: SkyRegion | null;
 }
 
-/** The sunset wave's color for a median camera brightness. Cameras expose for the scene, so daylight sits around 0.45 and a lit night street around 0.15; the ramp spans that rather than 0..1, and runs through the one phosphor, from an ember at night through a dusk orange to a pale day gold. */
+/** The sunset wave's color for a median camera brightness. Cameras expose for the scene, so daylight sits around 0.45 and a lit night street around 0.15, and the ramp spans that rather than 0..1. */
 function skyColor(brightness: number): [number, number, number] {
   const t = Math.min(1, Math.max(0, (brightness - 0.15) / 0.3));
   const stops: Rgb[] = [[120, 38, 16], PHOSPHOR.mid, PHOSPHOR.hot];
@@ -59,7 +59,7 @@ function skyPhrase(sky: SkyRegion): string {
   return `${sun}${light}${murk}`;
 }
 
-/** The country view: only the states this install can see, lifted out and floating in a row on a tilted table, west to east, with their cameras as lights and the regions being polled right now as markers.
+/** The country view: the states this install can see, floating in a row on a tilted table, with their cameras as lights and the polled regions as markers.
  *
  * Two stacked canvases. The base holds the slabs and the lights and is redrawn only when the view, the data or a slab's height changes; the overlay holds the region markers and their pulse and is cheap enough to redraw every frame. */
 export class NationalView {
@@ -134,7 +134,7 @@ export class NationalView {
     fitButton.title = 'Frame the whole country (double-click the map does the same)';
     fitButton.addEventListener('click', () => this.fit(true));
 
-    // What the colors mean: the density ramp for the catalog, and the two marker states. Without it amber reads as "dense" rather than "live".
+    // The legend. Without it amber reads as "dense" rather than "live".
     const legend = document.createElement('div');
     legend.className = 'map-legend national-legend';
     for (const [cls, text] of [
@@ -195,7 +195,7 @@ export class NationalView {
     this.overlay.addEventListener('dblclick', () => this.fit(true));
   }
 
-  /** Stops the pulse loop and releases the observer. The pulse re-arms itself every frame, so without this a double mount would leave a second loop redrawing an orphaned canvas forever. */
+  /** Stops the pulse loop and releases the observer. The pulse re-arms itself every frame, so without this a double mount leaves a second loop running. */
   destroy(): void {
     this.observer.disconnect();
     for (const frame of [this.frame, this.resizeFrame, this.pulseFrame, this.zoomFrame, this.liftFrame]) if (frame !== 0) cancelAnimationFrame(frame);
@@ -222,7 +222,7 @@ export class NationalView {
     }
   }
 
-  /** How many cataloged cameras fall inside a region's box. It is what a configured-but-unserved region can honestly show in place of a polled count, which the backend reports as zero. */
+  /** How many cataloged cameras fall inside a region's box, shown for a configured-but-unserved region in place of its polled count of zero. */
   private countInBox(region: NationalRegion, source: NationalResponse['sources'][string] | undefined): number {
     if (!source || !region.bbox) return 0;
     const [south, west, north, east] = region.bbox;
@@ -240,11 +240,11 @@ export class NationalView {
     const served = this.data.regions.filter((r) => r.served).length;
     const summary = document.createElement('div');
     summary.className = 'national-summary';
-    // The honest headline: most of what this view draws is catalog, not coverage.
+    // Most of what this view draws is catalog, not coverage.
     summary.innerHTML = `<b>${served} of ${this.data.regions.length}</b> regions polled in this run<br>${totalCameras.toLocaleString()} cameras indexed across ${this.data.covered_states.length} states<br><span class="national-summary-note">Only the states with cameras, lifted out and set west to east, sizes eased toward each other.</span>`;
     this.list.appendChild(summary);
 
-    // Grouped by state, states and cities in alphabetical order, so thirty cities read as a handful of states rather than one long column.
+    // Grouped by state, alphabetically, so many cities read as a handful of states rather than one long column.
     // The state's name comes from the outlines this map already draws, keyed by the two letters a city's name ends with.
     const stateOf = (marker: Marker): string => {
       const code = marker.region.name.split(', ').pop() ?? '';
@@ -361,7 +361,7 @@ export class NationalView {
     this.drawOverlay();
   }
 
-  /** Each city's movement through the day, as a small line in its row: midnight at the left, the next midnight at the right, the line scaled to the city's own busiest minute so a quiet city's rush hour shows as clearly as a big one's. Gaps are left where the city had no pictures. */
+  /** Each city's movement through the day as a small line in its row, scaled to the city's own busiest minute so a quiet city's rush hour shows as clearly as a big one's. Gaps are left where the city had no pictures. */
   setPulse(regions: Record<string, PulsePoint[]>, now = Date.now() / 1000): void {
     const midnight = new Date(now * 1000);
     midnight.setHours(0, 0, 0, 0);
@@ -605,7 +605,7 @@ export class NationalView {
     view.cy = clamp(view.cy, minY, maxY);
   }
 
-  /** Glides the view onto a box, as a zoom that feels even: the scale changes geometrically while the center slides. */
+  /** Glides the view onto a box, the scale changing geometrically so the zoom feels even. */
   private flyTo(box: Box): void {
     const view = this.view;
     if (!view || this.zooming) return;
@@ -633,7 +633,7 @@ export class NationalView {
     this.zoomFrame = requestAnimationFrame(step);
   }
 
-  /** Flies into a city, then hands over to it. The scale grows geometrically, which is how a zoom feels even, while the center slides onto the city's marker; the country fades in the last stretch so the city map, fading in behind it, takes over rather than replacing it. Without motion, or with no view yet, it hands over at once. */
+  /** Flies into a city, then hands over to it. The country fades in the last stretch so the city map, fading in behind it, takes over rather than replacing it. Without motion, or with no view yet, it hands over at once. */
   private enter(key: string): void {
     if (this.zooming) return;
     const marker = this.markers.find((item) => item.region.key === key);
@@ -765,7 +765,7 @@ export class NationalView {
     ctx.stroke();
   }
 
-  /** The lights. Cameras are binned into screen cells and each cell glows by how many landed in it, so corridors and metros are the signal. Zoomed in past the point where a cell is finer than the cameras are spaced, the same data is drawn as individual lights. */
+  /** The lights: cameras binned into screen cells, each glowing by how many landed in it. Zoomed in past the point where a cell is finer than the cameras are spaced, the same data is drawn as individual lights. */
   private drawDensity(ctx: CanvasRenderingContext2D, view: View): void {
     const zoom = view.scale / this.fitScale();
     const { camX, camY, camSlab } = this.layout;
@@ -808,7 +808,7 @@ export class NationalView {
     const denominator = Math.log(1 + Math.min(peak, 24));
     for (const [key, count] of counts) {
       const t = Math.min(1, Math.log(1 + count) / denominator);
-      // From a dim ember for one camera to the phosphor's hottest for a metro. Polled cities are marked by their rings on the overlay, not by color, so dense never reads as live.
+      // Polled cities are marked by their rings on the overlay, not by color, so dense never reads as live.
       const r = Math.round(PHOSPHOR.dim[0] + (PHOSPHOR.hot[0] - PHOSPHOR.dim[0]) * t);
       const g = Math.round(PHOSPHOR.dim[1] + (PHOSPHOR.hot[1] - PHOSPHOR.dim[1]) * t);
       const b = Math.round(PHOSPHOR.dim[2] + (PHOSPHOR.hot[2] - PHOSPHOR.dim[2]) * t);
@@ -872,7 +872,7 @@ export class NationalView {
         ctx.stroke();
       }
 
-      // The sunset wave: a soft halo in the color of the city's sky, behind everything else the marker draws.
+      // The sunset wave: a soft halo in the color of the city's sky, behind the marker.
       if (marker.sky?.brightness != null) {
         const [r, g, b] = skyColor(marker.sky.brightness);
         const halo = ctx.createRadialGradient(sx, sy, radius, sx, sy, radius + 14);

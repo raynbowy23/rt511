@@ -12,7 +12,7 @@ export function since(seconds: number | null): string {
 
 /** One dispatch record, opened from the map.
  *
- * The type is the agency's own signal code and is shown as the code: nobody here knows what S4IR means, and inventing a label for it would be worse than showing the raw string. */
+ * The type is the agency's own signal code and is shown raw, because inventing a label for it would be worse. */
 export function IncidentCard({
   incident,
   cameras,

@@ -7,9 +7,9 @@ export interface Crumb {
 
 type Level = 'home' | 'national' | 'map' | 'wall' | 'board';
 
-/** The top bar: where you are on the left, then three kinds of control that used to look identical and now do not.
+/** The top bar: where you are on the left, then three kinds of control that look different on purpose.
  *
- * The view switch is a segmented control that shows the view you are in, the way a tab does: the country as a map or as the board of its best cameras, a city as a map or as its wall of cameras. Autoplay modes are separate buttons with a play icon, which say "Stop" while they run, since each one takes over the screen until it is stopped. The diary is a panel and sits apart at the end. Keyboard shortcuts are in the tooltips rather than printed on the buttons. */
+ * The view switch is a segmented control that shows the view you are in, the way a tab does. Autoplay modes are separate buttons with a play icon, which say "Stop" while they run, since each one takes over the screen. Keyboard shortcuts are in the tooltips. */
 export function TopBar({
   crumbs,
   status,
@@ -35,7 +35,7 @@ export function TopBar({
   touring: boolean;
   /** Switches to a view within the current scope. A view that is not available leaves the switch without that option. */
   onView: (level: Level) => void;
-  /** The front page. The name in the corner goes there, as it does on most sites. */
+  /** The front page, which the name in the corner links to. */
   onHome?: () => void;
   onToggleTour: () => void;
   diaryOpen?: boolean;

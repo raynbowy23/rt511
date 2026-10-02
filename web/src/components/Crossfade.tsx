@@ -2,7 +2,7 @@ import { useState, type ReactElement } from 'react';
 
 /** The panel's still picture, on two layers so that a new snapshot fades in over the old one instead of replacing it with a jump.
  *
- * The incoming picture loads into the hidden layer and only takes the front once the browser has it, so a slow fetch never shows a blank or half-drawn frame. The layer it replaces stays opaque underneath while the new one fades in, which avoids the dip in brightness that fading one out while fading the other in would give. */
+ * The incoming picture loads into the hidden layer and only takes the front once the browser has it, so a slow fetch never shows a blank or half-drawn frame. The layer it replaces stays opaque underneath, which avoids a dip in brightness. */
 export function Crossfade({
   src,
   className,

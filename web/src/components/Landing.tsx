@@ -5,7 +5,7 @@ import { PHOSPHOR, rgba } from '../retro';
 import { prefersReducedMotion } from '../motion';
 import { period } from '../format';
 
-/** The front page: the states with cameras, lifted out and floating in a row, every camera a point of light colored by where the sun is on it right now, and a single way in. Clicking anywhere on the picture opens the map. The sources and their terms are one quiet click away, and the disclaimer is in the footer as on every page. */
+/** The front page: the states with cameras floating in a row, every camera a point of light colored by where the sun is on it right now. Clicking the picture opens the map. */
 export function Landing({
   national,
   disclaimer,
@@ -61,7 +61,7 @@ const LIGHT = {
   DUSK_DEG: 6,
 } as const;
 
-/** The picture itself. Positions are projected once and color is re-read from the sun once a minute. Between those the lights breathe in a dozen groups, each on its own slow cycle, so the country looks alive rather than printed. */
+/** The picture itself. Positions are projected once and color is re-read from the sun once a minute; between those the lights breathe in a dozen groups. */
 function CameraSky({ national, onClick }: { national: NationalResponse; onClick: () => void }): ReactElement {
   const canvas = useRef<HTMLCanvasElement>(null);
   /** Whether the pointer is over the country, which is the only place a click opens the map. */
@@ -127,7 +127,7 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
     // The lights are soft, so they need no more than one and a half device pixels each, and every layer below is that much cheaper to blend.
     const ratio = Math.min(1.5, window.devicePixelRatio || 1);
 
-    // Every light belongs to one of a dozen layers, drawn once and then only blended each frame with its own slowly changing brightness. Twelve full-canvas blends a frame is a small fixed cost whatever the number of cameras, where stamping seven and a half thousand sprites a frame was what made it stutter.
+    // Every light belongs to one of a dozen layers, drawn once and then only blended each frame: a fixed cost whatever the number of cameras, where stamping every sprite each frame stutters.
     const LAYERS = 12;
     const layerOf = points.map(() => Math.floor(Math.random() * LAYERS));
     const rhythm = Array.from({ length: LAYERS }, (_, k) => ({ phase: (k / LAYERS) * Math.PI * 2, speed: 0.00045 + (k % 4) * 0.00012 }));
@@ -212,7 +212,7 @@ function CameraSky({ national, onClick }: { national: NationalResponse; onClick:
       outlinePath();
     };
 
-    // Hover: the pointer over the country lifts it a little and turns the lights up, and only a click there opens the map. `lift` eases towards `over` each frame, so it glides rather than jumps.
+    // Hover lifts the country a little and turns the lights up. `lift` eases towards `over` each frame, so it glides rather than jumps.
     const still = prefersReducedMotion();
     const hit = document.createElement('canvas').getContext('2d');
     let country = new Path2D();

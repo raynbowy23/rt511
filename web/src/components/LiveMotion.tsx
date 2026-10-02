@@ -9,13 +9,13 @@ const WIDTH = 64;
 const HEIGHT = 48;
 const WINDOW = 60;
 const WARMUP = 10;
-/** One tenth of a gray level across the image suppresses tiny codec fluctuations without imposing the much larger noise floor used for snapshots a minute apart. This is a live measurement floor, never the server baseline. */
+/** One tenth of a gray level across the image suppresses codec fluctuations without the much larger noise floor used for snapshots a minute apart. A live measurement floor, never the server baseline. */
 const EPSILON = 0.1 / 255;
 /** One hundredth of a gray level averaged across the image filters near-identical readbacks while staying ten times below the scoring floor so small real changes can still count. */
 const DUPLICATE_THRESHOLD = 0.01 / 255;
 const STALL_MS = 5000;
 
-/** The measurement itself, shared by the two ways a picture arrives: a video frame sampled every second, or a new snapshot from an agency that refreshes every few seconds. It keeps the grayscale of the last accepted picture, a window of recent changes, and the scores for the line, all in fixed arrays so a sample allocates nothing but its readback. */
+/** The measurement itself, shared by video frames sampled every second and snapshots from an agency that refreshes every few seconds. Everything is in fixed arrays so a sample allocates nothing but its readback. */
 class MotionTrack {
   private readonly previous = new Float64Array(WIDTH * HEIGHT);
   private readonly current = new Float64Array(WIDTH * HEIGHT);
@@ -35,7 +35,7 @@ class MotionTrack {
     this.havePrevious = false;
   }
 
-  /** One picture's pixels, RGBA as a canvas returns them. `duplicate` is a picture no different from the last, which never enters the baseline, matching the server skipping byte-identical polls. */
+  /** One picture's pixels, RGBA as a canvas returns them. A `duplicate` never enters the baseline, matching the server skipping byte-identical polls. */
   push(pixels: Uint8ClampedArray, axes: AttentionAxes | null, nowMs: number): { kind: 'duplicate' | 'first' | 'warming' | 'unscored' } | { kind: 'scored'; change: number; median: number; anomaly: number; score: number } {
     let difference = 0;
     for (let i = 0; i < this.previous.length; i++) {
@@ -99,9 +99,9 @@ class MotionTrack {
   }
 }
 
-/** Pixel work and the small readout stay outside React renders so sampling does not rebuild the player or allocate new history arrays every second. Canvas readback itself necessarily returns a fresh ImageData because browsers offer no reusable destination buffer.
+/** Pixel work and the readout stay outside React renders so sampling does not rebuild the player every second. Canvas readback necessarily returns a fresh ImageData because browsers offer no reusable destination buffer.
  *
- * Two ways in. With live video it samples a frame a second. Without it, a camera whose agency refreshes the picture every few seconds, `still`, is measured once per new picture, and its line spans sixty pictures rather than sixty seconds. The panel leaves this out for a camera with neither. */
+ * With live video it samples a frame a second. Without it, a `still` camera is measured once per new picture, so its line spans sixty pictures rather than sixty seconds. */
 export function LiveMotion({ video, axes, active, still = null }: { video: HTMLVideoElement | null; axes: AttentionAxes | null; active: boolean; still?: { src: string; periodS: number } | null }): ReactElement {
   const label = useRef<HTMLSpanElement>(null);
   const plot = useRef<SVGSVGElement>(null);
@@ -130,7 +130,7 @@ export function LiveMotion({ video, axes, active, still = null }: { video: HTMLV
   const stillMode = !active && still !== null;
   const spanS = stillMode && still ? WINDOW * still.periodS : WINDOW;
 
-  /** Shows what one accepted picture did to the measurement: the readout, the explanation and the line. Returns false for a repeat, which the caller may want to report as a stall. */
+  /** Shows what one accepted picture did to the measurement. Returns false for a repeat. */
   const record = (pixels: Uint8ClampedArray, readout: HTMLSpanElement, trace: SVGPolylineElement, span: number): boolean => {
     const now = performance.now();
     const result = track.current.push(pixels, latestAxes.current, now);
@@ -202,7 +202,7 @@ export function LiveMotion({ video, axes, active, still = null }: { video: HTMLV
         readout.textContent = 'waiting for live video';
         return;
       }
-      // Like server/src/attention.ts observe() skipping byte-identical polls, repeated frames must not enter the baseline or plotted history. The content check in the track catches an encoder restamping a repeated picture; this saves the readback when the timestamp already says so.
+      // Like server/src/attention.ts observe() skipping byte-identical polls, repeated frames must not enter the baseline or plotted history. This saves the readback when the timestamp already says the frame repeats.
       if (hasFrameCallback && (presentedMediaTime === undefined || presentedMediaTime === sampledMediaTime)) {
         skipDuplicate();
         return;

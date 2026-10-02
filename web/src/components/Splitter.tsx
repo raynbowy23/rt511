@@ -9,7 +9,7 @@ const KEY_STEP_LARGE = 96;
 /** Matches the grid column in the stylesheet. */
 const TRACK_PX = 10;
 
-/** The divider between the map and the camera. A real control: it takes focus, answers the arrow keys and carries a separator role, and the width it sets is React state so everything else in the layout simply follows it. */
+/** The divider between the map and the camera: a real control that takes focus, answers the arrow keys and carries a separator role. */
 export function Splitter({
   width,
   onWidth,

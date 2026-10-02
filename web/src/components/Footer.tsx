@@ -25,11 +25,11 @@ export interface Credits {
 
 /** One quiet line at the end of the page.
  *
- * The credits used to sit here as a wall of twelve agency lines plus Natural Earth, which dominated every screen. They are an obligation rather than decoration, so they are all still here and all still reachable, behind a control that is closed until someone wants them. */
+ * The credits are an obligation rather than decoration, so they are all reachable, behind a control that is closed until someone wants them. */
 export function Footer({ context, credits, source, disclaimer }: { context: string; credits: Credits; source: RegionMeta | undefined; disclaimer: string }): ReactElement {
   const total = credits.cameras.length + credits.counts.length + (credits.states ? 1 : 0) + 1;
   const root = useRef<HTMLElement>(null);
-  // The disclaimer wraps to a different height at every width and the credits open upwards, so the footer publishes its height for what is pinned above it: the minimap and the diary panel.
+  // The disclaimer wraps to a different height at every width and the credits open upwards, so the footer publishes its height for what is pinned above it.
   useEffect(() => {
     const element = root.current;
     if (!element) return;

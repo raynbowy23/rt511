@@ -28,7 +28,7 @@ function setting(city: RelayCity, now: number): boolean {
   return solarElevation(city.lat, city.lon, now + 600) < solarElevation(city.lat, city.lon, now);
 }
 
-/** When the sun next crosses the horizon at a city, going down for a sunset or up for a sunrise, found by stepping a minute at a time. Null if it does not within a day, which cannot happen at these latitudes but is not assumed. */
+/** When the sun next crosses the horizon at a city, going down for a sunset or up for a sunrise, found by stepping a minute at a time. Null if it does not within a day. */
 function nextCrossing(city: RelayCity, now: number, down: boolean): number | null {
   let before = solarElevation(city.lat, city.lon, now);
   for (let t = now + STEP_S; t <= now + HORIZON_S; t += STEP_S) {

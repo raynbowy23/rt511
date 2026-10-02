@@ -3,7 +3,7 @@ import type { Topology } from './graph';
 
 const MIN_DWELL_S = 4.5;
 const MAX_DWELL_S = 11;
-// Free-flow travel time between two freeway cameras is a minute or two, which is far too slow to watch. Dividing it keeps the relative pacing (a long gap dwells longer) while staying at a watchable speed.
+// Free-flow travel time between freeway cameras is far too slow to watch, so it is divided down while keeping the relative pacing.
 const PACE_DIVISOR = 11;
 
 /** Auto-tours the graph downstream along a corridor, promoting each successive camera into the hero slot. */

@@ -11,8 +11,8 @@ import { period } from '../format';
 
 /** The promoted camera: the one video element in the application, the ring buffer behind it as an instant replay, and digital pan, tilt and zoom over both.
  *
- * The chrome is React. Playback, the transform and the frame layers are not: they are media and pointer work on a ten-second cadence that the virtual DOM has nothing to offer. */
-/** How long each frame of the timelapse stays up. A frame is roughly a minute of real time, so this plays ten minutes in about four seconds. */
+ * The chrome is React. Playback, the transform and the frame layers are not: they are media and pointer work the virtual DOM has nothing to offer. */
+/** How long each frame of the timelapse stays up. A frame is roughly a minute of real time. */
 const TIMELAPSE_MS = 400;
 /** How often the panel restates that its camera is open, for a source with no faster focus period. Inside the server's thirty-second claim, with room for a slow request. */
 const PANEL_RESTATE_S = 20;
@@ -60,13 +60,13 @@ export function CameraPanel({
   const [live, setLive] = useState(true);
   const [hasRing, setHasRing] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
-  /** The timelapse: the replay ring played as a loop. The frames are the ones the server already holds in memory for the scrub, so nothing is kept that was not kept before. */
+  /** The timelapse: the replay ring played as a loop, from frames the server already holds for the scrub. */
   const [playing, setPlaying] = useState(false);
   const inFlight = useRef(false);
 
   const { mode, live: streaming } = usePlayer(video, camera);
 
-  /** The open camera at its agency's own refresh rate, where that is faster than the wall's poll: how often a new picture can be expected, and when the newest was taken. */
+  /** The open camera's own refresh rate, where faster than the wall's poll, and when its newest picture was taken. */
   const [focusPeriod, setFocusPeriod] = useState<number | null>(null);
   const [focusTs, setFocusTs] = useState<number | null>(null);
   /** How often the wall itself is fetching this camera, for the badge of a snapshot camera without a focus period. */
@@ -185,14 +185,14 @@ export function CameraPanel({
 
   // The still is the newest frame until the viewer scrubs, and the scrubbed one after that.
   const stillSrc = useMemo(() => {
-    // Nothing to ask for until the camera has a frame. A server started without a named city polls nothing until one is opened, so a camera can be legitimately empty for its first minute, and requesting a snapshot then is a guaranteed 404.
+    // Nothing to ask for until the camera has a frame. A server started without a named city polls nothing until one is opened, so a snapshot requested before the first frame is a guaranteed 404.
     if (!camera || frames.length === 0) return '';
     if (live && focusPeriod !== null && focusTs !== null && focusTs >= (frame?.ts ?? 0)) return liveUrl(camera.id, focusTs);
     if (live || !frame) return snapUrl(camera.id, -1, frame?.ts ?? Date.now() / 1000);
     return snapUrl(camera.id, frame.k, frame.ts);
   }, [camera, live, frame, frames.length, focusPeriod, focusTs]);
 
-  // A camera without video says so plainly: it is a live snapshot, and the badge says how often a new one arrives, so it is never mistaken for a video feed.
+  // A camera without video says so, with how often a new snapshot arrives, so it is never mistaken for a video feed.
   const snapshotEvery = focusPeriod ?? pollPeriod;
   const snapshot = !streaming && mode === 'Snapshots only' && snapshotEvery !== null;
   const tuning = camera !== null && visible && live && ((camera.has_video && !streaming && mode === 'Loading') || frames.length === 0);
@@ -232,7 +232,7 @@ export function CameraPanel({
             onLoadedMetadata={(event) => adoptSource(event.currentTarget.videoWidth, event.currentTarget.videoHeight)}
           />
         </div>
-        {/* While a stream is being tuned in, or before a camera's first picture, a slow scan crosses the frame and a ring breathes in the middle, so the wait reads as something happening. It fades away when the picture arrives. */}
+        {/* While a stream is being tuned in, or before a camera's first picture, a slow scan crosses the frame so the wait reads as something happening. */}
         <div className={`hero-tuning${tuning ? ' is-on' : ''}`} aria-hidden="true">
           <span className="hero-tuning-scan" />
           <span className="hero-tuning-ring" />
@@ -285,7 +285,7 @@ export function CameraPanel({
             ))}
           </div>
         )}
-        {/* The live line needs pictures faster than the wall's own minute: a stream, or an agency that refreshes its snapshots every few seconds. A camera with neither has nothing to draw it from, so it is left out rather than left waiting. */}
+        {/* The live line needs pictures faster than the wall's own minute: a stream, or an agency that refreshes its snapshots every few seconds. A camera with neither is left out rather than left waiting. */}
         {camera && (camera.has_video || focusPeriod !== null) && (
           <LiveMotion
             key={camera.id}

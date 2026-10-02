@@ -1,6 +1,6 @@
 /** An Albers USA style composite projection: a conic equal-area for the lower 48, with Alaska and Hawaii projected in conics of their own and placed under the south-west corner.
  *
- * Projecting Alaska in the same conic as the lower 48 either swallows the map in empty ocean or smears it across the top. The views now lift each covered state out on its own (see `slabs.ts`), so only a state's own shape matters here, and the placement of the insets is simply where Alaska and Hawaii would sit on a composite map. */
+ * Alaska gets its own conic because the lower 48's either swallows the map in empty ocean or smears it across the top. The views lift each covered state out on its own (see `slabs.ts`), so only a state's own shape matters. */
 
 import { latOfLonLat, lonOfLonLat, type LonLat } from '@rt511/shared';
 

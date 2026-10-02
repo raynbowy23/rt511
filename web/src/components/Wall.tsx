@@ -16,10 +16,10 @@ function clockOf(ts: number): string {
   return [at.getHours(), at.getMinutes(), at.getSeconds()].map((n) => String(n).padStart(2, '0')).join(':');
 }
 
-/** The wall's entrance: each tile follows the one before by STEP_MS, and the queue is capped so a city of eighty cameras is fully in after about a second and a half rather than waiting on tiles far below the fold. */
+/** The wall's entrance: each tile follows the one before by STEP_MS, and the queue is capped so a large city is fully in after about a second and a half. */
 const ARRIVE = { STEP_MS: 34, MAX_STAGGER: 30, DURATION_MS: 620 } as const;
 
-/** One camera. The cross-fade is deliberately outside React: the two layers swap classes when a new snapshot has decoded, which is a DOM detail on a ten-second cadence, not state anything else needs. Re-rendering a tile to change an image source would throw away the layer that is currently visible. */
+/** One camera. The cross-fade is deliberately outside React: the two layers swap classes when a new snapshot has decoded, and re-rendering a tile to change an image source would throw away the visible layer. */
 const Tile = memo(function Tile({
   camera,
   state,
@@ -134,7 +134,7 @@ const Tile = memo(function Tile({
         <img className="tile-layer" alt="" decoding="async" ref={(el) => void (layers.current[1] = el)} />
       </div>
       <div className="tile-label">
-        {/* Every tile is a snapshot, so the ones that open onto a live stream say so. It sits in the label strip rather than on the picture, where agencies print their own captions. */}
+        {/* Tiles that open onto a live stream say so, in the label strip rather than on the picture, where agencies print their own captions. */}
         <span className="tile-where">
           {camera.has_video ? <span className="tile-kind is-live">Live</span> : <span className="tile-kind is-snapshot">Snapshot</span>}
           {camera.location}
@@ -199,7 +199,7 @@ export function Wall({
   const report = useRef(onVisibleCameras);
   report.current = onVisibleCameras;
 
-  // Arrival: when the wall comes into view, or turns to another city, the tiles come in one after another in rank order, busiest first. Each tile's place in the queue is set on the element here rather than passed down, so a re-rank later does not re-render every tile for it. The class comes off once the last one has landed, so a tile that changes size afterwards settles as it always has.
+  // Arrival: when the wall comes into view or turns to another city, the tiles come in one after another in rank order. Each tile's place in the queue is set on the element rather than passed down, so a re-rank does not re-render every tile. The class comes off once the last one has landed, so a later resize settles normally.
   const city = cameras[0]?.region ?? null;
   useEffect(() => {
     const element = grid.current;
@@ -215,7 +215,7 @@ export function Wall({
     return () => window.clearTimeout(done);
   }, [visible, city]);
 
-  /** One observer for the whole grid. The margin is half a screen above and below, which is about two rows of tiles: enough that a tile is warm by the time it scrolls in, and not so much that the fast tier quietly becomes the whole city again. */
+  /** One observer for the whole grid. A margin of half a screen above and below warms a tile before it scrolls in without letting the fast tier become the whole city. */
   useEffect(() => {
     const seen = onScreen.current;
     const instance = new IntersectionObserver(

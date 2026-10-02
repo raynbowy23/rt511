@@ -1,6 +1,6 @@
-// Thin typed wrapper over the rt511 server. Every call resolves to null rather than throwing: the wall is meant to be left running on a TV, so a server restart, or a response whose shape has drifted, should make it go quiet and recover rather than fill the console with unhandled rejections or crash a render.
+// Thin typed wrapper over the rt511 server. Every call resolves to null rather than throwing: the wall is meant to be left running on a TV, so a server restart or a drifted response should make it go quiet and recover rather than crash a render.
 //
-// The response types come from `@rt511/shared`, which the server imports too, so the contract is declared once rather than described in one language and re-declared in another.
+// The response types come from `@rt511/shared`, which the server imports too.
 
 import type {
   HighlightsResponse,
@@ -52,10 +52,10 @@ export type {
 } from '@rt511/shared';
 export { ROAD_CLASSES } from '@rt511/shared';
 
-// Failures are announced once per path and then muted until that same path succeeds, so a wall left running against a dead backend, or against a camera this run does not serve, does not fill the console overnight. Muting per path rather than globally matters: the ten-second poll succeeds constantly, and clearing everything on any success would let a permanent 404 re-announce itself forever.
+// Failures are announced once per path and then muted until that same path succeeds, so a wall left running against a dead backend does not fill the console. Muting per path rather than globally keeps a permanent 404 from re-announcing itself every time the poll succeeds.
 const muted = new Set<string>();
 
-/** Fetches, then checks the shape before anything downstream sees it. Returns null on a transport failure, a bad status, or a response that does not match, logging a given path's failure once until that path succeeds again. */
+/** Fetches, then checks the shape before anything downstream sees it. Returns null on a transport failure, a bad status, or a response that does not match. */
 async function getJson<T>(path: string, parse: (body: unknown) => T): Promise<T | null> {
   try {
     const res = await fetch(path, { cache: 'no-store' });
@@ -68,7 +68,7 @@ async function getJson<T>(path: string, parse: (body: unknown) => T): Promise<T 
     return body;
   } catch (error) {
     if (error instanceof ShapeError) {
-      // Loud and specific: the message names the field path that did not match, which is the only thing that makes a backend rename debuggable from the browser.
+      // The message names the field path that did not match, which is what makes a backend rename debuggable from the browser.
       note(path, `${path} does not match the expected shape — ${error.message}`);
     } else {
       note(path, `${path} unreachable`);
@@ -83,7 +83,7 @@ function note(path: string, message: string): void {
   console.warn(`rt511: ${message}`);
 }
 
-/** One shallow check per endpoint. Each one answers "is this a response from the rt511 server", not "is every field of every record the right type": the server owns the contract and validates the pipeline files it reads, and repeating that walk over a three megabyte graph on every load buys nothing. */
+/** One shallow check per endpoint: is this a response from the rt511 server, not is every field the right type. The server owns the contract and validates the files it reads. */
 function parseSource(source: Record<string, unknown>, where: string): void {
   str(source.site_url, `${where}.site_url`);
   str(source.source_name ?? source.name, `${where}.name`);
@@ -192,7 +192,7 @@ const parseNational = (body: unknown): NationalResponse => {
 export const getRegions = (): Promise<RegionsResponse | null> => getJson('/api/regions', parseRegions);
 export const getGraph = (): Promise<Graph | null> => getJson('/api/graph', parseGraph);
 /** Naming the city being shown is what tells a server started without one which cameras to poll. It is idle until somebody looks. */
-/** `visible` names the cameras the viewer can actually see, which is what keeps the server from polling a whole city to fill thirty-five tiles. Null omits the parameter, which leaves the server's idea of visibility alone; an empty array states that nothing is on screen, which is true in the map view. */
+/** `visible` names the cameras the viewer can actually see, so the server does not poll a whole city to fill the visible tiles. Null leaves the server's idea of visibility alone; an empty array states that nothing is on screen, as in the map view. */
 export const getCameras = (region?: string | null, visible?: number[] | null): Promise<CamerasResponse | null> => {
   if (!region) return getJson('/api/cameras', parseCameras);
   const params = new URLSearchParams({ region });
@@ -201,9 +201,9 @@ export const getCameras = (region?: string | null, visible?: number[] | null): P
 };
 export const getFrames = (id: number): Promise<FramesResponse | null> => getJson(`/api/frames/${id}`, parseFrames);
 export const getNational = (): Promise<NationalResponse | null> => getJson('/api/national', parseNational);
-/** `watch` asks the server to keep a bounded set of incident cameras on the fast poll period, which is what makes records become askable on a view other than the wall. Sent true while the pane is open and false once on closing, so the promotion stops promptly rather than waiting out its own expiry. */
+/** `watch` asks the server to keep a bounded set of incident cameras on the fast poll period. Sent true while the pane is open and false once on closing, so the promotion stops promptly rather than waiting out its expiry. */
 
-/** What the state patrol is responding to near one city. A city whose state has no dispatch feed answers with an empty list and a status saying so, which is a normal state rather than a failure. */
+/** What the state patrol is responding to near one city. A state with no dispatch feed answers with an empty list and a status saying so, which is normal rather than a failure. */
 export const getIncidents = (region: string): Promise<IncidentsResponse | null> =>
   getJson(`/api/incidents?region=${encodeURIComponent(region)}`, parseIncidents);
 
@@ -211,7 +211,7 @@ export const getIncidents = (region: string): Promise<IncidentsResponse | null> 
 export const getRoads = (region: string): Promise<RoadsResponse | null> =>
   getJson(`/api/roads?region=${encodeURIComponent(region)}`, parseRoads);
 
-/** The stream lookup keeps the backend's reason for a refusal, which distinguishes a camera that publishes no video from one this run is simply not polling. They look identical otherwise and mean very different things to a viewer. */
+/** The stream lookup keeps the backend's reason for a refusal, which distinguishes a camera that publishes no video from one this run is simply not polling. */
 export interface StreamLookup {
   stream: StreamResponse | null;
   reason: string | null;

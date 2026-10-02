@@ -4,7 +4,7 @@ import { latOf, lonOf, type LatLon } from '@rt511/shared';
 import { measure, pointAt, roadPath, type AttentionFlow, type FlowReason, type Link } from './flows';
 import { prefersReducedMotion } from './motion';
 
-/** Road colors and stroke weights, in screen pixels, in the control room's phosphor, dimmed to a warm brown the camera graph sits on top of rather than competes with. Weight is held in screen pixels so a motorway stays a motorway at every zoom. */
+/** Road colors and stroke weights, dimmed so the camera graph sits on top of them rather than competing. Weight is held in screen pixels so a motorway stays a motorway at every zoom. */
 const ROAD_STYLE: Record<RoadClass, { color: string; width: number }> = {
   motorway: { color: '#4a3414', width: 3 },
   motorway_link: { color: '#3e2c12', width: 1.5 },
@@ -19,7 +19,7 @@ const ROAD_STYLE: Record<RoadClass, { color: string; width: number }> = {
   unclassified: { color: '#1f170a', width: 0.8 },
 };
 
-/** Edge colors by kind, in the one phosphor at different strengths: a bright freeway, a dim street, a pale ramp, a dashed dark nearby. The kinds have to be tellable apart at a glance, which is the whole point of drawing the graph rather than a heat map. Nearby edges join sites you cannot drive between and have zero length, so they are dashed and drawn last. */
+/** Edge colors by kind, in the one phosphor at different strengths, so the kinds can be told apart at a glance. Nearby edges join sites you cannot drive between and have zero length, so they are dashed and drawn last. */
 const EDGE_STYLE: Record<EdgeKind, { width: number; color: string; alpha: number; dash?: [number, number] }> = {
   freeway: { width: 4, color: '#ffb43c', alpha: 0.9 },
   street: { width: 2.5, color: '#b87a28', alpha: 0.85 },
@@ -28,12 +28,12 @@ const EDGE_STYLE: Record<EdgeKind, { width: number; color: string; alpha: number
 };
 
 const EDGE_KINDS: EdgeKind[] = ['street', 'ramp', 'freeway', 'nearby'];
-/** The color of attention by what set it moving, as RGB for mixing with an alpha: the incident red the map already uses, a deep orange for stopped traffic, and the phosphor's palest for unusual movement. */
+/** The color of attention by what set it moving, as RGB for mixing with an alpha. */
 const FLOW_COLOR: Record<FlowReason, string> = { incident: '255, 84, 60', still: '255, 138, 30', movement: '255, 230, 180' };
 /** How fast a pulse travels along the road on screen. */
 const FLOW_SPEED_PX = 70;
 
-/** A site is colored by what it sits on, bright on a freeway and dim on a street, and burns towards the phosphor's hottest as its camera gets busy. */
+/** A site is colored by what it sits on and burns towards the phosphor's hottest as its camera gets busy. */
 const NODE_FREEWAY = [255, 180, 60] as const;
 const NODE_STREET = [184, 122, 40] as const;
 const NODE_HOT = [255, 232, 176] as const;
@@ -44,7 +44,7 @@ const MAP_BG = '#080603';
 /** Activity at which a node starts warming towards amber, matching the wall's threshold for a hot tile. */
 const HOT_FROM = 0.6;
 
-/** How far the map turns per pixel dragged with Ctrl held. A full turn takes a little over a screen width. */
+/** How far the map turns per pixel dragged with Ctrl held. */
 const ORBIT_RADIANS_PER_PX = 0.006;
 /** Tilt stops here. Beyond about 60 degrees a flat map squashes into an unreadable band. */
 const MAX_PITCH = 1.05;
@@ -64,9 +64,9 @@ interface MapSite {
   site: Site;
   x: number;
   y: number;
-  /** What the hover label says: the camera's own location text, falling back to the site id for a site the poller does not serve. */
+  /** What the hover label says: the camera's location text, or the site id for a site the poller does not serve. */
   label: string;
-  /** Cameras at this site that the backend is actually polling. Everything else is context: the graph describes 312 cameras and a poller started on a subset serves frames, streams and snapshots for only those, 404 for the rest, so only these are click targets. */
+  /** Cameras at this site that the backend is actually polling, and so the only click targets. The poller serves frames, streams and snapshots for these and 404s the rest. */
   live: number[];
 }
 
@@ -76,7 +76,7 @@ interface View {
   scale: number;
   /** Rotation of the map, in radians, clockwise. Ctrl and drag sideways. */
   bearing: number;
-  /** Tilt away from straight down, in radians. Ctrl and drag up or down. The map is drawn flat and squashed vertically, which reads as an oblique view without needing a 3D renderer. */
+  /** Tilt away from straight down, in radians. Ctrl and drag up or down. The map is drawn flat and squashed vertically, which reads as an oblique view. */
   pitch: number;
   /** True until the view is panned or zoomed. A still-framed map re-frames itself when the pane is resized; one the viewer has moved is left alone. */
   fitted: boolean;
@@ -84,7 +84,7 @@ interface View {
 
 interface IncidentEdge {
   kind: EdgeKind;
-  /** Graph geometry, latitude first. The branded type is what stops a GeoJSON ring from being drawn here by mistake. */
+  /** Graph geometry, latitude first. The branded type stops a GeoJSON ring from being drawn here by mistake. */
   points: LatLon[];
 }
 
@@ -99,12 +99,11 @@ interface RegionLayer {
   roads: Map<RoadClass, Path2D>;
   /** Every road link from each site, in both directions, for finding the road between two cameras. */
   links: Map<string, Link[]>;
-  /** Which site each camera stands at. */
   siteOf: Map<number, string>;
   roadsLoaded: boolean;
   /** Everything drawn, roads included. Panning is clamped to this. */
   bounds: Bounds;
-  /** Only the camera sites. The initial framing uses this, because the road query covers a bbox far wider than the cameras and fitting to it would leave the corridor a smudge in the middle. */
+  /** Only the camera sites, for the initial framing: the road query covers a bbox far wider than the cameras. */
   siteBounds: Bounds;
   view: View | null;
 }
@@ -118,7 +117,7 @@ interface Bounds {
 
 /** The map view: roads and the camera graph on one canvas.
  *
- * Canvas rather than SVG because a region is six to nine thousand ways, and one DOM node per way makes panning crawl. No tiles and no external requests of any kind: the road geometry comes from the backend, which is the whole reason this project draws roads as vectors. */
+ * Canvas rather than SVG because a region is thousands of ways, and one DOM node per way makes panning crawl. No tiles and no external requests: the road geometry comes from the backend. */
 export class MapView {
   readonly root: HTMLElement;
   private readonly canvas: HTMLCanvasElement;
@@ -133,7 +132,7 @@ export class MapView {
   private states = new Map<number, CameraState>();
   private current: RegionLayer | null = null;
   private activeSite: string | null = null;
-  /** What the state patrol is responding to in this city right now. Drawn over the graph because it is the one thing on this map that is about now rather than about the network. */
+  /** What the state patrol is responding to in this city right now, drawn over the graph. */
   private incidents: Incident[] = [];
   private activeIncident: string | null = null;
   private hoveredIncident: Incident | null = null;
@@ -151,7 +150,7 @@ export class MapView {
   private frame = 0;
   private resizeFrame = 0;
   private readonly observer: ResizeObserver;
-  /** A second canvas over the map for attention spreading along the roads. It is cleared and redrawn every frame while there is something to show, which the map itself, thousands of cached road paths, could not afford. */
+  /** A second canvas for attention spreading along the roads, redrawn every frame while there is something to show, which the map's thousands of cached road paths could not afford. */
   private readonly fx: HTMLCanvasElement;
   private readonly fxCtx: CanvasRenderingContext2D;
   private readonly flowNote: HTMLElement;
@@ -228,7 +227,7 @@ export class MapView {
     });
   }
 
-  /** Releases everything that outlives a render: the observer, any queued frame, and the root itself. React's development mode mounts effects twice, so a view that cannot be torn down leaves an orphan behind. */
+  /** Releases the observer, any queued frame and the root. React's development mode mounts effects twice, so a view that cannot be torn down leaves an orphan behind. */
   destroy(): void {
     this.observer.disconnect();
     if (this.frame !== 0) cancelAnimationFrame(this.frame);
@@ -305,7 +304,7 @@ export class MapView {
     }
   }
 
-  /** Switches to a region, fetching its road geometry the first time it is shown. Roads are requested one region at a time: all of them together is about 2.5 MB. */
+  /** Switches to a region, fetching its road geometry the first time it is shown. Roads are requested one region at a time because all of them together run to megabytes. */
   async show(key: string): Promise<void> {
     const layer = this.layers.get(key);
     if (!layer || this.current === layer) return;
@@ -436,7 +435,7 @@ export class MapView {
     const base = this.fitScale(layer);
     const next = clamp(view.scale * Math.exp(-event.deltaY * 0.0016), base, base * MAX_ZOOM_FACTOR);
     if (next === view.scale) return;
-    // Hold the point under the cursor still while the scale changes around it. Taken through the full inverse, because once the map can rotate the screen axes are no longer the world axes.
+    // Hold the point under the cursor still while the scale changes, through the full inverse because a rotated map's screen axes are not the world axes.
     const [wx, wy] = this.toWorld(view, px, py);
     view.scale = next;
     const [ax, ay] = this.toWorld(view, px, py);
@@ -477,7 +476,7 @@ export class MapView {
 
     if (this.orbiting) {
       // Sideways spins the map, up and down tilts it. Pitch stops short of the horizon, where a flat map drawn in perspective degenerates into a line.
-      // Both axes follow the map, not the cursor: dragging down lays the map back as if pushing its far edge away, and dragging left turns it left.
+      // Both axes follow the map, not the cursor: dragging down lays it back and dragging left turns it left.
       view.bearing = (view.bearing - dx * ORBIT_RADIANS_PER_PX) % (Math.PI * 2);
       view.pitch = clamp(view.pitch - dy * ORBIT_RADIANS_PER_PX, 0, MAX_PITCH);
       view.fitted = false;
@@ -515,7 +514,7 @@ export class MapView {
     if (target && cameraId !== undefined) this.onSelect(target.site.id, cameraId);
   }
 
-  /** Hovering an incident names it too, for the same reason. */
+  /** Hovering an incident names it. */
   private setHoverIncident(incident: Incident | null, clientX: number, clientY: number): void {
     if (incident) {
       const rect = this.host.getBoundingClientRect();
@@ -545,7 +544,7 @@ export class MapView {
       const y = clientY - rect.top;
       this.tip.textContent = entry.label;
       this.tip.hidden = false;
-      // Flip the label back over the cursor near the right edge so it never runs off the pane.
+      // Flip the label over the cursor near the right edge so it never runs off the pane.
       this.tip.style.left = `${Math.min(x + 14, rect.width - this.tip.offsetWidth - 10)}px`;
       this.tip.style.top = `${Math.max(8, y - this.tip.offsetHeight - 12)}px`;
     } else if (!this.tip.hidden) {
@@ -614,7 +613,7 @@ export class MapView {
     return [a * x + c * y + e, b * x + d * y + f];
   }
 
-  /** The inverse of the same matrix. Panning and zooming about the cursor both need it once the map can rotate. */
+  /** The inverse of the same matrix, for panning and zooming about the cursor. */
   private toWorld(view: View, px: number, py: number): [number, number] {
     const [a, b, c, d, e, f] = this.matrix(view);
     const det = a * d - c * b;
@@ -668,7 +667,7 @@ export class MapView {
       ctx.stroke(path);
     }
 
-    // With a node selected the rest of the graph steps back, the way the standalone map dims everything that is not incident to the focus. A camera is open most of the time in this view, so the step back is slight: dim it hard and the whole map goes dull exactly when it is being used.
+    // With a node selected the rest of the graph steps back, only slightly, because a camera is open most of the time in this view and a hard dim would dull the map exactly when it is being used.
     const dim = this.activeEdges === null ? 1 : 0.72;
     for (const kind of EDGE_KINDS) {
       const path = layer.edges.get(kind);
@@ -690,7 +689,7 @@ export class MapView {
     if (this.still) this.drawFlows(0);
   }
 
-  /** The attention spreading between cameras right now. Each flow is resolved to the road between its two cameras once, here; a flow whose cameras are not joined by road within a few hops is left out rather than drawn across the map. */
+  /** The attention spreading between cameras right now, each flow resolved once to the road between its two cameras. A flow whose cameras are not joined by road within a few hops is left out. */
   setFlows(flows: AttentionFlow[]): void {
     const drawn: typeof this.flows = [];
     for (const flow of flows) {
@@ -721,7 +720,7 @@ export class MapView {
     this.fxFrame = requestAnimationFrame(step);
   }
 
-  /** Pulses traveling from the camera the attention comes from to the one it reaches, three to a road, over a faint trace of the road itself, and a ring opening at the far end. `t` below zero only clears. */
+  /** Pulses traveling from the camera the attention comes from to the one it reaches, over a faint trace of the road, with a ring opening at the far end. `t` below zero only clears. */
   private drawFlows(t: number): void {
     const ctx = this.fxCtx;
     const dpr = this.fx.width / Math.max(1, this.width);
@@ -740,7 +739,6 @@ export class MapView {
       if (line.length < 4) continue;
       const color = FLOW_COLOR[flow.reason];
       const bright = 0.55 + 0.45 * Math.min(1, Math.max(0, flow.strength));
-      // The road the attention travels, as a faint glow.
       ctx.strokeStyle = `rgba(${color}, ${0.14 * bright})`;
       ctx.lineWidth = 3;
       ctx.beginPath();
@@ -751,7 +749,7 @@ export class MapView {
         // Pulses keep a steady speed on screen, so a long road takes longer to cross than a short one, the way a queue would.
         const traveled = this.still ? line.length * 0.6 : ((seconds * FLOW_SPEED_PX) / line.length + k / pulses) % 1;
         const distance = this.still ? traveled : traveled * line.length;
-        // A comet: a soft halo and a white-hot core at the head, and a short tail of shrinking points behind it along the road.
+        // A comet: a halo and a white-hot core at the head, with a shrinking tail behind it.
         for (let tail = 6; tail >= 1; tail--) {
           const [x, y] = pointAt(line, distance - tail * 4);
           ctx.fillStyle = `rgba(${color}, ${bright * 0.5 * (1 - tail / 7)})`;
@@ -783,7 +781,7 @@ export class MapView {
     }
   }
 
-  /** Incidents as a ring with a cross, in a color nothing else on this map uses. Deliberately not a bigger, brighter camera node: it is a different kind of thing and should not be mistaken for a busy camera. */
+  /** Incidents as a ring with a cross, in a color nothing else on this map uses, so an incident is never mistaken for a busy camera. */
   private drawIncidents(ctx: CanvasRenderingContext2D, layer: RegionLayer, view: View): void {
     for (const incident of this.incidents) {
       const [sx, sy] = this.toScreen(view, incident.lon * layer.kx, -incident.lat);
@@ -823,7 +821,7 @@ export class MapView {
     }
   }
 
-  /** Nodes are batched by color: one path for every halo, then one path per fill color, instead of three or four path operations per site. At 262 sites redrawn on every frame of a pan that difference is most of the node cost. */
+  /** Nodes are batched by color, one path for every halo and one per fill color, instead of three or four path operations per site, which on every frame of a pan is most of the node cost. */
   private drawNodes(ctx: CanvasRenderingContext2D, layer: RegionLayer, view: View): void {
     const halos = new Path2D();
     const fills = new Map<string, { path: Path2D; stroke: string }>();
@@ -846,7 +844,7 @@ export class MapView {
       const kindRgb = entry.site.is_freeway ? NODE_FREEWAY : NODE_STREET;
       const cams = entry.site.cameras.length;
 
-      // A site the poller does not serve still belongs to the graph, and leaving it out makes the network look sparser than it is. It is drawn in its own kind's color but smaller and dimmer, because it is not clickable and must not look like it is.
+      // A site the poller does not serve still belongs to the graph, so it is drawn in its kind's color but smaller and dimmer, because it is not clickable and must not look like it is.
       if (entry.live.length === 0) {
         const radius = 2.4 + 0.9 * Math.sqrt(cams);
         halos.moveTo(sx + radius + 1.6, sy);
@@ -859,7 +857,7 @@ export class MapView {
       const activity = state?.activity ?? null;
       const hasFrames = (state?.frames ?? 0) > 0;
       const heat = activity ?? 0;
-      // Only the genuinely busy end of the scale warms towards amber. Interpolating blue to amber across the whole range runs straight through gray, which made a middling camera look dead rather than middling.
+      // Only the genuinely busy end of the scale warms towards amber: interpolating blue to amber across the whole range runs through gray and makes a middling camera look dead.
       const warm = heat <= HOT_FROM ? 0 : (heat - HOT_FROM) / (1 - HOT_FROM);
       // Quantized so that a wall of cameras collapses into a handful of fill colors rather than one per node.
       const rgb = kindRgb.map((c, i) => Math.round((c + ((NODE_HOT[i] as number) - c) * warm) / 8) * 8);

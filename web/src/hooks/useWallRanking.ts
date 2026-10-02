@@ -6,9 +6,9 @@ import type { TileRank, Tier } from '../components/Wall';
 // A camera has to beat the tier boundary by this many ranks before it loses its size. Without the margin two cameras trading places on consecutive polls make the whole wall reflow, which reads as jitter rather than breathing.
 const HYSTERESIS = 4;
 
-/** Ranks the wall by attention on a slow cadence. The poll runs every ten seconds, but sizes change a few times a minute at most: re-ranking on every poll would make the wall twitch instead of breathe, which is the whole point of the view.
+/** Ranks the wall by attention on a slow cadence. The poll runs every ten seconds, but sizes change a few times a minute at most, so the wall breathes instead of twitching.
  *
- * Attention rather than activity, which is what this used to rank on. Activity is frame difference over a rolling median and knows nothing about how big the road is, what hour it is, or whether a state trooper is standing on it. Attention is that same movement measure amplified by the scale prior, held up by an incident floor, and adjusted by whatever the arbiter has said, so a crash on an interstate can hold a large tile while its picture sits still. */
+ * Attention rather than raw activity: the movement measure amplified by the scale prior, held up by an incident floor and adjusted by the arbiter, so a crash on an interstate can hold a large tile while its picture sits still. */
 export function useWallRanking(
   cameras: Camera[],
   states: Map<number, CameraState>,

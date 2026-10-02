@@ -25,7 +25,7 @@ export function vehicles(count: CountResponse): string {
 
 /** Night shift: after dark at the camera, the vehicle detector's count of the picture on screen, in the camera's own local time. "3:12 AM · 2 cars."
  *
- * Display only. It reads the same count the gate logs, and nothing here feeds the attention score. It shows nothing in daylight, and nothing at all when no detector is running. */
+ * Display only: nothing here feeds the attention score. It shows nothing in daylight, or when no detector is running. */
 export function NightShift({ camera, timeZone = null }: { camera: Camera | null; /** The city's IANA time zone, from its source in data/sources.json. Without one the viewer's own clock is used. */ timeZone?: string | null }): ReactElement | null {
   const [count, setCount] = useState<CountResponse | null>(null);
   const [now, setNow] = useState(() => Date.now() / 1000);

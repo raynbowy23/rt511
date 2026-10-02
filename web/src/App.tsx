@@ -43,7 +43,7 @@ import { ChannelStatic } from './components/ChannelStatic';
 type Level = 'home' | 'national' | 'map' | 'wall' | 'board';
 
 const POLL_MS = 10_000;
-/** The dispatch feed refreshes every two minutes and the server caches it, so asking once a minute is as fresh as it can be without being pointless. */
+/** The dispatch feed refreshes every two minutes and the server caches it, so asking once a minute is as fresh as it gets. */
 const INCIDENT_POLL_MS = 60_000;
 const RERANK_MS = 20_000;
 const RETRY_MS = 5_000;
@@ -84,7 +84,7 @@ export function App(): ReactElement {
   const [openIncident, setOpenIncident] = useState<string | null>(null);
   const [arbiterOpen, setArbiterOpen] = useState(() => readArbiterOpen());
 
-  // Loads the graph, the national index and the region list, retrying with a widening gap so an unattended screen recovers from a backend restart on its own. The cancel flag is what keeps React's doubled development mount from running two retry chains.
+  // Loads the graph, the national index and the region list, retrying with a widening gap so an unattended screen recovers from a backend restart. The cancel flag keeps React's doubled development mount from running two retry chains.
   useEffect(() => {
     let canceled = false;
     let timer = 0;
@@ -127,7 +127,7 @@ export function App(): ReactElement {
   const tourRef = useRef(tour);
   tourRef.current = tour;
 
-  // Road trips: every numbered route in the current city, driven camera by camera in order. The runner is a timer like the tour, so it lives outside React and reports each stop back through state.
+  // Road trips: every numbered route in the current city, driven camera by camera. The runner is a timer, so it lives outside React and reports each stop through state.
   const trips = useMemo(() => (topology && region ? planTrips(topology, region) : []), [topology, region]);
   const tripsRef = useRef(trips);
   tripsRef.current = trips;
@@ -167,7 +167,7 @@ export function App(): ReactElement {
     setTripPicker(false);
   }, [region, stopTrip]);
 
-  // The sun relay: whichever city the sun is setting over, handing off westward through the evening. It chooses the city itself, so anything the viewer chooses by hand ends it.
+  // The sun relay follows the sunset westward and chooses the city itself, so anything the viewer chooses by hand ends it.
   const [relay, setRelay] = useState<RelayPick | null>(null);
   const [relayNow, setRelayNow] = useState(() => Date.now() / 1000);
   const relayCities: RelayCity[] = useMemo(
@@ -276,8 +276,7 @@ export function App(): ReactElement {
     const run = async (): Promise<void> => {
       // A tab nobody can see asks for nothing, so the server lets the city's cameras slow down and, once the viewer has been gone a couple of minutes, stop.
       if (document.hidden) return;
-      // Naming the city keeps its cameras polled on a server that was started without one. At the country level nothing is named, so nothing is polled.
-      // The cameras on screen go with the poll: the server polls those at the source's own rate and lets the rest of the city tick over slowly. At the country level nothing is named and nothing is polled.
+      // Naming the city keeps its cameras polled on a server started without one, and the cameras on screen poll at the source's own rate while the rest tick over slowly. At the country level nothing is named and nothing is polled.
       const state = await getCameras(level === 'national' ? null : region, level === 'wall' ? visibleCameras.current : []);
       if (canceled) return;
       if (!state) {
@@ -305,7 +304,7 @@ export function App(): ReactElement {
       const next = await getIncidents(region);
       if (canceled) return;
       setIncidents(next);
-      // `idle` means the server has not read the feed because this city was not being watched yet, which is the ordinary state for the first second or two after opening one. Ask again shortly rather than leaving the map blank for a minute.
+      // `idle` means the server has not read the feed yet because nobody was watching this city, which is ordinary for the first second or two. Ask again shortly rather than leaving the map blank for a minute.
       if (next?.status === 'idle') retry = window.setTimeout(() => void run(), 5000);
     };
     void run();
@@ -360,7 +359,7 @@ export function App(): ReactElement {
     setLevel(view === 'board' ? 'board' : view === 'wall' ? 'wall' : view === 'map' ? 'map' : view === 'national' ? 'national' : view === 'home' ? 'home' : startRegion || hasCamera ? 'map' : 'home');
   }, [boot, topology, tour]);
 
-  /** Keeps the fragment pointed at the current level so a screen can be restored to it. replaceState rather than a hash assignment, which would otherwise pile up history entries as the tour walks a corridor. */
+  /** Keeps the fragment pointed at the current level so a screen can be restored to it. replaceState rather than a hash assignment, which would pile up history entries as the tour walks. */
   useEffect(() => {
     if (!boot) return;
     const shown: Level = boot.national ? level : level === 'national' || level === 'home' ? 'map' : level;
@@ -393,7 +392,7 @@ export function App(): ReactElement {
       const target = event.target as HTMLElement | null;
       // The replay slider owns the arrow keys while it has focus, otherwise scrubbing and stepping along the graph fight each other.
       if (target && (target.tagName === 'INPUT' || target.isContentEditable)) return;
-      // Space and Enter belong to whatever is focused: a button, a link, or the city menu's summary. Claiming Space globally meant that opening the menu from the keyboard started the corridor tour instead.
+      // Space and Enter belong to whatever is focused: a button, a link, or the city menu's summary.
       if ((event.key === ' ' || event.key === 'Enter') && target?.closest('button, summary, a[href], select, textarea')) return;
       const current = keyState.current;
       switch (event.key) {
@@ -443,7 +442,7 @@ export function App(): ReactElement {
 
   const wallCameras = useMemo(() => {
     if (!topology) return [];
-    // Tiles come from the poll state rather than the graph: the backend serves frames for the cameras it is polling and 404s for the rest, and a wall of permanently blank tiles would look broken rather than calm.
+    // Tiles come from the poll state rather than the graph: the backend 404s the cameras it is not polling, and a wall of blank tiles would look broken.
     const out = [];
     for (const state of poll.states) {
       const item = topology.cameras.get(state.id);
@@ -462,7 +461,7 @@ export function App(): ReactElement {
   );
   const ranks = useWallRanking(wallCameras, statesById, RERANK_MS, personalScore);
 
-  // Attention spreading along the roads, for the city map: which cameras the scorer is looking at closely because a neighbor saw something, read every ten seconds while the map is on screen, and which carry a queue floor from an incident or stopped traffic further down the road, read from the poll the map already has.
+  // Attention spreading along the roads, for the city map: promotions read every ten seconds while the map is on screen, and queue floors read from the poll the map already has.
   const [promotions, setPromotions] = useState<AttentionFlow[]>([]);
   const mapShown = level === 'map' && region !== null;
   useEffect(() => {
@@ -536,7 +535,7 @@ export function App(): ReactElement {
 
   const credits: Credits = useMemo(
     () => ({
-      // One line per agency whose cameras are being served, deduplicated: eighteen cities run on seven agencies.
+      // One line per agency whose cameras are being served, deduplicated.
       cameras: [...new Map((boot?.regions ?? []).filter((r) => Boolean(r.attribution)).map((r) => [r.attribution as string, { attribution: r.attribution as string, license: r.license ?? '', terms_url: r.terms_url ?? '', notice: r.notice ?? '' }])).values()].sort((a, b) => a.attribution.localeCompare(b.attribution)),
       counts: [...new Map((boot?.regions ?? []).filter((r) => Boolean(r.counts_attribution)).map((r) => [r.counts_attribution as string, { attribution: r.counts_attribution as string, terms_url: r.counts_terms_url ?? '' }])).values()],
       states: boot?.national?.attribution ?? '',

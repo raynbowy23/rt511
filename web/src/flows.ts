@@ -2,7 +2,7 @@ import type { LatLon } from '@rt511/shared';
 
 /** Attention spreading along the road: from a camera that saw something to a camera it made worth watching.
  *
- * Two kinds reach the map. A promotion is the wall looking closely at a camera's road neighbors because that camera saw an incident, stopped traffic or unusual movement. A queue is a floor raised under a camera upstream of an incident or of stopped traffic, because the queue could reach it. Both are things the scorer already decides; this module only turns them into paths along the road graph so they can be drawn moving. */
+ * A promotion is the wall looking closely at a camera's road neighbors because that camera saw something. A queue is a floor raised under a camera upstream of an incident or stopped traffic. The scorer decides both; this module only turns them into road paths that can be drawn moving. */
 
 export type FlowReason = 'incident' | 'still' | 'movement';
 
@@ -22,7 +22,7 @@ export interface Link {
   points: LatLon[];
 }
 
-/** The road between two sites as one line, found by a breadth-first walk over the graph's links in either direction, since attention spreads both up and down a road. Null when the two are not connected within `maxHops`, which leaves that flow undrawn rather than drawn as a straight line across the map. */
+/** The road between two sites as one line, by a breadth-first walk over the links in either direction, since attention spreads both up and down a road. Null when the two are not connected within `maxHops`, which leaves that flow undrawn rather than drawn as a straight line. */
 export function roadPath(links: ReadonlyMap<string, Link[]>, from: string, to: string, maxHops = 8): LatLon[] | null {
   if (from === to) return null;
   const previous = new Map<string, { site: string; points: LatLon[] }>();

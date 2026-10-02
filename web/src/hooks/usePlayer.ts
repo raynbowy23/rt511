@@ -4,7 +4,7 @@ import { getStream, type Camera } from '../api';
 
 /** Owns the one video element's playback: the stream lookup, the hls.js instance and its teardown.
  *
- * Kept out of the component body on purpose. React's development mode mounts every effect twice, and an async attach that ignores its own cancellation would leave a second hls.js instance pulling segments for a video element nobody can see. Every path out of this effect destroys what it made. */
+ * React's development mode mounts every effect twice, and an async attach that ignores its own cancellation would leave a second hls.js instance pulling segments for a video element nobody can see. Every path out of this effect destroys what it made. */
 export function usePlayer(video: HTMLVideoElement | null, camera: Camera | null): { mode: string; live: boolean } {
   const [mode, setMode] = useState('Loading');
   const [live, setLive] = useState(false);

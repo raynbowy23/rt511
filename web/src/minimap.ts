@@ -2,7 +2,7 @@ import type { Graph, Site, Edge } from './api';
 
 const NS = 'http://www.w3.org/2000/svg';
 
-/** Site ids are namespaced by region, as in `madison:S008`, so the prefix is the region a site belongs to. A single-region graph still works: everything lands in one group. */
+/** Site ids are namespaced by region, as in `<region>:S008`, so the prefix is the region a site belongs to. A single-region graph still works: everything lands in one group. */
 const regionOf = (siteId: string): string => {
   const cut = siteId.indexOf(':');
   return cut === -1 ? '' : siteId.slice(0, cut);
@@ -15,9 +15,9 @@ interface RegionLayer {
   edges: number;
 }
 
-/** An inline SVG of the site graph in an equirectangular projection. No tiles, no basemap, no external requests: only the geometry the API hands us.
+/** An inline SVG of the site graph in an equirectangular projection. No tiles, no basemap, no external requests.
  *
- * One region is drawn at a time. Serving Tallahassee and Madison together puts two clusters 1500 km apart in one picture, and a viewBox spanning both shrinks each to an invisible speck, so the map follows whichever region the hero is in. */
+ * One region is drawn at a time, because a viewBox spanning regions far apart shrinks each to a speck, so the map follows whichever region the hero is in. */
 export class Minimap {
   readonly root: HTMLElement;
   private readonly svg: SVGSVGElement;
@@ -142,7 +142,7 @@ export class Minimap {
     this.root.remove();
   }
 
-  /** Follows the region being viewed even when no camera is open. Without this the corner map keeps showing whichever region happened to be drawn first, which reads as a bug while standing in another one. */
+  /** Follows the region being viewed even when no camera is open, rather than whichever region happened to be drawn first. */
   showRegion(key: string | null): void {
     if (key === null) return;
     this.show(key);

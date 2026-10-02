@@ -11,7 +11,7 @@ const PACE_DIVISOR = 8;
 /** A trip needs at least this many cameras to be worth driving. */
 const MIN_STOPS = 3;
 
-/** Every state's two-letter postal code, which is also its state-route prefix on signs and in feeds ("IA 5", "OH-161"). A fact about the country rather than about this project's sources, so a newly added state's routes are read without touching this file. */
+/** Every state's two-letter postal code, which is also its state-route prefix on signs and in feeds ("IA 5", "OH-161"). Listed for the whole country so a newly added state needs no change here. */
 const STATES = 'AL|AK|AZ|AR|CA|CO|CT|DE|DC|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY';
 /** Interstate, US and generic state routes, in any case. */
 const NATIONAL_RE = /\b(I|US|SR)[\s-]*(\d+)/i;

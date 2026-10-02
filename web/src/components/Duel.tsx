@@ -13,7 +13,7 @@ const RANK_AFTER = 10;
 /** Cameras shown in this many recent pairs are rested, so the same few do not keep coming back. */
 const RECENT = 6;
 
-/** "Which would you watch?": two cameras from the city, pictures only, and a choice. Each choice is a comparison the model learns the person's own attention from, and the wall's score is revealed afterwards so the two can be compared. The panel beside it shows what the person weighs, how often they and the wall agree, and where they disagree most. */
+/** "Which would you watch?": two cameras from the city, pictures only, and a choice. Each choice is a comparison the model learns the person's own attention from, and the wall's score is revealed afterwards. */
 export function Duel({
   candidates,
   votes,
@@ -35,7 +35,7 @@ export function Duel({
 }): ReactElement {
   const recent = useRef<number[]>([]);
   const [pair, setPair] = useState<[Candidate, Candidate] | null>(null);
-  /** When the pair was drawn. The pictures are asked for as of this moment, so a poll landing mid-decision does not swap in a newer frame than the one the recorded features describe. */
+  /** When the pair was drawn. The pictures are asked for as of this moment, so a poll landing mid-decision does not swap in a newer frame than the recorded features describe. */
   const [pairAt, setPairAt] = useState(() => Date.now() / 1000);
   /** The pause after a choice. Cleared whenever the pair changes some other way, or the pause would replace a pair the person is already looking at. */
   const pause = useRef(0);

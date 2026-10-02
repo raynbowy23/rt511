@@ -11,7 +11,7 @@ export interface TourControls {
   follow: (cameraId: number) => void;
 }
 
-/** Wraps the corridor tour, which is a timer walking the graph rather than anything React should own. The promote callback is held in a ref so the timer always calls the current one without the tour being rebuilt on every render. */
+/** Wraps the corridor tour, a timer walking the graph outside React. The promote callback is held in a ref so the tour is not rebuilt on every render. */
 export function useTour(topology: Topology | null, promote: (camera: Camera) => void): TourControls {
   const [running, setRunning] = useState(false);
   const promoteRef = useRef(promote);

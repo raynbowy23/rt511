@@ -1,6 +1,6 @@
 /** A thin shape check at the boundary between the wall and its server.
  *
- * This used to be a full recursive walk of every field of every response, and it earned its keep when the server was Python: a renamed field crossed a language boundary with nothing to catch it, and the walk is what found cameras whose `site` had become null. The server is TypeScript now and imports the same contract from `@rt511/shared`, so field names cannot drift between the two without a compile error, and the server validates the pipeline's files where they are read. What remains here is the part types cannot cover: this bundle is a build artifact that can be served by a different version of the server, or reach a proxy's error page instead of the server at all, and `as T` on either would hand a render an undefined.
+ * The server imports the same contract from `@rt511/shared`, so field names cannot drift between the two without a compile error. What remains here is the part types cannot cover: this bundle can be served by a different version of the server, or reach a proxy's error page, and `as T` on either would hand a render an undefined.
  *
  * So each endpoint is checked shallowly — the top-level shape, the presence of the collections the UI iterates, and one sample of each coordinate array — and the coordinate brands are applied here, which is the only place raw JSON becomes a typed pair. */
 
@@ -39,12 +39,12 @@ export function str(value: unknown, path: string): string {
   return value;
 }
 
-/** Checks that a field exists and is of the right kind without walking into it. The server guarantees what is inside; this guarantees the thing on the wire is a response from that server at all. */
+/** Checks that a field exists and is of the right kind without walking into it. */
 export function field<T>(source: Record<string, unknown>, key: string, path: string, check: (value: unknown, path: string) => T): T {
   return check(source[key], `${path}.${key}`);
 }
 
-/** Brands a whole geometry structure after checking one sample point. A swap between the two coordinate orders is a compile error everywhere downstream, which is what the brands are for; checking every point again would only repeat what the server already did. */
+/** Brands a whole geometry structure after checking one sample point; the server already checked the rest, and the brands make a coordinate-order swap a compile error downstream. */
 export function latLonRings(value: unknown, path: string): LatLon[][] {
   const rings = arr(value, path);
   samplePair(rings[0], `${path}[0]`);

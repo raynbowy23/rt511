@@ -8,7 +8,7 @@ export interface City {
   served: boolean;
 }
 
-/** How many cities fit as tabs at a given pane width. Eighteen tabs overflowed and clipped across the top of the map, which is what this replaces; the rest live in the menu, which holds all of them. */
+/** How many cities fit as tabs at a given pane width. The rest live in the menu, which holds all of them. */
 function slotsFor(width: number): number {
   if (width < 640) return 2;
   if (width < 860) return 3;
@@ -30,7 +30,7 @@ function distanceKm(a: [number, number], b: [number, number]): number {
 
 /** The city strip over the map: the city you are in, then its nearest neighbors, then a menu holding every city.
  *
- * Nearest rather than alphabetical because the cities you are most likely to want next are the ones near the one you are looking at, and because with eighteen of them alphabetical order puts Atlanta and Boise side by side for no reason. */
+ * Nearest rather than alphabetical because the cities you are most likely to want next are the ones near the one you are looking at. */
 export function CitySwitcher({
   cities,
   current,
@@ -64,7 +64,7 @@ export function CitySwitcher({
     };
   }, []);
 
-  // Close the menu when the pointer goes elsewhere, which is what every other menu on the web does.
+  // Close the menu when the pointer goes elsewhere.
   useEffect(() => {
     const onPointerDown = (event: PointerEvent): void => {
       const element = menu.current;
